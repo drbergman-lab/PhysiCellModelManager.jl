@@ -131,7 +131,7 @@ struct DiscreteVariation{T} <: ElementaryVariation
     end
 end
 
-DiscreteVariation(xml_path::Vector{<:AbstractString}, value::T) where T = DiscreteVariation(xml_path, [value])
+DiscreteVariation(xml_path::Vector{<:AbstractString}, value::T) where T = DiscreteVariation(xml_path, Vector{T}([value]))
 
 Base.length(discrete_variation::DiscreteVariation) = length(discrete_variation.values)
 
@@ -176,7 +176,7 @@ DistributedVariation:
 using Distributions
 d = Uniform(1, 2)
 flip = true # the cdf on this variation will decrease from 1 to 0 as the value increases from 1 to 2
-DistributedVariation(pcvct.necrosisPath("default", "death_rate"), d, flip)
+DistributedVariation(pcvct.necrosisPath("default", "death_rate"), d; flip=flip)
 # output
 DistributedVariation (flipped):
   location: config
@@ -189,10 +189,10 @@ struct DistributedVariation <: ElementaryVariation
     distribution::Distribution
     flip::Bool
 
-    function DistributedVariation(target::Vector{<:AbstractString}, distribution::Distribution, flip::Bool=false)
-        return DistributedVariation(XMLPath(target), distribution, flip)
+    function DistributedVariation(target::Vector{<:AbstractString}, distribution::Distribution; flip::Bool=false)
+        return DistributedVariation(XMLPath(target), distribution; flip=flip)
     end
-    function DistributedVariation(target::XMLPath, distribution::Distribution, flip::Bool=false)
+    function DistributedVariation(target::XMLPath, distribution::Distribution; flip::Bool=false)
         location = variationLocation(target)
         return new(location, target, distribution, flip)
     end
@@ -225,21 +225,21 @@ function Base.show(io::IO, ::MIME"text/plain", dv::DistributedVariation)
 end
 
 """
-    UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T) where {T<:Real}
+    UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T; flip::Bool=false) where {T<:Real}
 
 Create a distributed variation with a uniform distribution.
 """
-function UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T, flip::Bool=false) where {T<:Real}
-    return DistributedVariation(xml_path, Uniform(lb, ub), flip)
+function UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T; flip::Bool=false) where {T<:Real}
+    return DistributedVariation(xml_path, Uniform(lb, ub); flip=flip)
 end
 
 """
-    NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf) where {T<:Real}
+    NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf, flip::Bool=false) where {T<:Real}
 
 Create a (possibly truncated) distributed variation with a normal distribution.
 """
-function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T, flip::Bool=false; lb::Real=-Inf, ub::Real=Inf) where {T<:Real}
-    return DistributedVariation(xml_path, truncated(Normal(mu, sigma), lb, ub), flip)
+function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf, flip::Bool=false) where {T<:Real}
+    return DistributedVariation(xml_path, truncated(Normal(mu, sigma), lb, ub); flip=flip)
 end
 
 """
@@ -447,11 +447,14 @@ end
 """
     addDomainVariationDimension!(evs::Vector{<:ElementaryVariation}, domain::NamedTuple)
 
-Pushes variations onto `evs` for each domain boundary named in `domain`.
+Deprecated function that pushes variations onto `evs` for each domain boundary named in `domain`.
 
 The names in `domain` can be flexibly named as long as they contain either `min` or `max` and one of `x`, `y`, or `z` (other than the the `x` in `max`).
 It is not required to include all three dimensions and their boundaries.
 The values for each boundary can be a single value or a vector of values.
+
+Instead of using this function, use `configPath("x_min")`, `configPath("x_max")`, etc. to create the XML paths and then use `DiscreteVariation` to create the variations.
+Use a [`CoVariation`](@ref) if you want to vary any of these together.
 
 # Examples:
 ```
@@ -488,7 +491,9 @@ end
 """
     addAttackRateVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, target_name::String, values::Vector{T} where T)
 
-Pushes a variation onto `evs` for the attack rate of a cell type against a target cell type.
+Deprecated function that pushes a variation onto `evs` for the attack rate of a cell type against a target cell type.
+
+Instead of using this function, use `configPath(<attacker_cell_type>, "attack", <target_cell_type>)` to create the XML path and then use `DiscreteVariation` to create the variation.
 
 # Examples:
 ```
@@ -504,7 +509,9 @@ end
 """
     addCustomDataVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, field_name::String, values::Vector{T} where T)
 
-Pushes a variation onto `evs` for a custom data field of a cell type.
+Deprecated function that pushes a variation onto `evs` for a custom data field of a cell type.
+
+Instead of using this function, use `configPath(<cell_definition>, "custom", <tag>)` to create the XML path and then use `DiscreteVariation` to create the variation.
 
 # Examples:
 ```

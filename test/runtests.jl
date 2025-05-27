@@ -3,7 +3,7 @@ using pcvct, Test
 include("./test-scripts/PrintHelpers.jl")
 
 @testset "pcvct.jl" begin
-    #! Write your tests here.
+
     include("./test-scripts/CreateProjectTests.jl")
 
     include("./scripts/GenerateData.jl") #! this file is created by CreateProjectTests.jl
@@ -41,4 +41,7 @@ include("./test-scripts/PrintHelpers.jl")
 
     #! probably want this one last (it deletes/resets things)
     include("./test-scripts/DeletionTests.jl")
+
+    #! test deps
+    include("./test-scripts/DepsTests.jl")
 end

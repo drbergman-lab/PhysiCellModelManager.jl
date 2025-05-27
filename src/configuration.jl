@@ -998,7 +998,7 @@ function rulePath(cell_definition::AbstractString, behavior::AbstractString, pat
 end
 
 """
-    icCellsPath(cell_definition::AbstractString, patch_type::AbstractString, patch_id, path_elements::Vararg{<:Union{Integer,AbstractString}})
+    icCellsPath(cell_definition::AbstractString, patch_type::AbstractString, patch_id, path_elements::Vararg{Union{Integer,AbstractString}})
 
 Return the XML path to the IC cell patch for the given cell type, patch type, and patch ID.
 The remaining arguments are either just the tag for the patch parameter or the carveout patch type, ID, and tag.
@@ -1024,7 +1024,7 @@ julia> icCellsPath("default", "annulus", 1, "rectangle", 1, "width")
  "width"
 ```
 """
-function icCellsPath(cell_definition::AbstractString, patch_type::AbstractString, patch_id, path_elements::Vararg{<:Union{Integer,AbstractString}})
+function icCellsPath(cell_definition::AbstractString, patch_type::AbstractString, patch_id, path_elements::Vararg{Union{Integer,AbstractString}})
     supported_patch_types = PhysiCellCellCreator.supportedPatchTypes()
     @assert patch_type in supported_patch_types "IC Cell patch_type must be one of the available patch types, i.e., in $(supported_patch_types). Got $(patch_type)"
     xml_path = ["cell_patches:name:$(cell_definition)"; "patch_collection:type:$(patch_type)"; "patch:ID:$(patch_id)"]

@@ -17,5 +17,5 @@ c = connectedComponents(snapshot; include_dead=true)
 c = connectedComponents(snapshot; include_cell_type_names=["fast T cell", "slow T cell", "effector T cell", "exhausted T cell"], include_dead=true)
 
 #! deprecation tests
-@test_warn "`include_cell_types` is deprecated as a keyword. Use `include_cell_type_names` instead." connectedComponents(snapshot; include_cell_types=:all)
-@test_warn "`exclude_cell_types` is deprecated as a keyword. Use `exclude_cell_type_names` instead." connectedComponents(snapshot; exclude_cell_types=cell_types)
+@test_warn "Keyword argument `include_cell_types` is deprecated. Use `include_cell_type_names` instead." connectedComponents(snapshot; include_cell_types=:all)
+@test_warn "Keyword argument `exclude_cell_types` is deprecated. Use `exclude_cell_type_names` instead." connectedComponents(snapshot; exclude_cell_types=cell_types)

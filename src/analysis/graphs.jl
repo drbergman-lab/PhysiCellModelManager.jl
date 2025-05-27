@@ -1,5 +1,8 @@
 using Graphs, MetaGraphsNext
 
+include(joinpath(@__DIR__, "..", "..", "deps", "DeprecateKeywords.jl"))
+import .DeprecateKeywords: @depkws
+
 export connectedComponents
 
 """
@@ -34,25 +37,15 @@ For each key, the value is a list of connected components in the graph.
 Each component is represented as a vector of vertex labels.
 As of this writing, the vertex labels are the simple `AgentID` class that wraps the cell ID.
 """
-function connectedComponents(snapshot::PhysiCellSnapshot, graph::Symbol=:neighbors; include_cell_type_names=:all_in_one, exclude_cell_type_names=String[], include_dead::Bool=false,
-                             include_cell_types=nothing, exclude_cell_types=nothing)
+@depkws force=true function connectedComponents(snapshot::PhysiCellSnapshot, graph::Symbol=:neighbors; include_cell_type_names=:all_in_one, exclude_cell_type_names=String[], include_dead::Bool=false,
+    @deprecate(include_cell_types, include_cell_type_names), @deprecate(exclude_cell_types, exclude_cell_type_names))
     is_all_in_one = include_cell_type_names == :all_in_one
     cell_type_to_name_dict = cellTypeToNameDict(snapshot)
     cell_type_names = values(cell_type_to_name_dict) |> collect
 
-    if !isnothing(include_cell_types)
-        @assert include_cell_type_names == :all_in_one "Do not use both `include_cell_types` and `include_cell_type_names` as keyword arguments. Use `include_cell_type_names` instead."
-        Base.depwarn("`include_cell_types` is deprecated as a keyword. Use `include_cell_type_names` instead.", :connectedComponents, force=true)
-        include_cell_type_names = include_cell_types
-    end
     include_cell_type_names = processIncludeCellTypes(include_cell_type_names, cell_type_names)
-
-    if !isnothing(exclude_cell_types)
-        @assert exclude_cell_type_names == String[] "Do not use both `exclude_cell_types` and `exclude_cell_type_names` as keyword arguments. Use `exclude_cell_type_names` instead."
-        Base.depwarn("`exclude_cell_types` is deprecated as a keyword. Use `exclude_cell_type_names` instead.", :connectedComponents, force=true)
-        exclude_cell_type_names = exclude_cell_types
-    end
     exclude_cell_type_names = processExcludeCellTypes(exclude_cell_type_names)
+
     loadGraph!(snapshot, graph)
     if is_all_in_one
         G = getfield(snapshot, graph) |> deepcopy

@@ -113,6 +113,8 @@ jobs:
         PCVCT_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
 
     - uses: julia-actions/julia-processcoverage@v1
+      with:
+        directories: src,deps
     
     - uses: codecov/codecov-action@v5
       with:

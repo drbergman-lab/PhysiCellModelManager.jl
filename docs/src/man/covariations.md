@@ -44,8 +44,7 @@ using pcvct
 timing_1_path = configPath("user_parameters", "event_1_time")
 timing_2_path = configPath("user_parameters", "event_2_time")
 dv1 = UniformDistributedVariation(timing_1_path, 100.0, 200.0)
-flip = true
-dv2 = UniformDistributedVariation(timing_2_path, 100.0, 200.0, flip)
+dv2 = UniformDistributedVariation(timing_2_path, 100.0, 200.0; flip=true)
 covariation = CoVariation(dv1, dv2)
 cdf = 0.1
 pcvct.variationValues.(covariation.variations, cdf) # pcvct internal for getting values for an ElementaryVariation

@@ -30,8 +30,7 @@ end
 @test pcvct.gitDirectoryIsClean(pcvct.physicellDir())
 
 # test with PhysiCell download
-original_data_dir = pcvct.dataDir()
-original_physicell_dir = pcvct.physicellDir()
+original_project_dir = dirname(pcvct.dataDir())
 
 project_dir = "./test-project-download"
 createProject(project_dir; clone_physicell=false)
@@ -40,5 +39,5 @@ physicell_dir = joinpath(project_dir, "PhysiCell")
 initializeModelManager(physicell_dir, data_dir)
 pcvct.resolvePhysiCellVersionID()
 
-initializeModelManager(original_physicell_dir, original_data_dir)
+initializeModelManager(original_project_dir)
 pcvct.resolvePhysiCellVersionID()

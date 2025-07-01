@@ -13,7 +13,11 @@ Make sure you are familiar with the [Best practices](https://drbergman.github.io
 See [Getting started](https://drbergman.github.io/pcvct/stable/man/getting_started/) for more details.
 
 1. [Install Julia](https://julialang.org/install).
-2. Add the PCVCTRegistry:
+2. Add the general registry:
+```julia-repl
+pkg> registry add https://github.com/JuliaRegistries/General
+```
+3. Add the PCVCTRegistry:
 ```julia-repl
 pkg> registry add https://github.com/drbergman/PCVCTRegistry
 ```

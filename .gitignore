@@ -4,6 +4,7 @@ test.jl
 *.db
 .vscode
 studio_debug.log
+/temp
 
 # from PkgTemplate.jl
 *.jl.*.cov

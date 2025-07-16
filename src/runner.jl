@@ -1,6 +1,6 @@
 import Base.run
 
-export runAbstractTrial
+export runAbstractTrial, run
 
 """
     prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full_setup::Bool, force_recompile::Bool)
@@ -385,7 +385,7 @@ end
 """
     runAbstractTrial(T::AbstractTrial; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions())
 
-Alias for [`run`](@ref), but only with this particular signature. Does not work on `Cmd` objects as `Base.run` is built for.
+Deprecated alias for [`run`](@ref), but only with this particular signature. Does not work on `Cmd` objects as `Base.run` is built for.
 Also, does not work with `run`ning sensitivity samplings.
 """
 function runAbstractTrial(T::AbstractTrial; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions())

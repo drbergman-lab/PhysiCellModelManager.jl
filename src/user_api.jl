@@ -1,6 +1,6 @@
 import Base.run
 
-export createTrial
+export createTrial, run
 
 """
     createTrial([method=GridVariation()], inputs::InputFolders, avs::Vector{<:AbstractVariation}=AbstractVariation[];

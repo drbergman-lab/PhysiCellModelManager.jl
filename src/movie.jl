@@ -2,8 +2,10 @@ export makeMovie
 
 """
     makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcvct_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcvct_globals.path_to_ffmpeg)
+    makeMovie(T::AbstractTrial; kwargs...)
+    makeMovie(out::PCVCTOutput; kwargs...)
 
-Make a movie for the simulation with ID `simulation_id`.
+Batch make movies for each simulation identified by the input.
 
 Use the PhysiCell Makefile to generate the movie.
 This process requires first generating JPEG files, which are then used to create the movie.
@@ -15,9 +17,25 @@ There are three ways to allow this function to find these dependencies:
   2. Set the `PATH` environment variable to include the directories containing the dependencies.
   3. Set environment variables `PCVCT_IMAGEMAGICK_PATH` and `PCVCT_FFMPEG_PATH` before `using pcvct`.
 
+# Arguments
+- `simulation_id::Int`: The ID of the simulation for which to make the movie.
+- `T::AbstractTrial`: Make movies for all simulations in the [`AbstractTrial`](@ref).
+- `out::PCVCTOutput`: Make movies for all simulations in the output, i.e., all simulations in the completed trial.
+
+# Keyword Arguments
+- `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses the global variable `pcvct_globals.path_to_magick`.
+- `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses the global variable `pcvct_globals.path_to_ffmpeg`.
+
 # Example
 ```julia
 makeMovie(123) # make a movie for simulation 123
+```
+```julia
+makeMovie(sampling) # make movies for all simulations in the sampling
+```
+```julia
+out = run(sampling) # run the sampling
+makeMovie(out) # make movies for all simulations in the output
 ```
 """
 function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcvct_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcvct_globals.path_to_ffmpeg)
@@ -68,24 +86,14 @@ function resolveMovieGlobals(magick_path::Union{Missing,String}, ffmpeg_path::Un
     end
 end
 
-"""
-    makeMovie(T::Union{AbstractTrial,PCVCTOutput}; magick_path::Union{Missing,String}=pcvct_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcvct_globals.path_to_ffmpeg)
-
-Make movies for all simulations in `T`, a simulation, monad, sampling, trial, or PCVCTOutput object.
-
-Uses the PhysiCell Makefile to generate the movies.
-
-# Examples
-```julia
-makeMovie(sampling) # make movies for all simulations in sampling
-```
-"""
-function makeMovie(T::Union{AbstractTrial,PCVCTOutput}; kwargs...)
+function makeMovie(T::AbstractTrial; kwargs...)
     simulation_ids = simulationIDs(T)
-    println("Making movies for $(trialType(T)) $(trialID(T)) with $(length(simulation_ids)) simulations...")
+    println("Making movies for $(typeof(T)) $(T.id) with $(length(simulation_ids)) simulations...")
     for simulation_id in simulation_ids
         print("  Making movie for simulation $simulation_id...")
         makeMovie(simulation_id; kwargs...)
         println("done.")
     end
 end
+
+makeMovie(T::PCVCTOutput; kwargs...) = makeMovie(T.trial; kwargs...)

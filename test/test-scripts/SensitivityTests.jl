@@ -40,15 +40,14 @@ dv3 = NormalDistributedVariation(xml_path, mu, sigma; lb=lb, ub=ub)
 avs = [CoVariation(dv1, dv3), dv2]
 
 n_points = 2^1-1
-n_replicates = 1
 
 gs_fn(simulation_id::Int) = finalPopulationCount(simulation_id)[cell_type]
 
-moat_sampling = run(MOAT(n_points), n_replicates, inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
-moat_sampling = run(MOAT(), n_replicates, inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
-moat_sampling = run(MOAT(4; orthogonalize=true), n_replicates, inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
-sobol_sampling = run(Sobolʼ(n_points), n_replicates, inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
-rbd_sampling = run(RBD(n_points), n_replicates, inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+moat_sampling = run(MOAT(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn], n_replicates=1)
+moat_sampling = run(MOAT(), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+moat_sampling = run(MOAT(4; orthogonalize=true), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+sobol_sampling = run(Sobolʼ(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+rbd_sampling = run(RBD(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 
 pcvct.calculateGSA!(moat_sampling, gs_fn)
 pcvct.calculateGSA!(sobol_sampling, gs_fn)
@@ -86,29 +85,28 @@ dv4 = UniformDistributedVariation(xml_path, 0.25, 0.75)
 
 av = CoVariation(dv1, dv2, dv3, dv4)
 
-moat_sampling = run(MOAT(n_points), n_replicates, inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+moat_sampling = run(MOAT(n_points), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 n_simulations_expected = n_points * (1 + 1) * n_replicates
 @test length(moat_sampling.sampling) == n_simulations_expected
 
 sobol_index_methods = (first_order=:Sobol1993, total_order=:Homma1996)
-sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), n_replicates, inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 sobol_index_methods = (first_order=:Saltelli2010, total_order=:Sobol2007)
-sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), n_replicates, inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 
 reference = simulationIDs(sobol_sampling)[1] |> Simulation
-sobol_sampling = run(Sobolʼ(2), n_replicates, reference, av)
+sobol_sampling = run(Sobolʼ(2), reference, av)
 
 # Testing sensitivity with CoVariations
 dv_max_time = DiscreteVariation(["overall", "max_time"], 12.0)
 
 reference = createTrial(inputs, dv_max_time; n_replicates=0)
 
-flip = true
 dv_apop = UniformDistributedVariation(configPath("default", "apoptosis", "death_rate"), 0.0, 1.0)
-dv_cycle = UniformDistributedVariation(pcvct.cyclePath("default", "phase_durations", "duration:index:0"), 1000.0, 2000.0, flip)
-dv_necr = NormalDistributedVariation(configPath("default", "necrosis", "death_rate"), 1e-4, 1e-5; lb=0.0, ub=1.0)
+dv_cycle = UniformDistributedVariation(pcvct.cyclePath("default", "phase_durations", "duration:index:0"), 1000.0, 2000.0; flip=true)
+dv_necr = NormalDistributedVariation(configPath("default", "necrosis", "death_rate"), 1e-4, 1e-5; lb=0.0, ub=1.0, flip=false)
 dv_pressure_hfm = UniformDistributedVariation(rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "half_max"), 0.1, 0.25)
-dv_x0 = UniformDistributedVariation(icCellsPath("default", "disc", 1, "x0"), -100.0, 0.0, flip)
+dv_x0 = UniformDistributedVariation(icCellsPath("default", "disc", 1, "x0"), -100.0, 0.0; flip=true)
 dv_anisotropy = UniformDistributedVariation(icECMPath(2, "elliptical_disc", 1, "anisotropy"), 0.0, 1.0)
 
 cv1 = CoVariation([dv_apop, dv_cycle]) #! I think wanted these to only be config variations?
@@ -116,15 +114,15 @@ cv2 = CoVariation([dv_necr, dv_pressure_hfm, dv_x0, dv_anisotropy]) #! I think I
 avs = [cv1, cv2]
 
 method = MOAT(4)
-gsa_sampling = run(method, n_replicates, reference, avs)
+gsa_sampling = run(method, reference, avs)
 @test size(gsa_sampling.monad_ids_df) == (4, 3)
 
 method = Sobolʼ(5)
-gsa_sampling = run(method, n_replicates, reference, avs)
+gsa_sampling = run(method, reference, avs)
 @test size(gsa_sampling.monad_ids_df) == (5, 4)
 
 method = RBD(5)
-gsa_sampling = run(method, n_replicates, reference, avs)
+gsa_sampling = run(method, reference, avs...) # test the method with Vararg variations
 @test size(gsa_sampling.monad_ids_df) == (5, 2)
 
 # print tests

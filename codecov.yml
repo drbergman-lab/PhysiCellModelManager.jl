@@ -1,3 +1,2 @@
 ignore:
-  - "src/public.jl"
   - "src/up.jl"

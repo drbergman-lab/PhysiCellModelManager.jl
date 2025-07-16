@@ -77,6 +77,7 @@ asts = pcvct.AverageSubstrateTimeSeries(1) # Load average substrate time series 
 asts.time # Get the time points
 asts["time"] # alternative way to get the time points
 asts["oxygen"] # Get the oxygen concentration over time
+```
 """
 struct AverageSubstrateTimeSeries
     simulation_id::Int

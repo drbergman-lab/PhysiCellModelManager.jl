@@ -526,7 +526,13 @@ end
 
 Adapt the Makefile to be used in the pcvct structure.
 """
-function adaptMakefile(::AbstractString)
+function adaptMakefile(path_from_inputs::AbstractString)
+    path_to_makefile = joinpath(dataDir(), "inputs", path_from_inputs, "Makefile")
+    file_str = read(path_to_makefile, String)
+    file_str = replace(file_str, "PhysiCell_rules." => "PhysiCell_rules_extended.")
+    open(path_to_makefile, "w") do io
+        write(io, file_str)
+    end
     return true #! nothing to do for now
 end
 
@@ -573,6 +579,11 @@ function adaptCustomCPP(path_from_inputs::AbstractString)
     end
 
     lines[idx] = "\tload_initial_cells();"
+
+    idx = findfirst(x -> contains(x, "setup_cell_rules"), lines)
+    if !isnothing(idx)
+        lines[idx] = "\tsetup_behavior_rules();"
+    end
 
     open(path_to_custom_cpp, "w") do f
         for line in lines

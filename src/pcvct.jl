@@ -91,15 +91,20 @@ function pcvctLogo()
 end
 
 """
-    initializeModelManager(path_to_physicell::String, path_to_data::String)
+    initializeModelManager()
+    initializeModelManager(path_to_project_dir::AbstractString)
+    initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString)
 
-Initialize the VCT environment by setting the paths to PhysiCell and data directories, and initializing the database.
+Initialize the pcvct project model manager, identifying the data folder, PhysiCell folder, and loading the central database.
+
+If no arguments are provided, it assumes that the PhysiCell and data directories are in the current working directory.
 
 # Arguments
-- `path_to_physicell::String`: Path to the PhysiCell directory as either an absolute or relative path.
-- `path_to_data::String`: Path to the data directory as either an absolute or relative path.
+- `path_to_project_dir::AbstractString`: Path to the project directory as either an absolute or relative path. This folder must contain the `PhysiCell` and `data` directories.
+- `path_to_physicell::AbstractString`: Path to the PhysiCell directory as either an absolute or relative path.
+- `path_to_data::AbstractString`: Path to the data directory as either an absolute or relative path.
 """
-function initializeModelManager(path_to_physicell::String, path_to_data::String; auto_upgrade::Bool=false)
+function initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString; auto_upgrade::Bool=false)
     #! print big logo of PCVCT here
     println(pcvctLogo())
     println("----------INITIALIZING----------")
@@ -129,16 +134,13 @@ function initializeModelManager(path_to_physicell::String, path_to_data::String;
     flush(stdout)
 end
 
-"""
-    initializeModelManager()
-
-Initialize the VCT environment assuming that the PhysiCell and data directories are in the current working directory.
-"""
 function initializeModelManager()
     physicell_dir = "PhysiCell"
     data_dir = "data"
     return initializeModelManager(physicell_dir, data_dir)
 end
+
+initializeModelManager(path_to_project_dir::AbstractString) = cd(() -> initializeModelManager(), path_to_project_dir)
 
 ################## Selection Functions ##################
 

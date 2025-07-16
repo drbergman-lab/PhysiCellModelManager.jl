@@ -270,6 +270,12 @@ end
 Revert the Makefile in the export folder to the given PhysiCell version.
 """
 function revertMakefile(export_folder::AbstractString, physicell_version::AbstractString)
+    path_to_makefile = joinpath(export_folder, "Makefile")
+    file_str = read(path_to_makefile, String)
+    file_str = replace(file_str, "PhysiCell_rules_extended" => "PhysiCell_rules")
+    open(path_to_makefile, "w") do io
+        write(io, file_str)
+    end
     return true #! nothing to do as of yet for the Makefile
 end
 
@@ -379,7 +385,12 @@ function revertCustomCPP(path_to_custom_modules::AbstractString, ::AbstractStrin
     lines = readlines(path_to_custom_cpp)
     idx = findfirst(x -> contains(x, "load_initial_cells();"), lines)
 
-    lines[idx] = "\tload_cells_from_pugixml();"
+    lines[idx] = "    load_cells_from_pugixml();"
+
+    idx = findfirst(x -> contains(x, "setup_behavior_rules()"), lines)
+    if !isnothing(idx)
+        lines[idx] = "    setup_cell_rules();"
+    end
 
     open(path_to_custom_cpp, "w") do io
         for line in lines

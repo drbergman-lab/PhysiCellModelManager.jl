@@ -5,7 +5,7 @@ hashBorderPrint(str)
 
 config = "template-combined"
 custom_code = "template-combined"
-cell_to_components_dict = Dict("default" => pcvct.PhysiCellComponent("roadrunner", "Toy_Metabolic_Model.xml"))
+cell_to_components_dict = Dict("default" => PhysiCellComponent("roadrunner", "Toy_Metabolic_Model.xml"))
 intracellular = assembleIntracellular!(cell_to_components_dict; name="template-combined")
 inputs = InputFolders(config, custom_code; intracellular=intracellular)
 

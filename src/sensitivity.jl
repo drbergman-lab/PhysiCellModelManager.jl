@@ -67,7 +67,6 @@ Run a global sensitivity analysis method on the given arguments.
 
 # Arguments
 - `method::GSAMethod`: the method to run. Options are [`MOAT`](@ref), [`Sobolʼ`](@ref), and [`RBD`](@ref).
-- `n_replicates::Integer`: the number of replicates to run for each monad, i.e., at each sampled parameter vector.
 - `inputs::InputFolders`: the input folders shared across all simuations to run.
 - `avs::AbstractVector{<:AbstractVariation}`: the elementary variations to sample. These can be either [`DiscreteVariation`](@ref)'s or [`DistributedVariation`](@ref)'s.
 
@@ -81,21 +80,23 @@ Otherwise, the `reference` simulation/monad will set the reference variation val
 - `ignore_indices::AbstractVector{<:Integer}=[]`: indices into `avs` to ignore when perturbing the parameters. Only used for Sobolʼ. See [`Sobolʼ`](@ref) for a use case.
 - `force_recompile::Bool=false`: whether to force recompilation of the simulation code
 - `prune_options::PruneOptions=PruneOptions()`: the options for pruning the simulation results
+- `n_replicates::Integer=1`: the number of replicates to run for each monad, i.e., at each sampled parameter vector.
 - `use_previous::Bool=true`: whether to use previous simulation results if they exist
 - `functions::AbstractVector{<:Function}=Function[]`: the functions to calculate the sensitivity indices for. Each function must take a simulation ID as the singular input and return a real number.
 """
-function run(method::GSAMethod, n_replicates::Integer, inputs::InputFolders, avs::Union{AbstractVariation,AbstractVector{<:AbstractVariation}}; functions::AbstractVector{<:Function}=Function[], kwargs...)
-    if avs isa AbstractVariation
-        avs = [avs]
-    end
+function run(method::GSAMethod, inputs::InputFolders, avs::AbstractVector{<:AbstractVariation}; functions::AbstractVector{<:Function}=Function[], kwargs...)
     pv = ParsedVariations(avs)
-    gsa_sampling = runSensitivitySampling(method, n_replicates, inputs, pv; kwargs...)
+    gsa_sampling = runSensitivitySampling(method, inputs, pv; kwargs...)
     sensitivityResults!(gsa_sampling, functions)
     return gsa_sampling
 end
 
-function run(method::GSAMethod, n_replicates::Integer, reference::AbstractMonad, avs::Union{AbstractVariation,Vector{<:AbstractVariation}}; functions::AbstractVector{<:Function}=Function[], kwargs...)
-    return run(method, n_replicates, reference.inputs, avs; reference_variation_id=reference.variation_id, functions, kwargs...)
+function run(method::GSAMethod, reference::AbstractMonad, avs::Vector{<:AbstractVariation}; functions::AbstractVector{<:Function}=Function[], kwargs...)
+    return run(method, reference.inputs, avs; reference_variation_id=reference.variation_id, functions, kwargs...)
+end
+
+function run(method::GSAMethod, inputs_or_ref::Union{InputFolders, AbstractMonad}, av1::AbstractVariation, avs::Vararg{AbstractVariation}; kwargs...)
+    return run(method, inputs_or_ref, [av1; avs...]; kwargs...)
 end
 
 """
@@ -189,7 +190,6 @@ Run a global sensitivity analysis method on the given arguments.
 
 # Arguments
 - `method::GSAMethod`: the method to run. Options are [`MOAT`](@ref), [`Sobolʼ`](@ref), and [`RBD`](@ref).
-- `n_replicates::Integer`: the number of replicates to run for each monad, i.e., at each sampled parameter vector.
 - `inputs::InputFolders`: the input folders shared across all simuations to run.
 - `pv::ParsedVariations`: the [`ParsedVariations`](@ref) object that contains the variations to sample.
 
@@ -198,12 +198,13 @@ Run a global sensitivity analysis method on the given arguments.
 - `ignore_indices::AbstractVector{<:Integer}=[]`: indices into `pv.variations` to ignore when perturbing the parameters. Only used for [Sobolʼ](@ref).
 - `force_recompile::Bool=false`: whether to force recompilation of the simulation code
 - `prune_options::PruneOptions=PruneOptions()`: the options for pruning the simulation results
+- `n_replicates::Int=1`: the number of replicates to run for each monad, i.e., at each sampled parameter vector.
 - `use_previous::Bool=true`: whether to use previous simulation results if they exist
 """
 function runSensitivitySampling end
 
-function runSensitivitySampling(method::MOAT, n_replicates::Int, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
-    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), use_previous::Bool=true)
+function runSensitivitySampling(method::MOAT, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
+    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), n_replicates::Int=1, use_previous::Bool=true)
 
     if !isempty(ignore_indices)
         error("MOAT does not support ignoring indices...yet? Only Sobolʼ does for now.")
@@ -234,7 +235,7 @@ function runSensitivitySampling(method::MOAT, n_replicates::Int, inputs::InputFo
     header_line = ["base"; columnName.(pv.variations)]
     monad_ids_df = DataFrame(monad_ids, header_line)
     sampling = Sampling(monad_dict |> values |> collect; n_replicates=n_replicates, use_previous=use_previous)
-    out = run(sampling; force_recompile=force_recompile, prune_options=prune_options)
+    run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return MOATSampling(sampling, monad_ids_df)
 end
 
@@ -357,8 +358,8 @@ function Base.show(io::IO, ::MIME"text/plain", sobol_sampling::SobolSampling)
     end
 end
 
-function runSensitivitySampling(method::Sobolʼ, n_replicates::Int, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
-    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), use_previous::Bool=true)
+function runSensitivitySampling(method::Sobolʼ, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
+    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), n_replicates::Int=1, use_previous::Bool=true)
 
     add_variations_result = addVariations(method.sobol_variation, inputs, pv, reference_variation_id)
     all_variation_ids = add_variations_result.all_variation_ids
@@ -387,7 +388,7 @@ function runSensitivitySampling(method::Sobolʼ, n_replicates::Int, inputs::Inpu
     header_line = ["A"; "B"; columnName.(pv.variations[focus_indices])]
     monad_ids_df = DataFrame(monad_ids, header_line)
     sampling = Sampling(monads; n_replicates=n_replicates, use_previous=use_previous)
-    out = run(sampling; force_recompile=force_recompile, prune_options=prune_options)
+    run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return SobolSampling(sampling, monad_ids_df; sobol_index_methods=method.sobol_index_methods)
 end
 
@@ -498,8 +499,8 @@ function Base.show(io::IO, ::MIME"text/plain", rbd_sampling::RBDSampling)
     end
 end
 
-function runSensitivitySampling(method::RBD, n_replicates::Int, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
-    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), use_previous::Bool=true)
+function runSensitivitySampling(method::RBD, inputs::InputFolders, pv::ParsedVariations; reference_variation_id::VariationID=VariationID(inputs),
+    ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), n_replicates::Int=1, use_previous::Bool=true)
     if !isempty(ignore_indices)
         error("RBD does not support ignoring indices...yet? Only Sobolʼ does for now.")
     end
@@ -510,7 +511,7 @@ function runSensitivitySampling(method::RBD, n_replicates::Int, inputs::InputFol
     header_line = columnName.(pv.variations)
     monad_ids_df = DataFrame(monad_ids, header_line)
     sampling = Sampling(monads; n_replicates=n_replicates, use_previous=use_previous)
-    out = run(sampling; force_recompile=force_recompile, prune_options=prune_options)
+    run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return RBDSampling(sampling, monad_ids_df, method.rbd_variation.num_cycles; num_harmonics=method.num_harmonics)
 end
 

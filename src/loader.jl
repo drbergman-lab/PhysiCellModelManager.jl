@@ -15,7 +15,11 @@ abstract type AbstractPhysiCellSequence end
 
 A single snapshot of a PhysiCell simulation.
 
-The `cells`, `substrates`, `mesh`, and graphs (`attachments`, `spring_attachments`, `neighbors`) fields may remain empty until they are needed for analysis.
+The `cells`, `substrates`, `mesh`, and graphs (`attachments`, `spring_attachments`, `neighbors`) fields may remain empty until they are needed for analysis or explicitly loaded by the user.
+
+# Constructors
+- `PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol}, labels::Vector{String}=String[], substrate_names::Vector{String}=String[]; kwargs...)`
+- `PhysiCellSnapshot(simulation::Simulation, args...; kwargs...)`
 
 # Fields
 - `simulation_id::Int`: The ID of the simulation.
@@ -28,6 +32,19 @@ The `cells`, `substrates`, `mesh`, and graphs (`attachments`, `spring_attachment
 - `spring_attachments::MetaGraph`: A graph of spring attachment data with vertices labeled by cell IDs.
 - `neighbors::MetaGraph`: A graph of cell neighbor data with vertices labeled by cell IDs.
 
+# Optional Arguments
+- `labels::Vector{String}=String[]`: A vector of cell data labels. Users should let pcvct load this.
+- `substrate_names::Vector{String}=String[]`: A vector of substrate names. Users should let pcvct load this.
+
+# Keyword Arguments
+- `include_cells::Bool=false`: Whether to load cell data.
+- `cell_type_to_name_dict::Dict{Int, String}=Dict{Int, String}()`: A dictionary mapping cell type IDs to cell type names.
+- `include_substrates::Bool=false`: Whether to load substrate data.
+- `include_mesh::Bool=false`: Whether to load mesh data.
+- `include_attachments::Bool=false`: Whether to load attachment data.
+- `include_spring_attachments::Bool=false`: Whether to load spring attachment data.
+- `include_neighbors::Bool=false`: Whether to load neighbor data.
+
 # Examples
 ```julia
 simulation_id = 1
@@ -37,6 +54,9 @@ snapshot = PhysiCellSnapshot(simulation_id, index)
 simulation = Simulation(simulation_id)
 index = :initial # :initial or :final are the accepted symbols
 snapshot = PhysiCellSnapshot(simulation, index)
+
+# Load with specific data types
+snapshot = PhysiCellSnapshot(simulation_id, index; include_cells=true, include_substrates=true)
 ```
 """
 struct PhysiCellSnapshot <: AbstractPhysiCellSequence
@@ -51,28 +71,6 @@ struct PhysiCellSnapshot <: AbstractPhysiCellSequence
     neighbors::MetaGraph
 end
 
-"""
-    PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol}, labels::Vector{String}=String[], substrate_names::Vector{String}=String[]; kwargs...)
-    
-Creates a snapshot of the PhysiCell simulation with optional parameters to include various data types.
-
-# Arguments
-- `simulation_id::Int`: The ID of the simulation. Can also be a `Simulation` object.
-- `index::Union{Integer, Symbol}`: The index of the snapshot. Can be an integer or a symbol (`:initial` or `:final`).
-
-# Optional Arguments
-- `labels::Vector{String}=String[]`: A vector of cell data labels.
-- `substrate_names::Vector{String}=String[]`: A vector of substrate names.
-
-# Keyword Arguments
-- `include_cells::Bool=false`: Whether to load cell data.
-- `cell_type_to_name_dict::Dict{Int, String}=Dict{Int, String}()`: A dictionary mapping cell type IDs to cell type names.
-- `include_substrates::Bool=false`: Whether to load substrate data.
-- `include_mesh::Bool=false`: Whether to load mesh data.
-- `include_attachments::Bool=false`: Whether to load attachment data.
-- `include_spring_attachments::Bool=false`: Whether to load spring attachment data.
-- `include_neighbors::Bool=false`: Whether to load neighbor data.
-"""
 function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
     labels::Vector{String}=String[],
     substrate_names::Vector{String}=String[];

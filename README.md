@@ -13,42 +13,46 @@ Make sure you are familiar with the [Best practices](https://drbergman.github.io
 See [Getting started](https://drbergman.github.io/pcvct/stable/man/getting_started/) for more details.
 
 1. [Install Julia](https://julialang.org/install).
-2. Add the PCVCTRegistry:
+2. Ensure the general registry is added:
+```julia-repl
+pkg> registry add General
+```
+3. Add the PCVCTRegistry:
 ```julia-repl
 pkg> registry add https://github.com/drbergman/PCVCTRegistry
 ```
-3. Install pcvct:
+4. Install pcvct:
 ```julia-repl
 pkg> add pcvct
 ```
-4. Create a new project:
+5. Create a new project:
 ```julia-repl
 julia> using pcvct
 julia> createProject()
 ```
-5. Import a project:
+6. Import a project:
 ```julia-repl
 julia> initializeModelManager()
 julia> importProject("path/to/project_folder") # replace with the path to your project folder
 ```
-6. Check the output of Step 5 and record your input folders:
+7. Check the output of Step 5 and record your input folders:
 ```julia-repl
 julia> config_folder = "my_project" # replace these with the name from the output of Step 5
 julia> custom_code_folder = "my_project"
 julia> rules_folder = "my_project" 
 julia> inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection = rules_folder) # also add ic_cell and ic_substrate if used
 ```
-7. Run the model:
+8. Run the model:
 ```julia-repl
 julia> out = run(inputs; n_replicates = 1)
 ```
-8. Check the output:
+9. Check the output:
 ```julia-repl
 julia> using Plots # make sure to install Plots first
 julia> plot(out)
 julia> plotbycelltype(out)
 ```
-9. Vary parameters:
+10. Vary parameters:
 ```julia-repl
 julia> xml_path = configPath("some_cell_type", "apoptosis", "death_rate") # replace with a cell type in your model
 julia> new_apoptosis_rates = [1e-5, 1e-4, 1e-3]

@@ -19,7 +19,7 @@ success = importProject(path_to_project, src, dest)
 
 inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rulesets_collection_folder, ic_cell=ic_cell_folder)
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 push!(discrete_variations, DiscreteVariation(configPath("max_time"), 12.0))
 push!(discrete_variations, DiscreteVariation(configPath("full_data"), 6.0))
 push!(discrete_variations, DiscreteVariation(configPath("svg_save"), 6.0))

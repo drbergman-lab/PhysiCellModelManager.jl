@@ -48,6 +48,13 @@ function createTrial(method::AddVariationMethod, inputs::InputFolders, avs::Vara
     return createTrial(method, inputs, [avs...]; kwargs...)
 end
 
+function createTrial(method::AddVariationMethod, inputs::InputFolders, avs::Vector; kwargs...)
+    avs = convertToAbstractVariationVector(avs)
+    return createTrial(method, inputs, avs; kwargs...)
+end
+
+createTrial(method::AddVariationMethod, inputs::InputFolders, avs::Vararg; kwargs...) = createTrial(method, inputs, [avs...]; kwargs...)
+
 createTrial(inputs::InputFolders, args...; kwargs...) = createTrial(GridVariation(), inputs, args...; kwargs...)
 
 function createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::Vector{<:AbstractVariation}=AbstractVariation[];
@@ -59,7 +66,33 @@ function createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::
     return createTrial(method, reference, [avs...]; kwargs...)
 end
 
+function createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::Vector; kwargs...)
+    avs = convertToAbstractVariationVector(avs)
+    return createTrial(method, reference, avs; kwargs...)
+end
+
+createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::Vararg; kwargs...) = createTrial(method, reference, [avs...]; kwargs...)
+
 createTrial(reference::AbstractMonad, args...; kwargs...) = createTrial(GridVariation(), reference, args...; kwargs...)
+
+
+function convertToAbstractVariationVector(avs::Vector)
+    try
+        return Vector{AbstractVariation}(avs)
+    catch _
+        msg = """
+        Variations must be a subtype AbstractVariation.
+        The following indices of the provided variations are not:
+        """
+        for (i, av) in enumerate(avs)
+            if av isa AbstractVariation
+                continue
+            end
+            msg *= "\n  - Index $i: $(typeof(av))"
+        end
+        throw(ArgumentError(msg))
+    end
+end
 
 """
     _createTrial(args...; kwargs...)
@@ -111,10 +144,4 @@ end
 
 run(inputs::InputFolders, args...; kwargs...) = run(GridVariation(), inputs, args...; kwargs...)
 
-function run(reference::AbstractMonad, av1::AbstractVariation, avs::Vararg{AbstractVariation}; kwargs...)
-    return run(GridVariation(), reference, [av1; avs...]; kwargs...)
-end
-
-function run(reference::AbstractMonad, avs::Vector{<:AbstractVariation}; kwargs...)
-    return run(GridVariation(), reference, avs; kwargs...)
-end
+run(reference::AbstractMonad, arg1, args...; kwargs...) = run(GridVariation(), reference, arg1, args...; kwargs...)

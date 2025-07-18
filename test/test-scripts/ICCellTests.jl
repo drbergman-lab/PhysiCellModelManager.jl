@@ -13,7 +13,7 @@ inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rul
 
 n_replicates = 1
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 push!(discrete_variations, DiscreteVariation(configPath("max_time"), 12.0))
 push!(discrete_variations, DiscreteVariation(configPath("full_data"), 6.0))
 push!(discrete_variations, DiscreteVariation(configPath("svg_save"), 6.0))
@@ -40,7 +40,7 @@ simulation_with_ic_cell_xml_id = simulationIDs(out.trial)[1] #! used in ExportTe
 
 hashBorderPrint("SUCCESSFULLY RAN SAMPLING WITH IC CELL VARIATION!")
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 xml_path = icCellsPath("default", "annulus", 1, "inner_radius")
 push!(discrete_variations, DiscreteVariation(xml_path, 300.0))
 

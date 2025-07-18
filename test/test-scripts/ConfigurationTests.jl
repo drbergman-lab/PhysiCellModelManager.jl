@@ -116,7 +116,7 @@ end
 @test_throws ArgumentError configPath(cell_type, "apoptosis", "not_a_death_par")
 @test_throws ArgumentError configPath(cell_type, "necrosis", "not_a_death_par")
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 for (i, xml_path) in enumerate(element_paths)
     if xml_path[end] == "number_of_cells"
         push!(discrete_variations, DiscreteVariation(xml_path, [1, 2]))
@@ -165,7 +165,7 @@ out = run(trial; force_recompile=false)
 
 hashBorderPrint("SUCCESSFULLY VARIED CONFIG PARAMETERS!")
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 
 xml_path = rulePath("default", "cycle entry", "decreasing_signals", "max_response")
 push!(discrete_variations, DiscreteVariation(xml_path, [0.0, 1e-8]))
@@ -178,7 +178,7 @@ out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 
 hashBorderPrint("SUCCESSFULLY VARIED RULESETS PARAMETERS!")
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 xml_path = configPath(cell_type, "speed")
 push!(discrete_variations, DiscreteVariation(xml_path, [0.1, 1.0]))
 xml_path = rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "half_max")

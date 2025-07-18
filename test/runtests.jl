@@ -2,46 +2,42 @@ using pcvct, Test
 
 include("./test-scripts/PrintHelpers.jl")
 
-@testset "pcvct.jl" begin
+test_order = [
+    "CreateProjectTests.jl",
+    "ProjectConfigurationTests.jl",
+    "RunnerTests.jl",
+    "UserAPITests.jl",
+    "ImportTests.jl",
+    "PrunerTests.jl",
+    "ConfigurationTests.jl",
+    "IntracellularTests.jl",
+    "ICCellTests.jl",
+    "ICECMTests.jl",
+    "ExportTests.jl",
+    "SensitivityTests.jl",
+    "DatabaseTests.jl",
+    "ClassesTests.jl",
+    "LoaderTests.jl",
+    "MovieTests.jl",
+    "PopulationTests.jl",
+    "SubstrateTests.jl",
+    "GraphsTests.jl",
+    "PCFTests.jl",
+    "VariationsTests.jl",
+    "HPCTests.jl",
+    "ModuleTests.jl",
+    "PhysiCellVersionTests.jl",
+    "PhysiCellStudioTests.jl",
+    "DeletionTests.jl",
+    "DepsTests.jl"
+]
 
-    include("./test-scripts/CreateProjectTests.jl")
+@testset "pcvct" begin
 
-    include("./scripts/GenerateData.jl") #! this file is created by CreateProjectTests.jl
+    for test_file in test_order
+        @testset "$test_file" begin
+            include("./test-scripts/$(test_file)")
+        end
+    end
 
-    include("./test-scripts/ProjectConfigurationTests.jl")
-
-    include("./test-scripts/RunnerTests.jl")
-    include("./test-scripts/UserAPITests.jl")
-    include("./test-scripts/ImportTests.jl")
-    include("./test-scripts/PrunerTests.jl")
-    include("./test-scripts/ConfigurationTests.jl")
-
-    include("./test-scripts/IntracellularTests.jl")
-    include("./test-scripts/ICCellTests.jl")
-    include("./test-scripts/ICECMTests.jl")
-
-    include("./test-scripts/ExportTests.jl")
-    include("./test-scripts/SensitivityTests.jl")
-    include("./test-scripts/DatabaseTests.jl")
-    include("./test-scripts/ClassesTests.jl")
-
-    #! post-processing tests
-    include("./test-scripts/LoaderTests.jl")
-    include("./test-scripts/MovieTests.jl")
-    include("./test-scripts/PopulationTests.jl")
-    include("./test-scripts/SubstrateTests.jl")
-    include("./test-scripts/GraphsTests.jl")
-    include("./test-scripts/PCFTests.jl")
-
-    include("./test-scripts/VariationsTests.jl")
-    include("./test-scripts/HPCTests.jl")
-    include("./test-scripts/ModuleTests.jl")
-    include("./test-scripts/PhysiCellVersionTests.jl")
-    include("./test-scripts/PhysiCellStudioTests.jl")
-
-    #! probably want this one last (it deletes/resets things)
-    include("./test-scripts/DeletionTests.jl")
-
-    #! test deps
-    include("./test-scripts/DepsTests.jl")
 end

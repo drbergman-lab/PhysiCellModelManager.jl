@@ -76,8 +76,9 @@ add_variations_result = pcvct.addVariations(pcvct.RBDVariation(3), inputs, discr
 
 add_variations_result = pcvct.addVariations(pcvct.RBDVariation(3; use_sobol=false), inputs, discrete_variations)
 
-# test deprecation of ElementaryVariation
-@test_warn "`ElementaryVariation` is deprecated in favor of the more descriptive `DiscreteVariation`." ElementaryVariation(xml_path, [0.0, 1.0])
+# test ElementaryVariation to initialize both DiscreteVariation and DistributedVariation
+@test ElementaryVariation(xml_path, [0.0, 1.0]) isa DiscreteVariation
+@test ElementaryVariation(xml_path, Uniform(0.0, 1.0)) isa DistributedVariation
 
 # CoVariation tests
 config_folder = "0_template"

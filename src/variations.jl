@@ -142,9 +142,12 @@ function Base.show(io::IO, ::MIME"text/plain", dv::DiscreteVariation)
     println(io, "  values: $(dv.values)")
 end
 
-function ElementaryVariation(args...; kwargs...)
-    Base.depwarn("`ElementaryVariation` is deprecated in favor of the more descriptive `DiscreteVariation`.", :ElementaryVariation; force=true)
-    return DiscreteVariation(args...; kwargs...)
+function ElementaryVariation(target::Vector{<:AbstractString}, v; kwargs...)
+    if v isa Distribution{Univariate}
+        return DistributedVariation(target, v; kwargs...)
+    else
+        return DiscreteVariation(target, v; kwargs...)
+    end
 end
 
 """

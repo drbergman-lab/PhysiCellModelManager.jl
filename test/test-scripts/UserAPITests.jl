@@ -24,3 +24,6 @@ out = run(method, reference, dv)
 
 method = RBDVariation(5)
 out = run(method, reference, dv)
+
+@test_throws ArgumentError createTrial(inputs, 1, 2, 3)
+@test_throws ArgumentError createTrial(reference, 1, dv, 3)

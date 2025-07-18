@@ -16,7 +16,7 @@ inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rul
 
 n_replicates = 1
 
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 push!(discrete_variations, DiscreteVariation(configPath("max_time"), 12.0))
 push!(discrete_variations, DiscreteVariation(configPath("full_data"), 6.0))
 push!(discrete_variations, DiscreteVariation(configPath("svg_save"), 6.0))
@@ -41,7 +41,7 @@ query = pcvct.constructSelectQuery("simulations", "WHERE simulation_id=1")
 df = pcvct.queryToDataFrame(query; is_row=true)
 
 cell_type = "default"
-discrete_variations = DiscreteVariation[]
+discrete_variations = []
 xml_path = configPath(cell_type, "cycle_duration", 0)
 push!(discrete_variations, DiscreteVariation(xml_path, [1.0, 2.0]))
 xml_path = configPath(cell_type, "cycle_duration", 1)

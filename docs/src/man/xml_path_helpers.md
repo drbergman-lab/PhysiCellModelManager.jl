@@ -33,7 +33,7 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
 ```
 
 ## Varying initial cell parameters
-pcvct supports an XML-based initialization of cell locations using [PhysiCellCellCreator.jl](https://github.com/drbergman/PhysiCellCellCreator.jl).
+pcvct supports an XML-based initialization of cell locations using [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl).
 See the documentation of that package for details on how to create the XML file.
 Use [`pcvct.createICCellXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
 From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).
@@ -45,7 +45,7 @@ The signature is as follows:
 icCellsPath(<cell_type>, <patch_type>, <patch_id>, <tag>)
 ```
 
-[PhysiCellCellCreator.jl](https://github.com/drbergman/PhysiCellCellCreator.jl) supports carveouts that can be used to not place cells within the given patches.
+[PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) supports carveouts that can be used to not place cells within the given patches.
 These are contained in a child element of the patch element and their parameters can be varied using the following signature:
 
 ```julia
@@ -53,7 +53,7 @@ icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id
 ```
 
 ## Varying initial ECM parameters
-pcvct supports an XML-based initialization of ECMs using [PhysiCellECMCreator.jl](https://github.com/drbergman/PhysiCellECMCreator.jl).
+pcvct supports an XML-based initialization of ECMs using [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl).
 See the documentation of that package for details on how to create the XML file.
 Use [`pcvct.createICECMXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
 From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).

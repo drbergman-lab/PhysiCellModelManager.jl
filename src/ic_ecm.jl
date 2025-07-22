@@ -7,7 +7,7 @@ using PhysiCellECMCreator
 
 Create folder with a template XML file for IC ECM.
 
-See the PhysiCellECMCreator.jl documentation for more information on IC ECM and how this function works outside of pcvct.
+See the [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) documentation for more information on IC ECM and how this function works outside of pcvct.
 This pcvct function runs the `createICECMXMLTemplate` function from PhysiCellECMCreator.jl and then updates the database.
 Furthermore, the folder can be passed in just as the name of the folder located in `data/inputs/ics/ecms/` rather than the full path.
 

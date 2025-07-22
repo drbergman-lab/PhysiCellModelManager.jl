@@ -37,7 +37,7 @@ Add within `data/inputs/custom_codes/default/` the following, each exactly as is
 Add a single file within `data/inputs/rulesets_collections/default/` called `base_rulesets.csv` with the base ruleset collection for your PhysiCell project.
 If your project does not use rules, you can skip this step.
 
-You may also place an XML file here. Use [PhysiCellXMLRules.jl](https://github.com/drbergman/PhysiCellXMLRules.jl) to create one from a standard CSV version of the rules.
+You may also place an XML file here. Use [PhysiCellXMLRules.jl](https://github.com/drbergman-lab/PhysiCellXMLRules.jl) to create one from a standard CSV version of the rules.
 
 **Important**: In either case, the variations you define *must* be on the XML version.
 After calling `initializeModelManager()`, any folder with `base_rulesets.csv` will now be populated with a `base_rulesets.xml` file that can be reference to set the XML paths.
@@ -67,12 +67,12 @@ Proceed similarly for `dcs/`, `ecms/`, and `substrates/`, renaming those files t
 
 ### IC cells
 
-pcvct uses [PhysiCellCellCreator.jl](https://github.com/drbergman/PhysiCellCellCreator.jl) to allow for creation of `cells.csv` files based on geometries defined in a `cells.xml` file.
-To use this, first create such an XML document (see [PhysiCellCellCreator.jl](https://github.com/drbergman/PhysiCellCellCreator.jl) for details) and place this in place of the `cells.csv` file.
+pcvct uses [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) to allow for creation of `cells.csv` files based on geometries defined in a `cells.xml` file.
+To use this, first create such an XML document (see [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) for details) and place this in place of the `cells.csv` file.
 You may make variations on this in the same way as for `config` and `rulesets_collection`.
 
 ### IC ecm
 
-pcvct uses [PhysiCellECMCreator.jl](https://github.com/drbergman/PhysiCellECMCreator.jl) to allow for creation of `ecm.csv` files based on the structure defined in a `ecm.xml` file.
-To use this, first create such an XML document (see [PhysiCellECMCreator.jl](https://github.com/drbergman/PhysiCellECMCreator.jl) for details) and place this in place of the `ecm.csv` file.
+pcvct uses [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) to allow for creation of `ecm.csv` files based on the structure defined in a `ecm.xml` file.
+To use this, first create such an XML document (see [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) for details) and place this in place of the `ecm.csv` file.
 You may make variations on this in the same way as for `config` and `rulesets_collection`.

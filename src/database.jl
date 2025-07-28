@@ -3,19 +3,16 @@ export printSimulationsTable, simulationsTable
 ################## Database Initialization Functions ##################
 
 """
-    initializeDatabase(path_to_database::String; auto_upgrade::Bool=false)
+    initializeDatabase()
 
-Initialize the database at the given path. If the database does not exist, it will be created.
-
-Also, check the version of pcvct used to create the database and upgrade it if necessary.
+Initialize the central database. If the database does not exist, it will be created.
 """
-function initializeDatabase(path_to_database::String; auto_upgrade::Bool=false)
-    is_new_db = !isfile(path_to_database)
-    close(pcvct_globals.db) #! close the old database connection if it exists
-    pcvct_globals.db = SQLite.DB(path_to_database)
+function initializeDatabase()
+    close(centralDB()) #! close the old database connection if it exists
+    pcvct_globals.db = SQLite.DB(centralDB().file)
     SQLite.transaction(centralDB(), "EXCLUSIVE")
     try
-        createSchema(is_new_db; auto_upgrade=auto_upgrade)
+        createSchema()
     catch e
         SQLite.rollback(centralDB())
         println("Error initializing database: $e")
@@ -38,23 +35,22 @@ function reinitializeDatabase()
         return
     end
     pcvct_globals.initialized = false
-    return initializeDatabase(centralDB().file; auto_upgrade=true)
+    return initializeDatabase()
 end
 
 """
-    createSchema(is_new_db::Bool; auto_upgrade::Bool=false)
+    createSchema()
 
 Create the schema for the database. This includes creating the tables and populating them with data.
 """
-function createSchema(is_new_db::Bool; auto_upgrade::Bool=false)
-    #! make sure necessary directories are present
-    if !necessaryInputsPresent()
+function createSchema()
+    if !parseProjectInputsConfigurationFile()
+        println("Project configuration file parsing failed.")
         return false
     end
-
-    #! start with pcvct version info
-    if !resolvePCVCTVersion(is_new_db, auto_upgrade)
-        println("Could not successfully upgrade database. Please check the logs for more information.")
+    
+    #! make sure necessary directories are present
+    if !necessaryInputsPresent()
         return false
     end
 

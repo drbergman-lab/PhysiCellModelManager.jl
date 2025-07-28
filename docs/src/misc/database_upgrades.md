@@ -4,6 +4,9 @@ Not every release will change the database structure, but when one does in a way
 The warning will link to this page and the function will wait for user input to proceed.
 Changes are listed in reverse chronological order.
 
+## to v0.0.29
+The `inputs.toml` file has been moved from `data/` to `data/inputs/`.
+
 ## to v0.0.15
 Introduce XML-based ECM initial conditions. This introduces `ic_ecm_variations`.
 Also, introduce Dirichlet initial conditions from file, which introduces the `ic_dc_id` in the database.

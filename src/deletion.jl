@@ -295,7 +295,7 @@ function resetDatabase(; force_reset::Bool=false, force_continue::Bool=false)
     end
 
     rm_hpc_safe("$(centralDB().file)"; force=true)
-    initializeDatabase("$(centralDB().file)")
+    initializeDatabase()
     return nothing
 end
 

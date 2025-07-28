@@ -8,14 +8,14 @@ A light edit of the [DeprecateKeywords.jl](https://github.com/MilesCranmer/Depre
 
 ## Public API
 ```@autodocs
-Modules = [pcvct.DeprecateKeywords]
+Modules = [PhysiCellModelManager.DeprecateKeywords]
 Pages = ["DeprecateKeywords.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct.DeprecateKeywords]
+Modules = [PhysiCellModelManager.DeprecateKeywords]
 Pages = ["DeprecateKeywords.jl"]
 Public = false
 ```

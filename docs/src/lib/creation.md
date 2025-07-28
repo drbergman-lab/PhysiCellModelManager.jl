@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # Creation
 
-Create a new pcvct project.
+Create a new PhysiCellModelManager project.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["creation.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["creation.jl"]
 Public = false
 ```

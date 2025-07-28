@@ -8,7 +8,7 @@ hashBorderPrint(str)
 simulation_id = 1
 simulation = Simulation(simulation_id)
 snapshot = PhysiCellSnapshot(simulation_id, :initial)
-cell_types = pcvct.cellTypeToNameDict(simulation) |> values |> collect
+cell_types = PhysiCellModelManager.cellTypeToNameDict(simulation) |> values |> collect
 result = pcf(simulation, cell_types[1])
 
 plot(result)
@@ -17,9 +17,9 @@ plot(result; time_unit=:s, distance_unit=:cm)
 
 Base.show(stdout, MIME"text/plain"(), result)
 
-result = pcvct.pcf(PhysiCellSnapshot(simulation_id, :initial), cell_types[1])
-result = pcvct.pcf(simulation_id, :initial, cell_types[1])
-result = pcvct.pcf(simulation, :initial, [cell_types[1]], cell_types[1])
+result = PhysiCellModelManager.pcf(PhysiCellSnapshot(simulation_id, :initial), cell_types[1])
+result = PhysiCellModelManager.pcf(simulation_id, :initial, cell_types[1])
+result = PhysiCellModelManager.pcf(simulation, :initial, [cell_types[1]], cell_types[1])
 
 plot(result; time_unit=:s)
 plot([result]; time_unit=:h)
@@ -30,7 +30,7 @@ plot([result]; time_unit=:y)
 
 Base.show(stdout, MIME"text/plain"(), result)
 
-@test_throws ArgumentError pcvct.pcf(simulation, :initial, :default) #! third argument should be a string or vector of strings
+@test_throws ArgumentError PhysiCellModelManager.pcf(simulation, :initial, :default) #! third argument should be a string or vector of strings
 @test_throws ArgumentError plot([result]; time_unit=:not_a_unit)
 @test_throws ArgumentError plot([result]; distance_unit=:not_a_unit)
 
@@ -41,10 +41,10 @@ addDomainVariationDimension!(dvs, domain)
 push!(dvs, DiscreteVariation(["domain", "use_2D"], false))
 out = run(simulation, dvs)
 simulation_id = out.trial |> simulationIDs |> first
-result = pcvct.pcf(simulation_id, :final, cell_types[1])
+result = PhysiCellModelManager.pcf(simulation_id, :final, cell_types[1])
 
 simulation_id = simulation_from_import |> simulationIDs |> first
 snapshot = PhysiCellSnapshot(simulation_id, :final)
-cell_types = pcvct.cellTypeToNameDict(snapshot) |> values |> collect
-result = pcvct.pcf(snapshot, cell_types[1], cell_types[2])
-@test_throws ArgumentError pcvct.pcf(snapshot, cell_types[1], cell_types[1:2])
+cell_types = PhysiCellModelManager.cellTypeToNameDict(snapshot) |> values |> collect
+result = PhysiCellModelManager.pcf(snapshot, cell_types[1], cell_types[2])
+@test_throws ArgumentError PhysiCellModelManager.pcf(snapshot, cell_types[1], cell_types[1:2])

@@ -31,7 +31,7 @@ useHPC(false) # Set to false so simulations are run locally
 ```
 """
 function useHPC(use::Bool=true)
-    pcvct_globals.run_on_hpc = use
+    pcmm_globals.run_on_hpc = use
 end
 
 """
@@ -61,6 +61,6 @@ When running simulations, any values in this dictionary that are `Function`'s wi
 """
 function setJobOptions(options::Dict)
     for (key, value) in options
-        pcvct_globals.sbatch_options[key] = value
+        pcmm_globals.sbatch_options[key] = value
     end
 end

@@ -8,14 +8,14 @@ Make movies for simulations in the database.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["movie.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["movie.jl"]
 Public = false
 ```

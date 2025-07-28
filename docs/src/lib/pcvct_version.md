@@ -2,20 +2,20 @@
 CollapsedDocStrings = true
 ```
 
-# PCVCT Version
+# PhysiCellModelManager.jl Version
 
-Manage the version of PCVCT in the database.
+Manage the version of PhysiCellModelManager.jl in the database.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
-Pages = ["pcvct_version.jl"]
+Modules = [PhysiCellModelmanager]
+Pages = ["pcmm_version.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
-Pages = ["pcvct_version.jl"]
+Modules = [PhysiCellModelmanager]
+Pages = ["pcmm_version.jl"]
 Public = false
 ```

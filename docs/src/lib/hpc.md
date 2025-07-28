@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # HPC
 
-Run pcvct on an HPC.
+Run PhysiCellModelManager on an HPC.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["hpc.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["hpc.jl"]
 Public = false
 ```

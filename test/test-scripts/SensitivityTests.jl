@@ -18,19 +18,19 @@ dv_save_full_data_interval = DiscreteVariation(configPath("full_data"), 6.0)
 dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
-add_variations_result = pcvct.addVariations(GridVariation(), inputs, discrete_variations)
+add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
 reference_variation_id = add_variations_result.all_variation_ids[1]
 
-xml_path = pcvct.cyclePath(cell_type, "phase_durations", "duration:index:0")
+xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 lower_bound = 250.0 - 50.0
 upper_bound = 350.0 + 50.0
 dv1 = UniformDistributedVariation(xml_path, lower_bound, upper_bound)
 
-xml_path = pcvct.cyclePath(cell_type, "phase_durations", "duration:index:1")
+xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:1")
 vals = [100.0, 200.0, 300.0]
 dv2 = DiscreteVariation(xml_path, vals)
 
-xml_path = pcvct.cyclePath(cell_type, "phase_durations", "duration:index:2")
+xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:2")
 mu = 300.0
 sigma = 50.0
 lb = 10.0
@@ -49,9 +49,9 @@ moat_sampling = run(MOAT(4; orthogonalize=true), inputs, avs; force_recompile=fo
 sobol_sampling = run(Sobolʼ(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 rbd_sampling = run(RBD(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 
-pcvct.calculateGSA!(moat_sampling, gs_fn)
-pcvct.calculateGSA!(sobol_sampling, gs_fn)
-pcvct.calculateGSA!(rbd_sampling, gs_fn)
+PhysiCellModelManager.calculateGSA!(moat_sampling, gs_fn)
+PhysiCellModelManager.calculateGSA!(sobol_sampling, gs_fn)
+PhysiCellModelManager.calculateGSA!(rbd_sampling, gs_fn)
 
 # test sensitivity with config, rules, ic_cells, and ic_ecm at once
 config_folder = "template-ecm"
@@ -66,10 +66,10 @@ dv_save_full_data_interval = DiscreteVariation(configPath("full_data"), 6.0)
 dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
-add_variations_result = pcvct.addVariations(GridVariation(), inputs, discrete_variations)
+add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
 reference_variation_id = add_variations_result.all_variation_ids[1]
 
-xml_path = pcvct.cyclePath(cell_type, "phase_durations", "duration:index:0")
+xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 lower_bound = 250.0 - 50.0
 upper_bound = 350.0 + 50.0
 dv1 = UniformDistributedVariation(xml_path, lower_bound, upper_bound)
@@ -103,7 +103,7 @@ dv_max_time = DiscreteVariation(["overall", "max_time"], 12.0)
 reference = createTrial(inputs, dv_max_time; n_replicates=0)
 
 dv_apop = UniformDistributedVariation(configPath("default", "apoptosis", "death_rate"), 0.0, 1.0)
-dv_cycle = UniformDistributedVariation(pcvct.cyclePath("default", "phase_durations", "duration:index:0"), 1000.0, 2000.0; flip=true)
+dv_cycle = UniformDistributedVariation(PhysiCellModelManager.cyclePath("default", "phase_durations", "duration:index:0"), 1000.0, 2000.0; flip=true)
 dv_necr = NormalDistributedVariation(configPath("default", "necrosis", "death_rate"), 1e-4, 1e-5; lb=0.0, ub=1.0, flip=false)
 dv_pressure_hfm = UniformDistributedVariation(rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "half_max"), 0.1, 0.25)
 dv_x0 = UniformDistributedVariation(icCellsPath("default", "disc", 1, "x0"), -100.0, 0.0; flip=true)

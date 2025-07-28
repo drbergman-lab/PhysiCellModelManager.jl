@@ -106,11 +106,11 @@ jobs:
     - name: Run all tests
       uses: julia-actions/julia-runtest@v1
       env:
-        PCVCT_NUM_PARALLEL_SIMS: 8
-        PCVCT_IMAGEMAGICK_PATH: not/the/real/path/just/for/testing
-        PCVCT_FFMPEG_PATH: another/not/real/path/just/for/testing
+        PCMM_NUM_PARALLEL_SIMS: 8
+        PCMM_IMAGEMAGICK_PATH: not/the/real/path/just/for/testing
+        PCMM_FFMPEG_PATH: another/not/real/path/just/for/testing
         PHYSICELL_CPP: ${{ matrix.compiler }} # maybe necessary for windows??
-        PCVCT_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
+        PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
 
     - uses: julia-actions/julia-processcoverage@v1
       with:
@@ -162,6 +162,6 @@ jobs:
           JULIA_DEBUG: Documenter
         run: |
           using Documenter: DocMeta, doctest
-          using pcvct, PairCorrelationFunction
-          DocMeta.setdocmeta!(pcvct, :DocTestSetup, :(using pcvct, PairCorrelationFunction); recursive=true)
-          doctest(pcvct)
+          using PhysiCellModelManager, PairCorrelationFunction
+          DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager, PairCorrelationFunction); recursive=true)
+          doctest(PhysiCellModelManager)

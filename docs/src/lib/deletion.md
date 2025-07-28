@@ -4,12 +4,12 @@ CollapsedDocStrings = true
 
 # Deletion
 
-Safely delete output from a pcvct project.
+Safely delete output from a PhysiCellModelManager project.
 
 ## Public API
 
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["deletion.jl"]
 Private = false
 ```
@@ -17,7 +17,7 @@ Private = false
 ## Private API
 
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["deletion.jl"]
 Public = false
 ```

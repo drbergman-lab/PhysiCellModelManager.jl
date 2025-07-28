@@ -1,9 +1,9 @@
 export makeMovie
 
 """
-    makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcvct_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcvct_globals.path_to_ffmpeg)
+    makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg)
     makeMovie(T::AbstractTrial; kwargs...)
-    makeMovie(out::PCVCTOutput; kwargs...)
+    makeMovie(out::PCMMOutput; kwargs...)
 
 Batch make movies for each simulation identified by the input.
 
@@ -15,16 +15,16 @@ This relies on ImageMagick and FFmpeg being installed on the system.
 There are three ways to allow this function to find these dependencies:
   1. Pass the path to the dependencies using the `magick_path` and `ffmpeg_path` keyword arguments.
   2. Set the `PATH` environment variable to include the directories containing the dependencies.
-  3. Set environment variables `PCVCT_IMAGEMAGICK_PATH` and `PCVCT_FFMPEG_PATH` before `using pcvct`.
+  3. Set environment variables `PCMM_IMAGEMAGICK_PATH` and `PCMM_FFMPEG_PATH` before `using PhysiCellModelManager`.
 
 # Arguments
 - `simulation_id::Int`: The ID of the simulation for which to make the movie.
 - `T::AbstractTrial`: Make movies for all simulations in the [`AbstractTrial`](@ref).
-- `out::PCVCTOutput`: Make movies for all simulations in the output, i.e., all simulations in the completed trial.
+- `out::PCMMOutput`: Make movies for all simulations in the output, i.e., all simulations in the completed trial.
 
 # Keyword Arguments
-- `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses the global variable `pcvct_globals.path_to_magick`.
-- `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses the global variable `pcvct_globals.path_to_ffmpeg`.
+- `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses the global variable `pcmm_globals.path_to_magick`.
+- `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses the global variable `pcmm_globals.path_to_ffmpeg`.
 
 # Example
 ```julia
@@ -38,7 +38,7 @@ out = run(sampling) # run the sampling
 makeMovie(out) # make movies for all simulations in the output
 ```
 """
-function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcvct_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcvct_globals.path_to_ffmpeg)
+function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg)
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
     if isfile("$(path_to_output_folder)/out.mp4")
         movie_generated = false
@@ -79,10 +79,10 @@ Set the global variables `path_to_magick` and `path_to_ffmpeg` to the provided p
 """
 function resolveMovieGlobals(magick_path::Union{Missing,String}, ffmpeg_path::Union{Missing,String})
     if !ismissing(magick_path)
-        pcvct_globals.path_to_magick = magick_path
+        pcmm_globals.path_to_magick = magick_path
     end
     if !ismissing(ffmpeg_path)
-        pcvct_globals.path_to_ffmpeg = ffmpeg_path
+        pcmm_globals.path_to_ffmpeg = ffmpeg_path
     end
 end
 
@@ -96,4 +96,4 @@ function makeMovie(T::AbstractTrial; kwargs...)
     end
 end
 
-makeMovie(T::PCVCTOutput; kwargs...) = makeMovie(T.trial; kwargs...)
+makeMovie(T::PCMMOutput; kwargs...) = makeMovie(T.trial; kwargs...)

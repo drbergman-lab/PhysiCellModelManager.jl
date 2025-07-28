@@ -444,7 +444,7 @@ Store the information necessary to run a Random Balance Design (RBD) global sens
 By default, `RBD` will use the Sobol' sequence to sample the parameter space.
 See below for how to turn this off.
 Currently, users cannot control the Sobolʼ sequence used in RBD to the same degree it can be controlled in Sobolʼ.
-Open an [Issue](https://github.com/drbergman/pcvct/issues) if you would like this feature.
+Open an [Issue](https://github.com/drbergman-lab/PhysiCellModelManager.jl/issues) if you would like this feature.
 
 # Fields
 - `rbd_variation::RBDVariation`: the RBD variation to use for the RBD analysis. See [`RBDVariation`](@ref).

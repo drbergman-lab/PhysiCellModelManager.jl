@@ -1,36 +1,37 @@
 using PhysiCellXMLRules
 
 """
-    upgradePCVCT(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
+    upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
 
-Upgrade the PCVCT database from one version to another.
+Upgrade the PhysiCellModelManager.jl database from one version to another.
 
 The upgrade process is done in steps, where each step corresponds to a milestone version.
 The function will apply all necessary upgrades until the target version is reached.
 If `auto_upgrade` is true, the function will automatically apply all upgrades without prompting.
 Otherwise, it will prompt the user for confirmation before large upgrades.
 """
-function upgradePCVCT(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
-    println("Upgrading pcvct from version $(from_version) to $(to_version)...")
+function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
+    println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
     milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25"]
     next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
     next_milestones = milestone_versions[next_milestone_inds]
     success = true
+    version_table_name(version::VersionNumber) = version < v"0.1.0" ? "pcvct_version" : "pcmm_version"
     for next_milestone in next_milestones
         up_fn_symbol = Meta.parse("upgradeToV$(replace(string(next_milestone), "." => "_"))")
-        if !isdefined(pcvct, up_fn_symbol)
+        if !isdefined(PhysiCellModelManager, up_fn_symbol)
             throw(ArgumentError("Upgrade from version $(from_version) to $(next_milestone) not supported."))
         end
         success = eval(up_fn_symbol)(auto_upgrade)
         if !success
             break
         else
-            DBInterface.execute(centralDB(), "UPDATE pcvct_version SET version='$(next_milestone)';")
+            DBInterface.execute(centralDB(), "UPDATE $(version_table_name(next_milestone)) SET version='$(next_milestone)';")
         end
     end
     if success && to_version > milestone_versions[end]
         println("\t- Upgrading to version $(to_version)...")
-        DBInterface.execute(centralDB(), "UPDATE pcvct_version SET version='$(to_version)';")
+        DBInterface.execute(centralDB(), "UPDATE $(version_table_name(to_version)) SET version='$(to_version)';")
     end
     return success
 end
@@ -52,7 +53,7 @@ end
 """
     upgradeToX_Y_Z(auto_upgrade::Bool)
 
-Upgrade the database to pcvct version X.Y.Z. Each milestone version has its own upgrade function.
+Upgrade the database to PhysiCellModelManager.jl version X.Y.Z. Each milestone version has its own upgrade function.
 """
 function upgradeToVX_Y_Z end
 
@@ -95,9 +96,9 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
     warning_msg = """
     \t- Upgrading to version 0.0.3...
     \nWARNING: Upgrading to version 0.0.3 will change the database schema.
-    See info at https://drbergman.github.io/pcvct/stable/misc/database_upgrades/
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
 
-    ------IF ANOTHER INSTANCE OF PCVCT IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
 
     Continue upgrading to version 0.0.3? (y/n):
     """
@@ -124,7 +125,7 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_cell_variation_id=CASE WHEN ic_cell_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCVCTTable("monads", monadsSchema())
+        createPCMMTable("monads", monadsSchema())
         #! drop the previous unique constraint on monads
         #! insert from monads_temp all values except ic_cell_variation_id (set that to -1 if ic_cell_id is -1 and to 0 if ic_cell_id is not -1)
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
@@ -178,9 +179,9 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
     warning_msg = """
     \t- Upgrading to version 0.0.10...
     \nWARNING: Upgrading to version 0.0.10 will change the database schema.
-    See info at https://github.com/drbergman/pcvct?tab=readme-ov-file#to-v0010
+    See info at https://github.com/drbergman-lab/PhysiCellModelManager.jl?tab=readme-ov-file#to-v0010
 
-    ------IF ANOTHER INSTANCE OF PCVCT IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
 
     Continue upgrading to version 0.0.10? (y/n):
     """
@@ -192,8 +193,8 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
     end
     println("\t- Upgrading to version 0.0.10...")
 
-    createPCVCTTable("physicell_versions", physicellVersionsSchema())
-    pcvct_globals.current_physicell_version_id = resolvePhysiCellVersionID()
+    createPCMMTable("physicell_versions", physicellVersionsSchema())
+    pcmm_globals.current_physicell_version_id = resolvePhysiCellVersionID()
 
     println("\t\tPhysiCell version: $(physicellInfo())")
     println("\n\t\tAssuming all output has been generated with this version...")
@@ -208,7 +209,7 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET physicell_version_id=$(currentPhysiCellVersionID());")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCVCTTable("monads", monadsSchema())
+        createPCMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -274,9 +275,9 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
     warning_msg = """
     \t- Upgrading to version 0.0.15...
     \nWARNING: Upgrading to version 0.0.15 will change the database schema.
-    See info at https://drbergman.github.io/pcvct/stable/misc/database_upgrades/
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
 
-    ------IF ANOTHER INSTANCE OF PCVCT IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
 
     Continue upgrading to version 0.0.15? (y/n):
     """
@@ -298,7 +299,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_ecm_variation_id=CASE WHEN ic_ecm_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCVCTTable("monads", monadsSchema())
+        createPCMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -313,7 +314,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_dc_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCVCTTable("monads", monadsSchema())
+        createPCMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -324,9 +325,9 @@ function upgradeToV0_0_16(auto_upgrade::Bool)
     warning_msg = """
     \t- Upgrading to version 0.0.16...
     \nWARNING: Upgrading to version 0.0.16 will change the database schema.
-    See info at https://drbergman.github.io/pcvct/stable/misc/database_upgrades/
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
 
-    ------IF ANOTHER INSTANCE OF PCVCT IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
 
     Continue upgrading to version 0.0.16? (y/n):
     """
@@ -354,7 +355,7 @@ function upgradeToV0_0_16(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_id=-1;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_variation_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCVCTTable("monads", monadsSchema())
+        createPCMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -404,4 +405,30 @@ function upgradeToV0_0_25(::Bool)
         end
     end
     return true
+end
+
+function upgradeToV0_1_0(auto_upgrade::Bool)
+    warning_msg = """
+    \t- Upgrading to version 0.1.0...
+    \nWARNING: Upgrading to version 0.1.0 will change the database schema.
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
+
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+
+    Continue upgrading to version 0.1.0? (y/n):
+    """
+    println(warning_msg)
+    response = auto_upgrade ? "y" : readline()
+    if response != "y"
+        println("Upgrade to version 0.1.0 aborted.")
+        return false
+    end
+    println("\t- Upgrading to version 0.1.0...")
+
+    if DBInterface.execute(centralDB(), "SELECT name FROM sqlite_master WHERE type='table' AND name='pcvct_version';") |> DataFrame |> x -> (length(x.name)==1)
+        DBInterface.execute(centralDB(), "ALTER TABLE pcvct_version RENAME TO pcmm_version;")
+    else
+        println("While upgrading to version 0.1.0, the pcvct_version table was not found. This is unexpected.")
+        return false
+    end
 end

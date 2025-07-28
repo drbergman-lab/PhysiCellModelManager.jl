@@ -2,20 +2,20 @@
 CollapsedDocStrings = true
 ```
 
-# PCVCT Upgrade
+# PhysiCellModelManager.jl Upgrade
 
-Functionality for upgrading the database to match the current version of pcvct.
+Functionality for upgrading the database to match the current version of PhysiCellModelManager.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["up.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["up.jl"]
 Public = false
 ```

@@ -33,12 +33,12 @@ out2 = run(inputs, discrete_variations)
 @test out2.n_scheduled == 0
 @test out2.n_success == 0
 
-@test pcvct.trialID(out) == pcvct.trialID(out2)
+@test PhysiCellModelManager.trialID(out) == PhysiCellModelManager.trialID(out2)
 @test out.trial.inputs == out2.trial.inputs
 @test out.trial.variation_id == out2.trial.variation_id
 
-query = pcvct.constructSelectQuery("simulations", "WHERE simulation_id=1")
-df = pcvct.queryToDataFrame(query; is_row=true)
+query = PhysiCellModelManager.constructSelectQuery("simulations", "WHERE simulation_id=1")
+df = PhysiCellModelManager.queryToDataFrame(query; is_row=true)
 
 cell_type = "default"
 discrete_variations = []
@@ -58,10 +58,10 @@ out = run(sampling; force_recompile=false)
 
 out2 = run(simulation, discrete_variations; n_replicates=n_replicates, force_recompile=false)
 @test out2.trial isa Sampling
-@test pcvct.trialID(out2) == sampling.id
+@test PhysiCellModelManager.trialID(out2) == sampling.id
 @test out2.trial.inputs == sampling.inputs
-@test Set(pcvct.readConstituentIDs(out2.trial)) == Set(pcvct.readConstituentIDs(sampling))
-@test Set(pcvct.simulationIDs(out2.trial)) == Set(pcvct.simulationIDs(sampling))
+@test Set(PhysiCellModelManager.readConstituentIDs(out2.trial)) == Set(PhysiCellModelManager.readConstituentIDs(sampling))
+@test Set(PhysiCellModelManager.simulationIDs(out2.trial)) == Set(PhysiCellModelManager.simulationIDs(sampling))
 @test out2.n_scheduled == 0
 @test out2.n_success == 0
 

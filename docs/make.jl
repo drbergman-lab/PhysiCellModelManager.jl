@@ -1,13 +1,13 @@
-using Documenter, pcvct
+using Documenter, PhysiCellModelManager
 
-DocMeta.setdocmeta!(pcvct, :DocTestSetup, :(using pcvct); recursive=true)
+DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true)
 
 makedocs(;
-    modules=[pcvct],
+    modules=[PhysiCellModelManager],
     authors="Daniel Bergman <danielrbergman@gmail.com> and contributors",
-    sitename="pcvct",
+    sitename="PhysiCellModelManager.jl",
     format=Documenter.HTML(;
-        canonical="https://drbergman.github.io/pcvct",
+        canonical="https://drbergman-lab.github.io/PhysiCellModelManager.jl",
         edit_link="main",
         assets=String[],
     ),
@@ -34,13 +34,12 @@ makedocs(;
         ),
         "Miscellaneous" => Any[
             "Database upgrades" => "misc/database_upgrades.md",
-            "Renaming" => "misc/renaming.md",
         ],
     ],
 )
 
 deploydocs(;
-    repo="github.com/drbergman/pcvct",
+    repo="github.com/drbergman-lab/PhysiCellModelManager.jl",
     devbranch="development",
     push_preview=true,
 )

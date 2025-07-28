@@ -5,15 +5,15 @@ export importProject
 """
     ImportSource
 
-A struct to hold the information about a source file or folder to be imported into the pcvct structure.
+A struct to hold the information about a source file or folder to be imported into the PhysiCellModelManager.jl structure.
 
-Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the pcvct structure.
+Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the PhysiCellModelManager.jl structure.
 
 # Fields
 - `src_key::Symbol`: The key in the source dictionary.
 - `input_folder_key::Symbol`: The key in the destination dictionary.
 - `path_from_project::AbstractString`: The path to the source file or folder relative to the project.
-- `pcvct_name::AbstractString`: The name of the file or folder in the pcvct structure.
+- `pcmm_name::AbstractString`: The name of the file or folder in the PhysiCellModelManager.jl structure.
 - `type::AbstractString`: The type of the source (e.g., file or folder).
 - `required::Bool`: Indicates if the source is required for the project.
 - `found::Bool`: Indicates if the source was found during import.
@@ -22,17 +22,17 @@ mutable struct ImportSource
     src_key::Symbol
     input_folder_key::Symbol
     path_from_project::AbstractString
-    pcvct_name::AbstractString
+    pcmm_name::AbstractString
     type::AbstractString
     required::Bool
     found::Bool
 
-    function ImportSource(src::Dict, key::AbstractString, path_from_project_base::AbstractString, default::String, type::AbstractString, required::Bool; input_folder_key::Symbol=Symbol(key), pcvct_name::String=default)
+    function ImportSource(src::Dict, key::AbstractString, path_from_project_base::AbstractString, default::String, type::AbstractString, required::Bool; input_folder_key::Symbol=Symbol(key), pcmm_name::String=default)
         is_key = haskey(src, key)
         path_from_project = joinpath(path_from_project_base, is_key ? src[key] : default)
         required |= is_key
         found = false
-        return new(Symbol(key), input_folder_key, path_from_project, pcvct_name, type, required, found)
+        return new(Symbol(key), input_folder_key, path_from_project, pcmm_name, type, required, found)
     end
 end
 
@@ -40,9 +40,9 @@ end
 """
     ImportSources
 
-A struct to hold the information about the sources to be imported into the pcvct structure.
+A struct to hold the information about the sources to be imported into the PhysiCellModelManager.jl structure.
 
-Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the pcvct structure.
+Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the PhysiCellModelManager.jl structure.
 
 # Fields
 - `config::ImportSource`: The config file to be imported.
@@ -103,7 +103,7 @@ function prepareRulesetsCollectionImport(src::Dict, path_to_project::AbstractStr
     else
         required = false
     end
-    return ImportSource(src, "rules", "config", "cell_rules$(rules_ext)", "file", required; pcvct_name="base_rulesets$(rules_ext)")
+    return ImportSource(src, "rules", "config", "cell_rules$(rules_ext)", "file", required; pcmm_name="base_rulesets$(rules_ext)")
 end
 
 """
@@ -132,7 +132,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
             continue
         end
         type = attribute(intracellular_element, "type")
-        @assert type ∈ ["roadrunner", "dfba"] "pcvct does not yet support intracellular type $type. It only supports roadrunner and dfba."
+        @assert type ∈ ["roadrunner", "dfba"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner and dfba."
         path_to_file = find_element(intracellular_element, "sbml_filename") |> content
         temp_component = PhysiCellComponent(type, basename(path_to_file))
         #! now we have to rely on the path to the file is correct relative to the parent directory of the config file (that should usually be the case)
@@ -155,7 +155,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
     rm(locationPath(:intracellular, intracellular_folder); force=true, recursive=true)
 
     free(xml_doc)
-    return ImportSource(src, "intracellular", "config", "assembled_intracellular_for_import.xml", "file", true; pcvct_name="intracellular.xml")
+    return ImportSource(src, "intracellular", "config", "assembled_intracellular_for_import.xml", "file", true; pcmm_name="intracellular.xml")
 end
 
 """
@@ -186,9 +186,9 @@ end
 """
     ImportDestFolder
 
-A struct to hold the information about a destination folder to be created in the pcvct structure.
+A struct to hold the information about a destination folder to be created in the PhysiCellModelManager.jl structure.
 
-Used internally in the [`importProject`](@ref) function to manage the creation of folders in the pcvct structure.
+Used internally in the [`importProject`](@ref) function to manage the creation of folders in the PhysiCellModelManager.jl structure.
 
 # Fields
 - `path_from_inputs::AbstractString`: The path to the destination folder relative to the inputs folder.
@@ -204,9 +204,9 @@ end
 """
     ImportDestFolders
 
-A struct to hold the information about the destination folders to be created in the pcvct structure.
+A struct to hold the information about the destination folders to be created in the PhysiCellModelManager.jl structure.
 
-Used internally in the [`importProject`](@ref) function to manage the creation of folders in the pcvct structure.
+Used internally in the [`importProject`](@ref) function to manage the creation of folders in the PhysiCellModelManager.jl structure.
 
 # Fields
 - `config::ImportDestFolder`: The config folder to be created.
@@ -253,13 +253,13 @@ end
 """
     importProject(path_to_project::AbstractString[, src=Dict(), dest=Dict()])
 
-Import a project from the structured in the format of PhysiCell sample projects and user projects into the pcvct structure.
+Import a project from the structured in the format of PhysiCell sample projects and user projects into the PhysiCellModelManager.jl structure.
 
 # Arguments
 - `path_to_project::AbstractString`: Path to the project to import. Relative paths are resolved from the current working directory where Julia was launched.
 - `src::Dict`: Dictionary of the project sources to import. If absent, tries to use the default names.
 The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportSources)], ", ", ", and ")).
-- `dest::Dict`: Dictionary of the inputs folders to create in the pcvct structure. If absent, taken from the project name.
+- `dest::Dict`: Dictionary of the inputs folders to create in the PhysiCellModelManager.jl structure. If absent, taken from the project name.
 The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportDestFolders)], ", ", ", and ")).
 """
 function importProject(path_to_project::AbstractString, src=Dict(), dest=Dict())
@@ -420,7 +420,7 @@ end
 """
     copyFilesToFolders(path_to_project::AbstractString, project_sources::ImportSources, import_dest_folders::ImportDestFolders)
 
-Copy files from the project directory to the destination folders in the pcvct structure.
+Copy files from the project directory to the destination folders in the PhysiCellModelManager.jl structure.
 """
 function copyFilesToFolders(path_to_project::AbstractString, project_sources::ImportSources, import_dest_folders::ImportDestFolders)
     success = true
@@ -431,8 +431,8 @@ function copyFilesToFolders(path_to_project::AbstractString, project_sources::Im
         end
         src = joinpath(path_to_project, project_source.path_from_project)
         import_dest_folder = getfield(import_dest_folders, project_source.input_folder_key)
-        dest = joinpath(dataDir(), "inputs", import_dest_folder.path_from_inputs, project_source.pcvct_name)
-        @assert (dest |> (project_source.type == "file" ? isfile : isdir)) == false "In copying $(src) to $(dest), found a $(project_source.type) with the same name. This should be avoided by pcvct. Please open an Issue on GitHub and document your setup and steps."
+        dest = joinpath(dataDir(), "inputs", import_dest_folder.path_from_inputs, project_source.pcmm_name)
+        @assert (dest |> (project_source.type == "file" ? isfile : isdir)) == false "In copying $(src) to $(dest), found a $(project_source.type) with the same name. This should be avoided by PhysiCellModelManager. Please open an Issue on GitHub and document your setup and steps."
         cp(src, dest)
     end
     return success
@@ -441,7 +441,7 @@ end
 """
     adaptProject(import_dest_folders::ImportDestFolders)
 
-Adapt the project to be used in the pcvct structure.
+Adapt the project to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptProject(import_dest_folders::ImportDestFolders)
     success = adaptConfig(import_dest_folders.config)
@@ -452,7 +452,7 @@ end
 """
     adaptConfig(config::ImportDestFolder)
 
-Adapt the config file to be used in the pcvct structure.
+Adapt the config file to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptConfig(::ImportDestFolder)
     return true #! nothing to do for now
@@ -461,7 +461,7 @@ end
 """
     adaptCustomCode(custom_code::ImportDestFolder)
 
-Adapt the custom code to be used in the pcvct structure.
+Adapt the custom code to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptCustomCode(custom_code::ImportDestFolder)
     success = adaptMain(custom_code.path_from_inputs)
@@ -473,7 +473,7 @@ end
 """
     adaptMain(path_from_inputs::AbstractString)
 
-Adapt the main.cpp file to be used in the pcvct structure.
+Adapt the main.cpp file to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptMain(path_from_inputs::AbstractString)
     path_to_main = joinpath(dataDir(), "inputs", path_from_inputs, "main.cpp")
@@ -524,7 +524,7 @@ end
 """
     adaptMakefile(path_from_inputs::AbstractString)
 
-Adapt the Makefile to be used in the pcvct structure.
+Adapt the Makefile to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptMakefile(path_from_inputs::AbstractString)
     path_to_makefile = joinpath(dataDir(), "inputs", path_from_inputs, "Makefile")
@@ -539,7 +539,7 @@ end
 """
     adaptCustomModules(path_from_inputs::AbstractString)
 
-Adapt the custom modules to be used in the pcvct structure.
+Adapt the custom modules to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptCustomModules(path_from_inputs::AbstractString)
     success = adaptCustomHeader(path_from_inputs)
@@ -550,7 +550,7 @@ end
 """
     adaptCustomHeader(path_from_inputs::AbstractString)
 
-Adapt the custom header to be used in the pcvct structure.
+Adapt the custom header to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptCustomHeader(::AbstractString)
     return true #! nothing to do for now
@@ -559,7 +559,7 @@ end
 """
     adaptCustomCPP(path_from_inputs::AbstractString)
 
-Adapt the custom cpp file to be used in the pcvct structure.
+Adapt the custom cpp file to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptCustomCPP(path_from_inputs::AbstractString)
     path_to_custom_cpp = joinpath(dataDir(), "inputs", path_from_inputs, "custom.cpp")

@@ -5,7 +5,7 @@ using TOML
 
 A struct that contains information about the locations of input files in the project.
 
-The global instance of this struct is `project_locations` in `pcvct_globals` (the sole instance of [`PCVCTGlobals`](@ref)) and is created by reading the `inputs.toml` file in the data directory.
+The global instance of this struct is `project_locations` in `pcmm_globals` (the sole instance of [`PCMMGlobals`](@ref)) and is created by reading the `inputs.toml` file in the data directory.
 It is instantiated with the [`parseProjectInputsConfigurationFile`](@ref) function.
 
 # Fields
@@ -25,7 +25,7 @@ struct ProjectLocations{L,M,N}
         return new{length(all_locations),length(required),length(varied_locations)}(all_locations, required, varied_locations)
     end
 
-    ProjectLocations() = ProjectLocations(pcvct_globals.inputs_dict)
+    ProjectLocations() = ProjectLocations(pcmm_globals.inputs_dict)
 end
 
 """
@@ -79,8 +79,8 @@ function parseProjectInputsConfigurationFile()
             end
         end
     end
-    pcvct_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol, Any}
-    pcvct_globals.project_locations = ProjectLocations()
+    pcmm_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol, Any}
+    pcmm_globals.project_locations = ProjectLocations()
     createSimpleInputFolders()
     return true
 end
@@ -92,7 +92,7 @@ Return the name of the ID column for the location (as either a String or Symbol)
 
 # Examples
 ```jldoctest
-julia> pcvct.locationIDName(:config)
+julia> PhysiCellModelManager.locationIDName(:config)
 "config_id"
 ```
 """
@@ -104,7 +104,7 @@ locationIDName(location::Union{String,Symbol}) = "$(location)_id"
 Return the name of the variation ID column for the location (as either a String or Symbol).
 # Examples
 ```jldoctest
-julia> pcvct.locationVariationIDName(:config)
+julia> PhysiCellModelManager.locationVariationIDName(:config)
 "config_variation_id"
 ```
 """
@@ -130,7 +130,7 @@ locationVariationIDNames() = (locationVariationIDName(loc) for loc in projectLoc
 Return the name of the table for the location (as either a String or Symbol).
 # Examples
 ```jldoctest
-julia> pcvct.tableName(:config)
+julia> PhysiCellModelManager.tableName(:config)
 "configs"
 ```
 """

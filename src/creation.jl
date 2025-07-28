@@ -5,7 +5,7 @@ export createProject
 """
     createProject(project_dir::String="."; clone_physicell::Bool=true, template_as_default::Bool=true, terse::Bool=false)
 
-Create a new pcvct project structure.
+Create a new PhysiCellModelManager.jl project structure.
 
 Creates a new project directory at `project_dir` with the following structure:
 ```
@@ -18,7 +18,7 @@ project_dir
 
 # Arguments
 - `project_dir::String="."`: The directory in which to create the project. Relative paths are resolved from the current working directory where Julia was launched.
-- `clone_physicell::Bool=true`: Whether to clone the PhysiCell repository. If `false`, the latest release will be downloaded. Recommended to set to `true` so pcvct will be able to track changes to the PhysiCell repository.
+- `clone_physicell::Bool=true`: Whether to clone the PhysiCell repository. If `false`, the latest release will be downloaded. Recommended to set to `true` so PhysiCellModelManager.jl will be able to track changes to the PhysiCell repository.
 - `template_as_default::Bool=true`: Whether to set up the project with the template files as the default. If `false`, the project will be set up with an empty structure.
 - `terse::Bool=false`: Whether to generate a terse `GenerateData.jl` file. If `true`, the file will be generated without comments and explanations.
 
@@ -44,7 +44,7 @@ Get the latest release tag from a GitHub repository.
 function latestReleaseTag(repo_url::String)
     api_url = replace(repo_url, "github.com" => "api.github.com/repos") * "/releases/latest"
     #! include this header for CI testing to not exceed request limit (I think?): macos for some reason raised a `RequestError: HTTP/2 403`; users should not need to set this ENV variable
-    headers = haskey(ENV, "PCVCT_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCVCT_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
+    headers = haskey(ENV, "PCMM_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
     response = Downloads.download(api_url; headers=headers)
     release_info = JSON3.read(response, Dict{String, Any})
     return release_info["tag_name"]
@@ -61,7 +61,7 @@ If `clone_physicell` is `true`, the latest release of the PhysiCell repository w
 function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
     physicell_dir = joinpath(project_dir, "PhysiCell")
     if isdir(physicell_dir)
-        println("PhysiCell directory already exists ($(physicell_dir)). Hopefully it's the pcvct-compatible version!")
+        println("PhysiCell directory already exists ($(physicell_dir)). Hopefully it's the PhysiCellModelManager.jl-compatible version!")
         return physicell_dir
     end
     is_git_repo = isdir(joinpath(project_dir, ".git"))
@@ -77,10 +77,10 @@ function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
             run(`git clone --branch $latest_tag --depth 1 https://github.com/drbergman/PhysiCell $(physicell_dir)`)
         end
     else
-        #! download drbergman/Pysicell main branch
+        #! download drbergman/PhysiCell main branch
         println("Downloading PhysiCell repository")
         url = "https://api.github.com/repos/drbergman/PhysiCell/releases/latest"
-        headers = haskey(ENV, "PCVCT_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCVCT_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
+        headers = haskey(ENV, "PCMM_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
         response = Downloads.download(url; headers=headers)
         release_data = JSON3.read(response)
         zipball_url = release_data["zipball_url"]
@@ -210,7 +210,7 @@ function setUpTemplate(physicell_dir::String, inputs_dir::String)
     setUpICFolder(path_to_template, inputs_dir, "substrates", "0_template")
 
     #! also set up a ic cell folder using the xml-based version
-    pcvct.createICCellXMLTemplate(joinpath(inputs_dir, "ics", "cells", "1_xml"))
+    PhysiCellModelManager.createICCellXMLTemplate(joinpath(inputs_dir, "ics", "cells", "1_xml"))
 end
 
 """
@@ -242,7 +242,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
 
     tersify(s::String) = (terse ? "" : s)
     generate_data_lines = """
-    using pcvct
+    using PhysiCellModelManager
     initializeModelManager() # this works if launching from the project directory, i.e. the directory containing the data and PhysiCell folders
     # initializeModelManager(\"$(abspath(physicell_dir))\", \"$(abspath(data_dir))\") # use this if not calling this from the project directory
 
@@ -290,7 +290,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     force_recompile = false
 
     $(tersify("""
-    # pcvct records which simulations all use the same parameter vector...
+    # PhysiCellModelManager.jl records which simulations all use the same parameter vector...
     # ...to reuse them (unless the user opts out)
     """))\
     use_previous = true # if true, will attempt to reuse simulations with the same parameters; otherwise run new simulations
@@ -299,7 +299,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     # a monad refers to a single collection of identical simulations...
     # except for randomness (could be do to the initial seed or stochasticity introduced by omp threading)
     # n_replicates is the number of replicates to run for each parameter vector...
-    # ...pcvct records which simulations all use the same parameter vector...
+    # ...PhysiCellModelManager.jl records which simulations all use the same parameter vector...
     # ...and will attempt to reuse these (unless the user opts out)...
     # ...so this parameter is the _min_ because there may already be many sims with the same parameters
     """))\
@@ -316,14 +316,14 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     # \t1) the name of a tag in the xml file OR
     # \t2) the name of a tag along with the value of one attribute (name:attribute_name:attribute_value)
     """))\
-    xml_path = pcvct.cyclePath(\"default\", \"phase_durations\", \"duration:index:0\")
+    xml_path = PhysiCellModelManager.cyclePath(\"default\", \"phase_durations\", \"duration:index:0\")
     vals = [200.0, 300.0, 400.0] # choose 3 discrete values to vary the duration of phase 0
     dv_phase_0_duration = DiscreteVariation(xml_path, vals)
 
     $(tersify("""
     # now do the same, but for the apoptosis rate
     """))\
-    xml_path = pcvct.apoptosisPath(\"default\", \"death_rate\")
+    xml_path = PhysiCellModelManager.apoptosisPath(\"default\", \"death_rate\")
     vals = [4.31667e-05, 5.31667e-05, 6.31667e-05] # choose 3 discrete values to vary the apoptosis rate
     dv_apoptosis_rate = DiscreteVariation(xml_path, vals)
 
@@ -345,18 +345,18 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     # ...along with the monads and simulations that make it up
     # before running, we will set the number of parallel simulations to run.
     # note: this will only be used when running locally, i.e., not on an HPC
-    # by default, pcvct will run the simulations serially, i.e., 1 in \"parallel\".
+    # by default, PhysiCellModelManager.jl will run the simulations serially, i.e., 1 in \"parallel\".
     # change this by calling:
     """))\
     setNumberOfParallelSims(4) # for example, to run 4 simulations in parallel
 
     $(tersify("""
     # you can change this default behavior on your machine by setting an environment variable...
-    # called PCVCT_NUM_PARALLEL_SIMS
+    # called PCMM_NUM_PARALLEL_SIMS
     # this is read during `initializeModelManager`...
     # meaning subsequent calls to `setNumberOfParallelSims` will overwrite the value
     # A simple way to use this when running the script is to run in your shell:
-    # `PCVCT_NUM_PARALLEL_SIMS=4 julia $(path_to_generate_data)`
+    # `PCMM_NUM_PARALLEL_SIMS=4 julia $(path_to_generate_data)`
     """))\
 
     $(tersify("""
@@ -365,7 +365,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     out = run(sampling; force_recompile=force_recompile)
 
     $(tersify("""
-    # If you are running on an SLURM-based HPC, pcvct will detect this and calls to `sbatch`...
+    # If you are running on an SLURM-based HPC, PhysiCellModelManager.jl will detect this and calls to `sbatch`...
     # ...to parallelize the simulations, batching out each simulation to its own job.
     """))\
     """

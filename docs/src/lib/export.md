@@ -8,14 +8,14 @@ This file holds the functions for exporting a simulation to a `user_project` for
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["export.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["export.jl"]
 Public = false
 ```

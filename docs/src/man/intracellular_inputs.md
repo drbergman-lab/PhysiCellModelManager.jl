@@ -1,6 +1,6 @@
 # Intracellular inputs
 
-pcvct currently only supports ODE intracellular models using libRoadRunner.
+PhysiCellModelManager.jl currently only supports ODE intracellular models using libRoadRunner.
 It uses a specialized format to achieve this, creating the SBML files needed by libRoadRunner at PhysiCell runtime.
 Briefly, the `intracellular.xml` file defines a mapping between cell definitions and intracellular models.
 See the template provided [here](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/combined/template-combined/config/sample_combined_sbmls.xml).

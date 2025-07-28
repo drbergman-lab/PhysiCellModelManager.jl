@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # Globals
 
-Global variables used in pcvct. 
+Global variables used in PhysiCellModelManager. 
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["globals.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["globals.jl"]
 Public = false
 ```

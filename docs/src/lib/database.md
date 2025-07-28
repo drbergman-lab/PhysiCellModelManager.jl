@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # Database
 
-Create and manage the pcvct database.
+Create and manage the PhysiCellModelManager database.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["database.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelmanager]
 Pages = ["database.jl"]
 Public = false
 ```

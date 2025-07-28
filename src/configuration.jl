@@ -803,7 +803,7 @@ If a symbol is supplied, it specifies a death model and must be one of `:apoptos
 
 # Examples
 ```jldoctest
-julia> pcvct.phagocytosisPath("M1", "cancer")
+julia> PhysiCellModelManager.phagocytosisPath("M1", "cancer")
 6-element Vector{String}:
  "cell_definitions"
  "cell_definition:name:M1"
@@ -813,7 +813,7 @@ julia> pcvct.phagocytosisPath("M1", "cancer")
  "phagocytosis_rate:name:cancer"
 ```
 ```jldoctest
-julia> pcvct.phagocytosisPath("M1", :apoptotic)
+julia> PhysiCellModelManager.phagocytosisPath("M1", :apoptotic)
 5-element Vector{String}:
  "cell_definitions"
  "cell_definition:name:M1"
@@ -853,7 +853,7 @@ Return the XML path to the attack rate of the first cell type attacking the seco
 
 # Examples
 ```jldoctest
-julia> pcvct.attackRatePath("cd8", "cancer")
+julia> PhysiCellModelManager.attackRatePath("cd8", "cancer")
 6-element Vector{String}:
  "cell_definitions"
  "cell_definition:name:cd8"
@@ -886,7 +886,7 @@ Return the XML path to the fusion rate of the first cell type fusing to the seco
 
 # Examples
 ```jldoctest
-julia> pcvct.fusionPath("epi", "epi")
+julia> PhysiCellModelManager.fusionPath("epi", "epi")
 6-element Vector{String}:
  "cell_definitions"
  "cell_definition:name:epi"
@@ -905,7 +905,7 @@ Return the XML path to the transformation rates for the first cell definition to
 
 # Examples
 ```jldoctest
-julia> pcvct.transformationPath("M1", "M2")
+julia> PhysiCellModelManager.transformationPath("M1", "M2")
 6-element Vector{String}:
  "cell_definitions"
  "cell_definition:name:M1"

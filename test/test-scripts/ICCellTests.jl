@@ -47,10 +47,10 @@ push!(discrete_variations, DiscreteVariation(xml_path, 300.0))
 out_fail = run(out.trial.monads[1], discrete_variations; n_replicates=n_replicates)
 @test out_fail.n_success == 0
 
-ic_cell_folder = pcvct.createICCellXMLTemplate("2_xml")
+ic_cell_folder = PhysiCellModelManager.createICCellXMLTemplate("2_xml")
 @test ic_cell_folder == "2_xml"
-@test isdir(pcvct.locationPath(:ic_cell, ic_cell_folder))
-@test_nowarn pcvct.createICECMXMLTemplate(ic_cell_folder)
+@test isdir(PhysiCellModelManager.locationPath(:ic_cell, ic_cell_folder))
+@test_nowarn PhysiCellModelManager.createICECMXMLTemplate(ic_cell_folder)
 
 xml_path = icCellsPath("default", "disc", 1, "x0")
 dv1 = DiscreteVariation(xml_path, -1e6) #! outside the domain so none can be placed

@@ -1,4 +1,4 @@
-name = "pcvct"
+name = "PhysiCellModelManager"
 uuid = "3c374bc7-7384-4f83-8ca0-87b8c727e6ff"
 authors = ["Daniel Bergman <danielrbergman@gmail.com> and contributors"]
 version = "0.0.29"

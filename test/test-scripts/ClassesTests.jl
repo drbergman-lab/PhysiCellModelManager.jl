@@ -49,20 +49,20 @@ trial = Trial(samplings)
 inputs = InputFolders(; config="0_template", custom_code="0_template")
 simulation = Simulation(Monad(1))
 
-@test_throws ArgumentError pcvct.constituentsType(Simulation)
+@test_throws ArgumentError PhysiCellModelManager.constituentsType(Simulation)
 
 getMonadIDs(samplings)
-@test pcvct.lowerClassString(simulation) == "simulation"
-@test pcvct.lowerClassString(Monad(1)) == "monad"
-@test pcvct.lowerClassString(samplings[1]) == "sampling"
-@test pcvct.lowerClassString(trial) == "trial"
+@test PhysiCellModelManager.lowerClassString(simulation) == "simulation"
+@test PhysiCellModelManager.lowerClassString(Monad(1)) == "monad"
+@test PhysiCellModelManager.lowerClassString(samplings[1]) == "sampling"
+@test PhysiCellModelManager.lowerClassString(trial) == "trial"
 
-old_march_flag = pcvct.pcvct_globals.march_flag
+old_march_flag = PhysiCellModelManager.pcmm_globals.march_flag
 new_march_flag = "new_march_flag"
-pcvct.setMarchFlag(new_march_flag)
-@test pcvct.pcvct_globals.march_flag == new_march_flag
-pcvct.setMarchFlag(old_march_flag)
-@test pcvct.pcvct_globals.march_flag == old_march_flag #! make sure it is reset
+PhysiCellModelManager.setMarchFlag(new_march_flag)
+@test PhysiCellModelManager.pcmm_globals.march_flag == new_march_flag
+PhysiCellModelManager.setMarchFlag(old_march_flag)
+@test PhysiCellModelManager.pcmm_globals.march_flag == old_march_flag #! make sure it is reset
 
 
 #! you probably do not want to use integer variation IDs to initialize a Sampling object. this is just to test edge cases in the constructor

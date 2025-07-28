@@ -347,7 +347,7 @@ getMeanCounts(m::MonadPopulationTimeSeries) = [k => v.mean for (k, v) in pairs(m
 end
 
 @recipe function f(sampling::Sampling; include_dead=false, include_cell_type_names=:all, exclude_cell_type_names=String[], time_unit=:min)
-    df = pcvct.simulationsTable(sampling)
+    df = PhysiCellModelManager.simulationsTable(sampling)
     monads = []
     title_tuples = []
     for monad in sampling.monads
@@ -379,11 +379,11 @@ end
     end
 end
 
-@recipe function f(::Type{PCVCTOutput{T}}, out::PCVCTOutput{T}) where T <: AbstractSampling
+@recipe function f(::Type{PCMMOutput{T}}, out::PCMMOutput{T}) where T <: AbstractSampling
     out.trial
 end
 
-@recipe function f(::Type{PCVCTOutput{Trial}}, out::PCVCTOutput{Trial})
+@recipe function f(::Type{PCMMOutput{Trial}}, out::PCMMOutput{Trial})
     throw(ArgumentError("Plotting an entire trial not (yet?) defined. Break it down into at least Samplings first."))
 end
 
@@ -416,7 +416,7 @@ end
 
 @recipe function f(p::PlotByCellType; include_dead=false, include_cell_type_names=:all, exclude_cell_type_names=String[], time_unit=:min)
     @assert length(p.args) == 1 "Expected exactly 1 argument, got $(length(p.args))."
-    if (p.args[1] isa PCVCTOutput)
+    if (p.args[1] isa PCMMOutput)
         T = p.args[1].trial
     else
         T = p.args[1]

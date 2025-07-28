@@ -2,20 +2,20 @@
 CollapsedDocStrings = true
 ```
 
-# PhysiCell Studio
+# Core
 
-Launch PhysiCell Studio for a simulation run in PhysiCellModelManager.
+Core functionality for PhysiCellModelManager.
 
 ## Public API
 ```@autodocs
 Modules = [PhysiCellModelmanager]
-Pages = ["physicell_studio.jl"]
+Pages = ["PhysiCellModelManager.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelmanager]
-Pages = ["physicell_studio.jl"]
+Pages = ["PhysiCellModelManager.jl"]
 Public = false
 ```

@@ -5,7 +5,7 @@ import PairCorrelationFunction: pcf
 @compat public pcf
 
 """
-    PCVCTPCFResult
+    PCMMPCFResult
 
 A struct to hold the results of the pair correlation function (PCF) calculation.
 
@@ -23,9 +23,9 @@ using PairCorrelationFunction
 time = 12.0
 radii = [0.0, 1.0, 2.0]
 g = [0.5, 1.2]
-pcvct.PCVCTPCFResult(time, PairCorrelationFunction.PCFResult(radii, g))
+PhysiCellModelManager.PCMMPCFResult(time, PairCorrelationFunction.PCFResult(radii, g))
 # output
-PCVCTPCFResult:
+PCMMPCFResult:
   Time: 12.0
   Radii: 0.0 - 2.0 with 2 annuli, Δr = 1.0
   g: 0.5 - 1.2 (min - max)
@@ -35,37 +35,37 @@ using PairCorrelationFunction
 time = [12.0; 24.0; 36.0]
 radii = [0.0, 1.0, 2.0]
 g = [0.5 0.6 0.4; 1.2 1.15 1.4]
-pcvct.PCVCTPCFResult(time, PairCorrelationFunction.PCFResult(radii, g))
+PhysiCellModelManager.PCMMPCFResult(time, PairCorrelationFunction.PCFResult(radii, g))
 # output
-PCVCTPCFResult:
+PCMMPCFResult:
   Time: 12.0 - 36.0 (n = 3)
   Radii: 0.0 - 2.0 with 2 annuli, Δr = 1.0
   g: 0.4 - 1.4 (min - max)
 ```
 """
-struct PCVCTPCFResult
+struct PCMMPCFResult
     time::Vector{Float64}
     pcf_result::PairCorrelationFunction.PCFResult
 
-    function PCVCTPCFResult(time::Float64, result::PairCorrelationFunction.PCFResult)
+    function PCMMPCFResult(time::Float64, result::PairCorrelationFunction.PCFResult)
         @assert size(result.g, 2) == 1 "If time is a single value, g must be a vector or a matrix with one column. Found $(size(result.g, 2)) columns."
         return new([time], result)
     end
 
-    function PCVCTPCFResult(time::Vector{Float64}, result::PairCorrelationFunction.PCFResult)
+    function PCMMPCFResult(time::Vector{Float64}, result::PairCorrelationFunction.PCFResult)
         @assert size(result.g, 2) == length(time) "If time is a vector, g must be a matrix with matching number of columns. Found $(length(time)) timepoints but $(size(result.g, 2)) columns."
         return new(time, result)
     end
 end
 
-function Base.hcat(gs::Vararg{PCVCTPCFResult})
+function Base.hcat(gs::Vararg{PCMMPCFResult})
     time = reduce(vcat, [g.time for g in gs])
     pcf_result = hcat([g.pcf_result for g in gs]...)
-    return PCVCTPCFResult(time, pcf_result)
+    return PCMMPCFResult(time, pcf_result)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::PCVCTPCFResult)
-    println(io, "PCVCTPCFResult:")
+function Base.show(io::IO, ::MIME"text/plain", p::PCMMPCFResult)
+    println(io, "PCMMPCFResult:")
     if length(p.time) == 1
         println(io, "  Time: $(p.time[1])")
     else
@@ -111,7 +111,7 @@ The `dr` argument specifies the bin size (thickness of each annulus) for the PCF
 - `pcf(simulation::Simulation, center_cell_types, target_cell_types=center_cell_types; kwargs...)`: Calculate the PCF for all snapshots in a simulation.
 
 # Returns
-A [`PCVCTPCFResult`](@ref) object containing the time, radii, and g values of the PCF.
+A [`PCMMPCFResult`](@ref) object containing the time, radii, and g values of the PCF.
 Regardless of the type of `S`, the time and radii will always be vectors.
 If `S` is a snapshot, the g values will be a vector of the PCF.
 If `S` is a sequence, the g values will be a (length(radii)-1 x length(time)) matrix of the PCF.
@@ -199,7 +199,7 @@ function pcfSnapshotCalculation(snapshot::PhysiCellSnapshot, center_cell_types::
     else
         pcf_result = pcf(centers, constants)
     end
-    return PCVCTPCFResult(snapshot.time, pcf_result)
+    return PCMMPCFResult(snapshot.time, pcf_result)
 end
 
 """
@@ -252,7 +252,7 @@ function cellPositionsForPCF(cells::DataFrame, cell_types::Vector{String}, cell_
 end
 
 #! plotting functions
-@recipe function f(results::Vararg{PCVCTPCFResult}; time_unit=:min, distance_unit=:um)
+@recipe function f(results::Vararg{PCMMPCFResult}; time_unit=:min, distance_unit=:um)
     args = preparePCFPlot([results...]; time_unit=time_unit, distance_unit=distance_unit)
     @series begin
         colorscheme --> :cork
@@ -260,7 +260,7 @@ end
     end
 end
 
-@recipe function f(results::Vector{PCVCTPCFResult}; time_unit=:min, distance_unit=:um)
+@recipe function f(results::Vector{PCMMPCFResult}; time_unit=:min, distance_unit=:um)
     args = preparePCFPlot(results; time_unit=time_unit, distance_unit=distance_unit)
     @series begin
         colorscheme --> :cork
@@ -269,11 +269,11 @@ end
 end
 
 """
-    preparePCFPlot(results::Vector{PCVCTPCFResult}; time_unit=:min, distance_unit=:um)
+    preparePCFPlot(results::Vector{PCMMPCFResult}; time_unit=:min, distance_unit=:um)
 
 Prepare the time and radii for the PCF plot.
 """
-function preparePCFPlot(results::Vector{PCVCTPCFResult}; time_unit=:min, distance_unit=:um)
+function preparePCFPlot(results::Vector{PCMMPCFResult}; time_unit=:min, distance_unit=:um)
     @assert all([r.time == results[1].time for r in results]) "All PCFResults must have the same time vector."
     time = processTime(results[1].time, time_unit) #! we need to make a copy of the time vector anyways, so no need to have a ! function
     radii = processDistance(results[1].pcf_result.radii, distance_unit)

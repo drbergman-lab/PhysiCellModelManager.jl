@@ -3,8 +3,8 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-@test pcvct.physicellVersion() == readchomp(joinpath(pcvct.physicellDir(), "VERSION.txt"))
-@test pcvct.physicellVersion(Simulation(1)) == readchomp(joinpath(pcvct.physicellDir(), "VERSION.txt"))
+@test PhysiCellModelManager.physicellVersion() == readchomp(joinpath(PhysiCellModelManager.physicellDir(), "VERSION.txt"))
+@test PhysiCellModelManager.physicellVersion(Simulation(1)) == readchomp(joinpath(PhysiCellModelManager.physicellDir(), "VERSION.txt"))
 
 path_to_file = joinpath("PhysiCell", "Makefile")
 
@@ -16,9 +16,9 @@ open(path_to_file, "w") do f
     end
 end
 
-@test !pcvct.gitDirectoryIsClean(pcvct.physicellDir())
-initializeModelManager(pcvct.physicellDir(), pcvct.dataDir())
-pcvct.physicellVersion()
+@test !PhysiCellModelManager.gitDirectoryIsClean(PhysiCellModelManager.physicellDir())
+initializeModelManager(PhysiCellModelManager.physicellDir(), PhysiCellModelManager.dataDir())
+PhysiCellModelManager.physicellVersion()
 
 lines[1] = lines[1][1:end-1]
 open(path_to_file, "w") do f
@@ -27,17 +27,17 @@ open(path_to_file, "w") do f
     end
 end
 
-@test pcvct.gitDirectoryIsClean(pcvct.physicellDir())
+@test PhysiCellModelManager.gitDirectoryIsClean(PhysiCellModelManager.physicellDir())
 
 # test with PhysiCell download
-original_project_dir = dirname(pcvct.dataDir())
+original_project_dir = dirname(PhysiCellModelManager.dataDir())
 
 project_dir = "./test-project-download"
 createProject(project_dir; clone_physicell=false)
 data_dir = joinpath(project_dir, "data")
 physicell_dir = joinpath(project_dir, "PhysiCell")
 initializeModelManager(physicell_dir, data_dir)
-pcvct.resolvePhysiCellVersionID()
+PhysiCellModelManager.resolvePhysiCellVersionID()
 
 initializeModelManager(original_project_dir)
-pcvct.resolvePhysiCellVersionID()
+PhysiCellModelManager.resolvePhysiCellVersionID()

@@ -18,7 +18,7 @@ custom_code_src_folder =  joinpath(pcvct.dataDir(), "inputs", "custom_codes")
 custom_code_dest_folder = joinpath(pcvct.dataDir(), "inputs", "custom_codes_")
 mv(custom_code_src_folder, custom_code_dest_folder)
 
-@test pcvct.createSchema(false) == false
+@test pcvct.createSchema() == false
 
 mv(config_dest_folder, config_src_folder)
 mv(custom_code_dest_folder, custom_code_src_folder)
@@ -62,4 +62,4 @@ mkdir(path_to_bad_folder)
 @test pcvct.reinitializeDatabase() == false
 
 rm(path_to_bad_folder; force=true, recursive=true)
-@test pcvct.initializeDatabase(pcvct.centralDB().file) == true
+@test pcvct.initializeDatabase() == true

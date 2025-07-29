@@ -57,13 +57,13 @@ Hold the information for a single input folder.
 Users should use the `InputFolders` to create and access individual `InputFolder` objects.
 
 # Fields
-- `location::Symbol`: The location of the input folder, e.g. `:config`, `:custom_code`, etc. Options are defined in `data/inputs.toml`.
+- `location::Symbol`: The location of the input folder, e.g. `:config`, `:custom_code`, etc. Options are defined in `data/inputs/inputs.toml`.
 - `id::Int`: The ID of the input folder in the database.
 - `folder::String`: The name of the input folder. It will be in `data/inputs/<path_from_inputs>`.
 - `basename::Union{String,Missing}`: The basename of the input file. This can be used to determine if the input file is varied.
-- `required::Bool`: Whether the input folder is required. This is defined in `data/inputs.toml`.
+- `required::Bool`: Whether the input folder is required. This is defined in `data/inputs/inputs.toml`.
 - `varied::Bool`: Whether the input folder is varied. This is determined by the presence of a varied basename in the input folder.
-- `path_from_inputs::String`: The path from the `data/inputs` directory to the input folder. This is defined in `data/inputs.toml`.
+- `path_from_inputs::String`: The path from the `data/inputs` directory to the input folder. This is defined in `data/inputs/inputs.toml`.
 """
 struct InputFolder
     location::Symbol
@@ -124,7 +124,7 @@ end
 Consolidate the folder information for a simulation/monad/sampling.
 
 Pass the folder names within the `inputs/<path_from_inputs>` directory to create an `InputFolders` object.
-The `path_from_inputs` is defined in the `data/inputs.toml` file for each.
+The `path_from_inputs` is defined in the `data/inputs/inputs.toml` file for each.
 It is possible to acces the [`InputFolder`](@ref) values using index notation, e.g. `input_folders[:config]`.
 
 Several constructors exist:
@@ -133,7 +133,7 @@ Several constructors exist:
 InputFolders(; config="default", custom_codes="default", rulesets_collection="default")
 ```
 2. Pass in the required inputs as arguments and the optional inputs as keyword arguments. The required folders must be passed in alphabetical order.
-Refer to the names defined in `data/inputs.toml` to see this order. Omitted optional folders are assumed to be \"\", i.e. those inputs are unused.
+Refer to the names defined in `data/inputs/inputs.toml` to see this order. Omitted optional folders are assumed to be \"\", i.e. those inputs are unused.
 ```julia
 config_folder = "default"
 custom_code_folder = "default"
@@ -142,7 +142,7 @@ InputFolders(config_folder, custom_code_folder; ic_cell=ic_cell_folder)
 ```
 
 # Fields
-- `input_folders::NamedTuple`: The input locations defined in `data/inputs.toml` define the keys. The values are [`InputFolder`](@ref)s.
+- `input_folders::NamedTuple`: The input locations defined in `data/inputs/inputs.toml` define the keys. The values are [`InputFolder`](@ref)s.
 """
 struct InputFolders
     input_folders::NamedTuple
@@ -169,7 +169,7 @@ function InputFolders(args...; kwargs...) end
 """
     createSimpleInputFolders()
 
-Creates a simple method for creating `InputFolders` objects at module initialization based on `data/inputs.toml`.
+Creates a simple method for creating `InputFolders` objects at module initialization based on `data/inputs/inputs.toml`.
 
 The required inputs are sorted alphabetically and used as the positional arguments.
 The optional inputs are used as keyword arguments with a default value of `\"\"`, indicating they are unused.

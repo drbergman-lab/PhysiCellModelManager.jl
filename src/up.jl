@@ -17,7 +17,6 @@ function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, aut
     next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
     next_milestones = milestone_versions[next_milestone_inds]
     success = true
-    version_table_name(version::VersionNumber) = version < v"0.1.0" ? "pcvct_version" : "pcmm_version"
     for next_milestone in next_milestones
         up_fn_symbol = Meta.parse("upgradeToV$(replace(string(next_milestone), "." => "_"))")
         if !isdefined(PhysiCellModelManager, up_fn_symbol)
@@ -27,12 +26,12 @@ function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, aut
         if !success
             break
         else
-            DBInterface.execute(centralDB(), "UPDATE $(version_table_name(next_milestone)) SET version='$(next_milestone)';")
+            DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(next_milestone)) SET version='$(next_milestone)';")
         end
     end
     if success && to_version > milestone_versions[end]
         println("\t- Upgrading to version $(to_version)...")
-        DBInterface.execute(centralDB(), "UPDATE $(version_table_name(to_version)) SET version='$(to_version)';")
+        DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(to_version)) SET version='$(to_version)';")
     end
     return success
 end
@@ -50,6 +49,14 @@ function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, targe
     query = "INSERT INTO $(target_table) $(insert_into_cols) SELECT $(select_cols) FROM $(source_table);"
     DBInterface.execute(db, query)
 end
+
+"""
+    pcmmVersionTableName(version::VersionNumber)
+
+Returns the name of the version table based on the given version number.
+Before version 0.0.30, the table name is "pcvct_version". Version 0.0.30 and later use "pcmm_version".
+"""
+pcmmVersionTableName(version::VersionNumber) = version < v"0.0.30" ? "pcvct_version" : "pcmm_version"
 
 """
     upgradeToX_Y_Z(auto_upgrade::Bool)
@@ -461,4 +468,5 @@ function upgradeToV0_0_30(auto_upgrade::Bool)
         println("While upgrading to version 0.0.30, the pcvct_version table was not found. This is unexpected.")
         return false
     end
+    return true
 end

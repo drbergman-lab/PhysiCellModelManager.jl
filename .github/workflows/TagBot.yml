@@ -27,4 +27,4 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           ssh: ${{ secrets.DOCUMENTER_KEY }}
-          registry: drbergman/PCVCTRegistry
+          registry: drbergman-lab/BergmanLabRegistry

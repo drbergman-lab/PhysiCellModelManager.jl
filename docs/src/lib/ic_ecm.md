@@ -8,14 +8,14 @@ Functionality for the using [PhysiCellECMCreator.jl](https://github.com/drbergma
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["ic_ecm.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["ic_ecm.jl"]
 Public = false
 ```

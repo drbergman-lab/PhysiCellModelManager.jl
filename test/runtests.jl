@@ -1,4 +1,4 @@
-using pcvct, Test
+using PhysiCellModelManager, Test
 
 include("./test-scripts/PrintHelpers.jl")
 
@@ -32,7 +32,7 @@ test_order = [
     "DepsTests.jl"
 ]
 
-@testset "pcvct" begin
+@testset "PhysiCellModelManager.jl" begin
 
     for test_file in test_order
         @testset "$test_file" begin

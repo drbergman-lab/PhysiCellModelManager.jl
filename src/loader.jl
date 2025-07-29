@@ -33,8 +33,8 @@ The `cells`, `substrates`, `mesh`, and graphs (`attachments`, `spring_attachment
 - `neighbors::MetaGraph`: A graph of cell neighbor data with vertices labeled by cell IDs.
 
 # Optional Arguments
-- `labels::Vector{String}=String[]`: A vector of cell data labels. Users should let pcvct load this.
-- `substrate_names::Vector{String}=String[]`: A vector of substrate names. Users should let pcvct load this.
+- `labels::Vector{String}=String[]`: A vector of cell data labels. Users should let PhysiCellModelManager.jl load this.
+- `substrate_names::Vector{String}=String[]`: A vector of substrate names. Users should let PhysiCellModelManager.jl load this.
 
 # Keyword Arguments
 - `include_cells::Bool=false`: Whether to load cell data.
@@ -157,11 +157,11 @@ Convert an index to a filename in the output folder.
 The index can be an integer or a symbol (`:initial` or `:final`).
 
 ```jldoctest
-julia> pcvct.indexToFilename(0)
+julia> PhysiCellModelManager.indexToFilename(0)
 "output00000000"
 ```
 ```jldoctest
-julia> pcvct.indexToFilename(:initial)
+julia> PhysiCellModelManager.indexToFilename(:initial)
 "initial"
 ```
 """

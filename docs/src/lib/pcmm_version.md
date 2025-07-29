@@ -2,20 +2,20 @@
 CollapsedDocStrings = true
 ```
 
-# Export
+# PhysiCellModelManager.jl Version
 
-This file holds the functions for exporting a simulation to a `user_project` format.
+Manage the version of PhysiCellModelManager.jl in the database.
 
 ## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["export.jl"]
+Pages = ["pcmm_version.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["export.jl"]
+Pages = ["pcmm_version.jl"]
 Public = false
 ```

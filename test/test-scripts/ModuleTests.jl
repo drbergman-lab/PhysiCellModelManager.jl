@@ -3,9 +3,9 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-pcvct.readConstituentIDs(Trial, 1)
+PhysiCellModelManager.readConstituentIDs(Trial, 1)
 simulationIDs([Simulation(1), Simulation(2)])
-pcvct.trialMonads(1)
+PhysiCellModelManager.trialMonads(1)
 getMonadIDs()
 getMonadIDs(Trial(1))
 

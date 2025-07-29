@@ -1,5 +1,5 @@
 # Varying parameters
-All inputs that are varied by pcvct are stored in XML files, and pcvct has a standard representation of the paths to these parameters.
+All inputs that are varied by PhysiCellModelManager.jl are stored in XML files, and PhysiCellModelManager.jl has a standard representation of the paths to these parameters.
 
 ## XML paths
 XML paths are represented as a vector of strings, where each string corresponds to a tag in the XML file.

@@ -9,7 +9,7 @@ Initialize the central database. If the database does not exist, it will be crea
 """
 function initializeDatabase()
     close(centralDB()) #! close the old database connection if it exists
-    pcvct_globals.db = SQLite.DB(centralDB().file)
+    pcmm_globals.db = SQLite.DB(centralDB().file)
     SQLite.transaction(centralDB(), "EXCLUSIVE")
     try
         createSchema()
@@ -19,7 +19,7 @@ function initializeDatabase()
         return false
     else
         SQLite.commit(centralDB())
-        pcvct_globals.initialized = true
+        pcmm_globals.initialized = true
         return true
     end
 end
@@ -30,11 +30,11 @@ end
 Reinitialize the database by searching through the `data/inputs` directory to make sure all are present in the database.
 """
 function reinitializeDatabase()
-    if !pcvct_globals.initialized
+    if !pcmm_globals.initialized
         println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
         return
     end
-    pcvct_globals.initialized = false
+    pcmm_globals.initialized = false
     return initializeDatabase()
 end
 
@@ -55,8 +55,8 @@ function createSchema()
     end
 
     #! initialize and populate physicell_versions table
-    createPCVCTTable("physicell_versions", physicellVersionsSchema())
-    pcvct_globals.current_physicell_version_id = resolvePhysiCellVersionID()
+    createPCMMTable("physicell_versions", physicellVersionsSchema())
+    pcmm_globals.current_physicell_version_id = resolvePhysiCellVersionID()
 
     #! initialize tables for all inputs
     for (location, location_dict) in pairs(inputsDict())
@@ -66,7 +66,7 @@ function createSchema()
             folder_name UNIQUE,
             description TEXT
         """
-        createPCVCTTable(table_name, table_schema)
+        createPCMMTable(table_name, table_schema)
 
         folders = readdir(locationPath(location); sort=false) |> filter(x -> isdir(joinpath(locationPath(location), x)))
         if location_dict["required"] && isempty(folders)
@@ -88,13 +88,13 @@ function createSchema()
         FOREIGN KEY (status_code_id)
             REFERENCES status_codes (status_code_id)
     """
-    createPCVCTTable("simulations", simulations_schema)
+    createPCMMTable("simulations", simulations_schema)
 
     #! initialize monads table
-    createPCVCTTable("monads", monadsSchema())
+    createPCMMTable("monads", monadsSchema())
 
     #! initialize samplings table
-    createPCVCTTable("samplings", samplingsSchema())
+    createPCMMTable("samplings", samplingsSchema())
 
     #! initialize trials table
     trials_schema = """
@@ -102,7 +102,7 @@ function createSchema()
         datetime TEXT,
         description TEXT
     """
-    createPCVCTTable("trials", trials_schema)
+    createPCMMTable("trials", trials_schema)
 
     createDefaultStatusCodesTable()
 
@@ -232,14 +232,14 @@ function metadataDescription(path_to_folder::AbstractString)
 end
 
 """
-    createPCVCTTable(table_name::String, schema::String; db::SQLite.DB=centralDB())
+    createPCMMTable(table_name::String, schema::String; db::SQLite.DB=centralDB())
 
 Create a table in the database with the given name and schema. The table will be created if it does not already exist.
 
 The table name must end in "s" to help normalize the ID names for these entries.
 The schema must have a PRIMARY KEY named as the table name without the "s" followed by "_id."
 """
-function createPCVCTTable(table_name::String, schema::String; db::SQLite.DB=centralDB())
+function createPCMMTable(table_name::String, schema::String; db::SQLite.DB=centralDB())
     #! check that table_name ends in "s"
     if last(table_name) != 's'
         s = "Table name must end in 's'."
@@ -279,7 +279,7 @@ function insertFolder(location::Symbol, folder::String, description::String="")
         return
     end
     db_variations = joinpath(locationPath(location, folder), "$(location)_variations.db") |> SQLite.DB
-    createPCVCTTable(variationsTableName(location), "$(locationVariationIDName(location)) INTEGER PRIMARY KEY"; db=db_variations)
+    createPCMMTable(variationsTableName(location), "$(locationVariationIDName(location)) INTEGER PRIMARY KEY"; db=db_variations)
     DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($(locationVariationIDName(location))) VALUES(0);")
     input_folder = InputFolder(location, folder)
     prepareBaseFile(input_folder)
@@ -302,7 +302,7 @@ function createDefaultStatusCodesTable()
         status_code_id INTEGER PRIMARY KEY,
         status_code TEXT UNIQUE
     """
-    createPCVCTTable("status_codes", status_codes_schema)
+    createPCMMTable("status_codes", status_codes_schema)
     status_codes = recognizedStatusCodes()
     for status_code in status_codes
         DBInterface.execute(centralDB(), "INSERT OR IGNORE INTO status_codes (status_code) VALUES ('$status_code');")

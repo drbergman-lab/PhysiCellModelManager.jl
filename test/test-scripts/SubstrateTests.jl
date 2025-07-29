@@ -3,15 +3,15 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-asts = pcvct.AverageSubstrateTimeSeries(1)
-asts = pcvct.AverageSubstrateTimeSeries(Simulation(1))
-ests = pcvct.ExtracellularSubstrateTimeSeries(1)
-ests = pcvct.ExtracellularSubstrateTimeSeries(Simulation(1))
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(1)
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(Simulation(1))
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(1)
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(Simulation(1))
 
-@test ismissing(pcvct.AverageSubstrateTimeSeries(pruned_simulation_id))
+@test ismissing(PhysiCellModelManager.AverageSubstrateTimeSeries(pruned_simulation_id))
 snapshot = PhysiCellSnapshot(pruned_simulation_id, :initial)
 @test ismissing(snapshot)
-@test ismissing(pcvct.ExtracellularSubstrateTimeSeries(pruned_simulation_id))
+@test ismissing(PhysiCellModelManager.ExtracellularSubstrateTimeSeries(pruned_simulation_id))
 
 # misc tests
 asts["time"]

@@ -16,7 +16,7 @@ plotbycelltype(Sampling(1); include_cell_type_names="default")
 
 # misc tests
 out = Monad(1; n_replicates=3) |> run
-mpts = pcvct.MonadPopulationTimeSeries(1)
+mpts = PhysiCellModelManager.MonadPopulationTimeSeries(1)
 plot(out)
 plot(out.trial)
 plot(out; include_cell_type_names="default")
@@ -24,13 +24,13 @@ plotbycelltype(out)
 plotbycelltype(out.trial)
 
 all_cell_types = ["cancer", "immune", "epi", "mes"]
-pcvct.processIncludeCellTypes(["cancer", "immune"], all_cell_types)
-pcvct.processIncludeCellTypes(["epi", "mes", ["epi", "mes"]], all_cell_types)
-@test_throws ArgumentError pcvct.processIncludeCellTypes(:mes, all_cell_types)
-@test_throws ArgumentError pcvct.processIncludeCellTypes(1, all_cell_types)
+PhysiCellModelManager.processIncludeCellTypes(["cancer", "immune"], all_cell_types)
+PhysiCellModelManager.processIncludeCellTypes(["epi", "mes", ["epi", "mes"]], all_cell_types)
+@test_throws ArgumentError PhysiCellModelManager.processIncludeCellTypes(:mes, all_cell_types)
+@test_throws ArgumentError PhysiCellModelManager.processIncludeCellTypes(1, all_cell_types)
 
-pcvct.processExcludeCellTypes("cancer")
-@test_throws ArgumentError pcvct.processExcludeCellTypes(:mes)
+PhysiCellModelManager.processExcludeCellTypes("cancer")
+@test_throws ArgumentError PhysiCellModelManager.processExcludeCellTypes(:mes)
 plot(out; include_cell_type_names="default", exclude_cell_type_names="default")
 
 plot(simulation_from_import; include_cell_type_names=[["fast T cell", "slow T cell", "effector T cell", "exhausted T cell"]])
@@ -45,12 +45,12 @@ plotbycelltype(simulation_from_import; include_cell_type_names="fast T cell", ex
 @test ismissing(PhysiCellSnapshot(pruned_simulation_id, :initial))
 @test ismissing(finalPopulationCount(pruned_simulation_id))
 
-spts = pcvct.SimulationPopulationTimeSeries(1)
+spts = PhysiCellModelManager.SimulationPopulationTimeSeries(1)
 Base.show(stdout, MIME"text/plain"(), spts)
 Base.show(stdout, MIME"text/plain"(), mpts)
 
-@test pcvct.formatTimeRange([78.0]) == "78.0"
-@test pcvct.formatTimeRange([0.0, 40.0, 78.0]) == "0.0-78.0 (not equally spaced)"
+@test PhysiCellModelManager.formatTimeRange([78.0]) == "78.0"
+@test PhysiCellModelManager.formatTimeRange([0.0, 40.0, 78.0]) == "0.0-78.0 (not equally spaced)"
 
 #! deprecation tests
 @test_warn "`include_cell_types` is deprecated as a keyword. Use `include_cell_type_names` instead." plot(out; include_cell_types="fast T cell")

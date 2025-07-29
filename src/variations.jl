@@ -15,10 +15,10 @@ Hold the XML path as a vector of strings.
 
 PhysiCell uses a `:` in names for signals/behaviors from cell custom data.
 For example, `custom:sample` is the default way to represent the `sample` custom data in a PhysiCell rule.
-pcvct uses `:` to indicate an attribute in an XML path and thus splits on `:` when looking for attribute values.
-To avoid this conflict, pcvct will internally replace `custom:<name>` and `custom: <name>` with `custom <name>`.
+PhysiCellModelManager.jl uses `:` to indicate an attribute in an XML path and thus splits on `:` when looking for attribute values.
+To avoid this conflict, PhysiCellModelManager.jl will internally replace `custom:<name>` and `custom: <name>` with `custom <name>`.
 Users should never have to think about this.
-Any pcvct function that uses XML paths will automatically handle this replacement.
+Any PhysiCellModelManager.jl function that uses XML paths will automatically handle this replacement.
 """
 struct XMLPath
     xml_path::Vector{String}
@@ -168,7 +168,7 @@ Alternatively, users can use the [`UniformDistributedVariation`](@ref) and [`Nor
 ```jldoctest
 using Distributions
 d = Uniform(1, 2)
-DistributedVariation(pcvct.apoptosisPath("default", "death_rate"), d)
+DistributedVariation(PhysiCellModelManager.apoptosisPath("default", "death_rate"), d)
 # output
 DistributedVariation:
   location: config
@@ -179,7 +179,7 @@ DistributedVariation:
 using Distributions
 d = Uniform(1, 2)
 flip = true # the cdf on this variation will decrease from 1 to 0 as the value increases from 1 to 2
-DistributedVariation(pcvct.necrosisPath("default", "death_rate"), d; flip=flip)
+DistributedVariation(PhysiCellModelManager.necrosisPath("default", "death_rate"), d; flip=flip)
 # output
 DistributedVariation (flipped):
   location: config
@@ -703,8 +703,8 @@ Default values from constructors are shown.
 - `n::Int`: The number of samples to take.
 - `n_matrices::Int=1`: The number of matrices to use in the Sobol sequence.
 - `randomization::RandomizationMethod=NoRand()`: The randomization method to use on the deterministic Sobol sequence.
-- `skip_start::Union{Missing, Bool, Int}=missing`: Whether to skip the start of the sequence. Missing means pcvct will choose the best option.
-- `include_one::Union{Missing, Bool}=missing`: Whether to include 1 in the sequence. Missing means pcvct will choose the best option.
+- `skip_start::Union{Missing, Bool, Int}=missing`: Whether to skip the start of the sequence. Missing means PhysiCellModelManager.jl will choose the best option.
+- `include_one::Union{Missing, Bool}=missing`: Whether to include 1 in the sequence. Missing means PhysiCellModelManager.jl will choose the best option.
 
 # Examples
 ```jldoctest
@@ -744,17 +744,17 @@ Default values from constructors are shown.
 - `n::Int`: The number of samples to take.
 - `rng::AbstractRNG=Random.GLOBAL_RNG`: The random number generator to use.
 - `use_sobol::Bool=true`: Whether to use Sobol sequences to create the sample points.
-Do not set these next two fields unless you know what you are doing. Let pcvct compute them.
-- `pow2_diff::Union{Missing, Int}=missing`: The difference between `n` and the nearest power of 2. Missing means pcvct will compute it if using Sobol sequences.
-- `num_cycles::Union{Missing, Int, Rational}=missing`: The number of cycles to use in the Sobol sequence. Missing means pcvct will set it.
+Do not set these next two fields unless you know what you are doing. Let PhysiCellModelManager.jl compute them.
+- `pow2_diff::Union{Missing, Int}=missing`: The difference between `n` and the nearest power of 2. Missing means PhysiCellModelManager.jl will compute it if using Sobol sequences.
+- `num_cycles::Union{Missing, Int, Rational}=missing`: The number of cycles to use in the Sobol sequence. Missing means PhysiCellModelManager.jl will set it.
 
 # Examples
 ```jldoctest
-julia> pcvct.RBDVariation(4) # set `n` and use default values for the rest
+julia> PhysiCellModelManager.RBDVariation(4) # set `n` and use default values for the rest
 RBDVariation(4, Random.TaskLocalRNG(), true, 0, 1//2)
 ```
 ```jldoctest
-julia> pcvct.RBDVariation(4; use_sobol=false) # use random permutations of uniformly spaced points
+julia> PhysiCellModelManager.RBDVariation(4; use_sobol=false) # use random permutations of uniformly spaced points
 RBDVariation(4, Random.TaskLocalRNG(), false, missing, 1//1)
 ```
 """
@@ -993,7 +993,7 @@ Generate a Latin Hypercube Sample of the Cumulative Distribution Functions (CDFs
 
 # Examples
 ```jldoctest
-cdfs = pcvct.generateLHSCDFs(4, 2)
+cdfs = PhysiCellModelManager.generateLHSCDFs(4, 2)
 size(cdfs)
 # output
 (4, 2)
@@ -1068,21 +1068,21 @@ If you want to exlude 1 (in the case of `n=9`, e.g.), set `include_one` to `fals
 - `d::Int`: The number of dimensions to sample.
 - `n_matrices::Int=1`: The number of matrices to use in the Sobol sequence (effectively, the dimension of the sample is `d` x `n_matrices`).
 - `randomization::RandomizationMethod=NoRand()`: The randomization method to use on the deterministic Sobol sequence. See GlobalSensitivity.jl.
-- `skip_start::Union{Missing, Bool, Int}=missing`: Whether to skip the start of the sequence. Missing means pcvct will choose the best option.
-- `include_one::Union{Missing, Bool}=missing`: Whether to include 1 in the sequence. Missing means pcvct will choose the best option.
+- `skip_start::Union{Missing, Bool, Int}=missing`: Whether to skip the start of the sequence. Missing means PhysiCellModelManager.jl will choose the best option.
+- `include_one::Union{Missing, Bool}=missing`: Whether to include 1 in the sequence. Missing means PhysiCellModelManager.jl will choose the best option.
 
 # Returns
 - `cdfs::Array{Float64, 3}`: The CDFs for the samples. The first dimension is the features, the second dimension is the matrix, and the third dimension is the sample points.
 
 # Examples
 ```jldoctest
-cdfs = pcvct.generateSobolCDFs(11, 3)
+cdfs = PhysiCellModelManager.generateSobolCDFs(11, 3)
 size(cdfs)
 # output
 (3, 1, 11)
 ```
 ```jldoctest
-cdfs = pcvct.generateSobolCDFs(7, 5; n_matrices=2)
+cdfs = PhysiCellModelManager.generateSobolCDFs(7, 5; n_matrices=2)
 size(cdfs)
 # output
 (5, 2, 7)

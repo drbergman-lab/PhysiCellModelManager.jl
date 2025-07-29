@@ -1,6 +1,6 @@
 # Getting started
-Read [Best practices](@ref) before using pcvct.
-## Install pcvct
+Read [Best practices](@ref) before using PhysiCellModelManager.jl.
+## Install PhysiCellModelManager.jl
 ### Download julia
 The easiest way to install julia is to use the command line. On Linux and MacOS, you can run:
 ```sh
@@ -16,30 +16,30 @@ Note: this command also installs the [JuliaUp](https://github.com/JuliaLang/juli
 
 See [here](https://julialang.org/install) for the Julia installation home page. See [here](https://julialang.org/downloads/) for more download options.
 
-### Add the PCVCTRegistry
+### Add the BergmanLabRegistry
 Launch julia by running `julia` in a shell.
 Then, enter the Pkg REPL by pressing `]`.
-Finally, add the PCVCTRegistry by running:
+Finally, add the BergmanLabRegistry by running:
 ```julia-repl
-pkg> registry add https://github.com/drbergman/PCVCTRegistry
+pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
 ```
 
-### Install pcvct
+### Install PhysiCellModelManager.jl
 Still in the Pkg REPL, run:
 ```julia-repl
-pkg> add pcvct
+pkg> add PhysiCellModelManager
 ```
 
-Troubleshoot: If this fails, it may be because the General registry is not set up correctly. The output of `] registry status` should show the PCVCTRegistry and General registry. If it does not, you can add the General registry by running:
+Troubleshoot: If this fails, it may be because the General registry is not set up correctly. The output of `] registry status` should show the BergmanLabRegistry and General registry. If it does not, you can add the General registry by running:
 ```julia-repl
 pkg> registry add General
 ```
 
-## Set up a pcvct project
+## Set up a PhysiCellModelManager.jl project
 Leave the Pkg REPL by pressing the `delete` or `backspace` key (if still in it from the previous step).
-Load the pcvct module by running:
+Load the PhysiCellModelManager.jl module by running:
 ```julia-repl
-julia> using pcvct
+julia> using PhysiCellModelManager
 ```
 Then, create a new project by running:
 ```julia-repl
@@ -89,21 +89,21 @@ If you want to use a different name, you can pass
 ## Running first trial
 The `createProject()` command creates three folder, including a `VCT` folder with a single file: `VCT/GenerateData.jl`.
 The name of this folder and this file are purely convention, change them as you like.
-To run your first pcvct trial, you can run the GenerateData.jl script from the shell:
+To run your first PhysiCellModelManager.jl trial, you can run the GenerateData.jl script from the shell:
 ```sh
 $ julia VCT/GenerateData.jl
 ```
-Note: if you want to parallelize these 9 runs, you can set the shell environment variable `PCVCT_NUM_PARALLEL_SIMS` to the number of parallel simulations you want to run. For example, to run 9 parallel simulations, you would run:
+Note: if you want to parallelize these 9 runs, you can set the shell environment variable `PCMM_NUM_PARALLEL_SIMS` to the number of parallel simulations you want to run. For example, to run 9 parallel simulations, you would run:
 ```sh
-$ export PCVCT_NUM_PARALLEL_SIMS=9
+$ export PCMM_NUM_PARALLEL_SIMS=9
 $ julia VCT/GenerateData.jl
 ```
 Or for a one-off solution:
 ```sh
-$ PCVCT_NUM_PARALLEL_SIMS=9 julia VCT/GenerateData.jl
+$ PCMM_NUM_PARALLEL_SIMS=9 julia VCT/GenerateData.jl
 ```
 Alternatively, you can run the script via the REPL.
 
 Run the script a second time and observe that no new simulations are run.
-This is because pcvct looks for matching simulations first before running new ones.
+This is because PhysiCellModelManager.jl looks for matching simulations first before running new ones.
 The `use_previous` optional keyword argument can control this behavior if new simulations are desired.

@@ -6,8 +6,8 @@ str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
 ic_ecm_folder = "1_xml"
-ic_ecm_folder = pcvct.createICECMXMLTemplate(ic_ecm_folder)
-@test_nowarn pcvct.createICECMXMLTemplate(ic_ecm_folder)
+ic_ecm_folder = PhysiCellModelManager.createICECMXMLTemplate(ic_ecm_folder)
+@test_nowarn PhysiCellModelManager.createICECMXMLTemplate(ic_ecm_folder)
 
 config_folder = "template-ecm"
 custom_code_folder = "template-ecm"
@@ -21,7 +21,7 @@ dv2 = DiscreteVariation(icECMPath(2, "ellipse", 1, "density"), [0.25, 0.75])
 dv3 = DiscreteVariation(icECMPath(2, "ellipse_with_shell", 1, "interior", "density"), 0.2)
 out = run(inputs, [dv1, dv2, dv3]; n_replicates=n_replicates)
 
-macros_lines = pcvct.readMacrosFile(out.trial)
+macros_lines = PhysiCellModelManager.readMacrosFile(out.trial)
 @test "ADDON_PHYSIECM" in macros_lines
 
 # test failing ecm sim

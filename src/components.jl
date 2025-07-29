@@ -176,7 +176,7 @@ function assembleIntracellular!(cell_to_components_dict::Dict{String,Vector{Phys
     end
 
     #! make sure the database is updated, variations.db intialized
-    if pcvct_globals.initialized && !skip_db_insert
+    if pcmm_globals.initialized && !skip_db_insert
         insertFolder(:intracellular, splitpath(folder)[end])
     end
 

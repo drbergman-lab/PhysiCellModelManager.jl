@@ -1,6 +1,6 @@
 # Data directory structure
 
-To set up your pcvct-enabled repository within `project-dir` (the name of your project directory), create the following directory structure:
+To set up your PhysiCellModelManager.jl-enabled repository within `project-dir` (the name of your project directory), create the following directory structure:
 
 ```
 project-dir/
@@ -67,12 +67,12 @@ Proceed similarly for `dcs/`, `ecms/`, and `substrates/`, renaming those files t
 
 ### IC cells
 
-pcvct uses [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) to allow for creation of `cells.csv` files based on geometries defined in a `cells.xml` file.
+PhysiCellModelManager.jl uses [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) to allow for creation of `cells.csv` files based on geometries defined in a `cells.xml` file.
 To use this, first create such an XML document (see [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) for details) and place this in place of the `cells.csv` file.
 You may make variations on this in the same way as for `config` and `rulesets_collection`.
 
 ### IC ecm
 
-pcvct uses [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) to allow for creation of `ecm.csv` files based on the structure defined in a `ecm.xml` file.
+PhysiCellModelManager.jl uses [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) to allow for creation of `ecm.csv` files based on the structure defined in a `ecm.xml` file.
 To use this, first create such an XML document (see [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) for details) and place this in place of the `ecm.csv` file.
 You may make variations on this in the same way as for `config` and `rulesets_collection`.

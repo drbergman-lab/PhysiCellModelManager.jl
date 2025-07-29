@@ -321,25 +321,16 @@ Prepare the libRoadRunner library for use with PhysiCell.
 """
 function prepareLibRoadRunner()
     #! this is how PhysiCell handles downloading libRoadrunner
+    println("preparing libRoadrunner library for use with PhysiCell...")
     librr_base_dir = joinpath(physicellDir(), "addons", "libRoadrunner")
     librr_dir = joinpath(librr_base_dir, "roadrunner")
     librr_file = joinpath(librr_dir, "include", "rr", "C", "rrc_api.h")
     if !isfile(librr_file)
         python = Sys.iswindows() ? "python" : "python3"
-        show_output = begin
-            if !haskey(ENV, "JULIA_DEBUG")
-                return false
-            end
-            debug_modules = split(ENV["JULIA_DEBUG"], ",")
-            if "PhysiCellModelManager" in debug_modules
-                return true
-            end
-            return false
-        end
         cd(() -> run(pipeline(`$(python) $(joinpath(".", "beta", "setup_libroadrunner.py"))`;
-                     stdout=show_output ? stdout : devnull,
-                     stderr=show_output ? stderr : devnull)),
-           physicellDir())
+                stdout=devnull,
+                stderr=devnull)),
+            physicellDir())
         @assert isfile(librr_file) "libRoadrunner was not downloaded properly."
 
         #! remove the downloaded binary (I would think the script would handle this, but it does not)

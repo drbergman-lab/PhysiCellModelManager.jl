@@ -10,14 +10,14 @@ To motivate this functionality, consider the following scenario. A user has been
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["pruner.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["pruner.jl"]
 Public = false
 ```

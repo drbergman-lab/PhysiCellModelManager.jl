@@ -8,14 +8,14 @@ Import a project from the standard PhysiCell format into the PhysiCellModelManag
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["import.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["import.jl"]
 Public = false
 ```

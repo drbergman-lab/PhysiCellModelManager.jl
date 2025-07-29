@@ -8,14 +8,14 @@ Functionality for recording constituent IDs of `Monad`s, `Sampling`s, and `Trial
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["recorder.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["recorder.jl"]
 Public = false
 ```

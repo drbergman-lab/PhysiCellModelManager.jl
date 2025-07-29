@@ -9,7 +9,7 @@ Safely delete output from a PhysiCellModelManager.jl project.
 ## Public API
 
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["deletion.jl"]
 Private = false
 ```
@@ -17,7 +17,7 @@ Private = false
 ## Private API
 
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["deletion.jl"]
 Public = false
 ```

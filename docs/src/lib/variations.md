@@ -8,14 +8,14 @@ Vary parameters of the project.
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["variations.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["variations.jl"]
 Public = false
 ```

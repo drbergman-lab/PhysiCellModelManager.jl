@@ -17,7 +17,7 @@ Trial
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["classes.jl"]
 Public = false
 ```

@@ -8,14 +8,14 @@ Compile a PhysiCell project in PCMM. Includes the necessary compiler macros and 
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["compilation.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["compilation.jl"]
 Public = false
 ```

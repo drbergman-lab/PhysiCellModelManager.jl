@@ -34,14 +34,14 @@ function pcmmDBVersion()
 end
 
 """
-    resolvepcmmVersion(auto_upgrade::Bool)
+    resolvePCMMVersion(auto_upgrade::Bool)
 
 Resolve differences between the PhysiCellModelManager.jl version and the database version.
 If the PhysiCellModelManager.jl version is lower than the database version, it returns false (upgrade your version of PhysiCellModelManager.jl to match what was already used for the database).
 If the PhysiCellModelManager.jl version is equal to the database version, it returns true.
 If the PhysiCellModelManager.jl version is higher than the database version, it upgrades the database to the current PhysiCellModelManager.jl version and returns true.
 """
-function resolvepcmmVersion(auto_upgrade::Bool)
+function resolvePCMMVersion(auto_upgrade::Bool)
     pcmm_version = pcmmVersion()
     pcmm_db_version = pcmmDBVersion()
 

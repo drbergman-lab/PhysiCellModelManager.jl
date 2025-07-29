@@ -8,14 +8,14 @@ Run simulations, monads, samplings, and trials in the PhysiCellModelManager.jl f
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["runner.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelmanager]
+Modules = [PhysiCellModelManager]
 Pages = ["runner.jl"]
 Public = false
 ```

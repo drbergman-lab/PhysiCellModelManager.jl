@@ -115,7 +115,9 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         println("Could not successfully upgrade database. Please check the logs for more information.")
         return false
     end
-    println(rpad("PhysiCellModelManager.jl version:", 25, ' ') * string(pcmmVersion()))
+    s = "PhysiCellModelManager.jl v$(string(pcmmVersion()))"
+    println(s)
+    println("-"^length(s))
     println(rpad("Path to PhysiCell:", 25, ' ') * physicellDir())
     println(rpad("Path to data:", 25, ' ') * dataDir())
     println(rpad("Path to database:", 25, ' ') * centralDB().file)

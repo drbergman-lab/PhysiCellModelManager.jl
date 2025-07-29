@@ -123,11 +123,9 @@ function setUpInputs(data_dir::String, physicell_dir::String, template_as_defaul
         return
     end
 
-    mkpath(data_dir)
-    createInputsTOMLTemplate(joinpath(data_dir, "inputs.toml"))
-
     inputs_dir = joinpath(data_dir, "inputs")
     mkpath(inputs_dir)
+    createInputsTOMLTemplate(joinpath(inputs_dir, "inputs.toml"))
 
     mkpath(joinpath(inputs_dir, "configs"))
     mkpath(joinpath(inputs_dir, "custom_codes"))

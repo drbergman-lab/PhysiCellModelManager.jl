@@ -65,8 +65,8 @@ The following can be passed in as the third argument to `configPath(<substrate_n
 
 The following tokens work with a `cell_type` from your model:
 ```julia
-- `configPath(<cell_type>, "cycle_rate", "0")` (`cyclePath`)
-- `configPath(<cell_type>, "cycle_duration", "0")` (`cyclePath`)
+- `configPath(<cell_type>, "cycle_rate", <start_index>)` (`cyclePath`)
+- `configPath(<cell_type>, "cycle_duration", <index>)` (`cyclePath`)
 - `configPath(<cell_type>, "apoptosis", <parameter>)` (`apoptosisPath`)
 - `configPath(<cell_type>, "necrosis", <parameter>)` (`necrosisPath`)
 - `configPath(<cell_type>, "adhesion", <cell_type>)` (`mechanicsPath`)

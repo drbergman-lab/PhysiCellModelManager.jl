@@ -59,24 +59,24 @@ Parse the `inputs.toml` file in the data directory and create a global [`Project
 function parseProjectInputsConfigurationFile()
     inputs_dict_temp = Dict{String, Any}()
     try
-        inputs_dict_temp = TOML.parsefile(joinpath(dataDir(), "inputs.toml"))
+        inputs_dict_temp = pathToInputsConfig() |> TOML.parsefile
     catch e
         println("Error parsing project configuration file: ", e)
         return false
     end
     for (location, location_dict) in pairs(inputs_dict_temp)
+        @assert haskey(location_dict, "required") "inputs.toml: $(location): required must be defined."
+        @assert haskey(location_dict, "varied") "inputs.toml: $(location): varied must be defined."
         if !("path_from_inputs" in keys(location_dict))
             location_dict["path_from_inputs"] = tableName(location)
         else
             location_dict["path_from_inputs"] = location_dict["path_from_inputs"] .|> sanitizePathElement |> joinpath
         end
         if !("basename" in keys(location_dict))
+            @assert location_dict["varied"] isa Bool && (!location_dict["varied"]) "inputs.toml: $(location): basename must be defined if varied is true."
             location_dict["basename"] = missing
-        else
-            @assert haskey(location_dict, "varied") "inputs.toml: $(location): basename must be accompanied by varied."
-            if location_dict["varied"] isa Vector
-                @assert location_dict["basename"] isa Vector && length(location_dict["varied"]) == length(location_dict["basename"]) "inputs.toml: $(location): varied must be a Bool or a Vector of the same length as basename."
-            end
+        elseif location_dict["varied"] isa Vector
+            @assert location_dict["basename"] isa Vector && length(location_dict["varied"]) == length(location_dict["basename"]) "inputs.toml: $(location): varied must be a Bool or a Vector of the same length as basename."
         end
     end
     pcmm_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol, Any}
@@ -200,6 +200,13 @@ function folderIsVaried(location::Symbol, folder::String)
     end
     throw(ErrorException("No basename files found in folder $(path_to_folder). Must be one of $(basenames)"))
 end
+
+"""
+    pathToInputsConfig()
+
+Return the path to the `inputs.toml` file in the `inputs` directory.
+"""
+pathToInputsConfig() = joinpath(dataDir(), "inputs", "inputs.toml")
 
 """
     createInputsTOMLTemplate(path_to_toml::String)

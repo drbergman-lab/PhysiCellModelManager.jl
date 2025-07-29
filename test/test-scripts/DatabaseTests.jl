@@ -18,7 +18,7 @@ custom_code_src_folder =  joinpath(PhysiCellModelManager.dataDir(), "inputs", "c
 custom_code_dest_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "custom_codes_")
 mv(custom_code_src_folder, custom_code_dest_folder)
 
-@test PhysiCellModelManager.createSchema(false) == false
+@test PhysiCellModelManager.createSchema() == false
 
 mv(config_dest_folder, config_src_folder)
 mv(custom_code_dest_folder, custom_code_src_folder)
@@ -62,4 +62,4 @@ mkdir(path_to_bad_folder)
 @test PhysiCellModelManager.reinitializeDatabase() == false
 
 rm(path_to_bad_folder; force=true, recursive=true)
-@test PhysiCellModelManager.initializeDatabase(PhysiCellModelManager.centralDB().file) == true
+@test PhysiCellModelManager.initializeDatabase() == true

@@ -103,29 +103,30 @@ If no arguments are provided, it assumes that the PhysiCell and data directories
 - `path_to_data::AbstractString`: Path to the data directory as either an absolute or relative path.
 """
 function initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString; auto_upgrade::Bool=false)
+    global pcmm_globals
     #! print big logo of PhysiCellModelManager.jl here
     println(pcmmLogo())
     println("----------INITIALIZING----------")
     pcmm_globals.physicell_dir = abspath(path_to_physicell)
     pcmm_globals.data_dir = abspath(path_to_data)
+    pcmm_globals.db = SQLite.DB(joinpath(dataDir(), "vct.db"))
+    #! start with PhysiCellModelManager.jl version info
+    if !resolvePCMMVersion(auto_upgrade)
+        println("Could not successfully upgrade database. Please check the logs for more information.")
+        return false
+    end
+    println(rpad("PhysiCellModelManager.jl version:", 25, ' ') * string(pcmmVersion()))
     println(rpad("Path to PhysiCell:", 25, ' ') * physicellDir())
     println(rpad("Path to data:", 25, ' ') * dataDir())
-    success = parseProjectInputsConfigurationFile()
-    if !success
-        println("Project configuration file parsing failed.")
-        return
-    end
-    println(rpad("Path to inputs.toml:", 25, ' ') * joinpath(dataDir(), "inputs.toml"))
-    path_to_database = joinpath(dataDir(), "vct.db")
-    success = initializeDatabase(path_to_database; auto_upgrade=auto_upgrade)
-    println(rpad("Path to database:", 25, ' ') * path_to_database)
+    println(rpad("Path to database:", 25, ' ') * centralDB().file)
+    println(rpad("Path to inputs.toml:", 25, ' ') * pathToInputsConfig())
+    success = initializeDatabase()
     if !success
         pcmm_globals.db = SQLite.DB()
         println("Database initialization failed.")
         return
     end
     println(rpad("PhysiCell version:", 25, ' ') * physicellInfo())
-    println(rpad("PhysiCellModelManager.jl version:", 25, ' ') * string(pcmmVersion()))
     println(rpad("Compiler:", 25, ' ') * pcmm_globals.physicell_compiler)
     println(rpad("Running on HPC:", 25, ' ') * string(pcmm_globals.run_on_hpc))
     println(rpad("Max parallel sims:", 25, ' ') * string(pcmm_globals.max_number_of_parallel_simulations))

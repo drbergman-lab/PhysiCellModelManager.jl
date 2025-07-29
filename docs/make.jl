@@ -26,6 +26,7 @@ makedocs(;
             "Sensitivity analysis" => "man/sensitivity_analysis.md",
             "Analyzing output" => "man/analyzing_output.md",
             "Developer guide" => "man/developer_guide.md",
+            "Project configuration" => "man/project_configuration.md",
             "Index" => "man/index.md",
         ],
         "Documentation" => map(

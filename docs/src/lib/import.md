@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # Import
 
-Import a project from the standard PhysiCell format into the pcvct format.
+Import a project from the standard PhysiCell format into the PhysiCellModelManager.jl format.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["import.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["import.jl"]
 Public = false
 ```

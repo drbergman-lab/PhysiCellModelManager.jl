@@ -73,7 +73,7 @@ Constructed using `AverageSubstrateTimeSeries(x)` where `x` is any of the follow
 
 # Example
 ```julia
-asts = pcvct.AverageSubstrateTimeSeries(1) # Load average substrate time series for Simulation 1
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(1) # Load average substrate time series for Simulation 1
 asts.time # Get the time points
 asts["time"] # alternative way to get the time points
 asts["oxygen"] # Get the oxygen concentration over time
@@ -229,15 +229,15 @@ A struct to hold the mean extracellular substrate concentrations per cell type o
 
 # Example
 ```julia
-ests = pcvct.ExtracellularSubstrateTimeSeries(1) # Load extracellular substrate time series for Simulation 1
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(1) # Load extracellular substrate time series for Simulation 1
 ests.time # Get the time points
 ests["cancer"]["oxygen"] # Get the oxygen concentration over time for the cancer cell type
 
-ests = pcvct.ExtracellularSubstrateTimeSeries(simulation; include_dead=true) # Load extracellular substrate time series for a Simulation object, including dead cells
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(simulation; include_dead=true) # Load extracellular substrate time series for a Simulation object, including dead cells
 ests["time"] # Alternate way to get the time points
 ests["cd8"]["IFNg"] # Get the interferon gamma concentration over time for the CD8 cell type
 
-ests = pcvct.ExtracellularSubstrateTimeSeries(sequence) # Load extracellular substrate time series for a PhysiCellSequence object
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(sequence) # Load extracellular substrate time series for a PhysiCellSequence object
 ```
 """
 struct ExtracellularSubstrateTimeSeries

@@ -8,14 +8,14 @@ Main functions users will use to create and run simulations, monads, samplings, 
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["user_api.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["user_api.jl"]
 Public = false
 ```

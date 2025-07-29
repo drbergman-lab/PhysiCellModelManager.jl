@@ -7,8 +7,8 @@ using PhysiCellCellCreator
 
 Create folder with a template XML file for IC cells.
 
-See the [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) documentation for more information on IC cells and how this function works outside of pcvct.
-This pcvct function runs the `createICCellXMLTemplate` function from PhysiCellCellCreator.jl and then updates the database.
+See the [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) documentation for more information on IC cells and how this function works outside of PhysiCellModelManager.jl.
+This PhysiCellModelManager.jl function runs the `createICCellXMLTemplate` function from PhysiCellCellCreator.jl and then updates the database.
 Furthermore, the folder can be passed in just as the name of the folder located in `data/inputs/ics/cells/` rather than the full path.
 
 This functionality is run outside of a PhysiCell runtime.
@@ -25,7 +25,7 @@ Importantly, no two simulations will use the same CSV file.
 """
 function createICCellXMLTemplate(folder::String)
     if length(splitpath(folder)) == 1
-        @assert pcvct_globals.initialized "Must supply a full path to the folder if the database is not initialized."
+        @assert pcmm_globals.initialized "Must supply a full path to the folder if the database is not initialized."
         #! then the folder is just the name of the ics/cells/folder folder
         path_to_folder = locationPath(:ic_cell, folder)
     else
@@ -41,7 +41,7 @@ function createICCellXMLTemplate(folder::String)
     PhysiCellCellCreator.createICCellXMLTemplate(path_to_folder)
 
     #! finish by adding this folder to the database
-    if pcvct_globals.initialized
+    if pcmm_globals.initialized
         insertFolder(:ic_cell, folder)
     end
 

@@ -14,12 +14,12 @@ The following functions are called by `configPath` and are more foolproof but le
 
 |                                      |                                  |                                                  |                                   |
 |--------------------------------------|----------------------------------|--------------------------------------------------|-----------------------------------|
-| [`pcvct.domainPath`](@ref)           | [`pcvct.timePath`](@ref)         | [`pcvct.fullSavePath`](@ref)                     | [`pcvct.svgSavePath`](@ref)       |
-| [`pcvct.domainPath`](@ref)           | [`pcvct.timePath`](@ref)         | [`pcvct.fullSavePath`](@ref)                     | [`pcvct.svgSavePath`](@ref)       |
-| [`pcvct.substratePath`](@ref)        | [`pcvct.cyclePath`](@ref)        | [`pcvct.apoptosisPath`](@ref)                    | [`pcvct.necrosisPath`](@ref)      |
-| [`pcvct.volumePath`](@ref)           | [`pcvct.mechanicsPath`](@ref)    | [`pcvct.motilityPath`](@ref)                     | [`pcvct.secretionPath`](@ref)     |
-| [`pcvct.cellInteractionsPath`](@ref) | [`pcvct.phagocytosisPath`](@ref) | [`pcvct.attackRatePath`](@ref)                   | [`pcvct.fusionPath`](@ref)        |
-| [`pcvct.integrityPath`](@ref)        | [`pcvct.customDataPath`](@ref)   | [`pcvct.initialParameterDistributionPath`](@ref) | [`pcvct.userParameterPath`](@ref) |
+| [`PhysiCellModelManager.domainPath`](@ref)           | [`PhysiCellModelManager.timePath`](@ref)         | [`PhysiCellModelManager.fullSavePath`](@ref)                     | [`PhysiCellModelManager.svgSavePath`](@ref)       |
+| [`PhysiCellModelManager.domainPath`](@ref)           | [`PhysiCellModelManager.timePath`](@ref)         | [`PhysiCellModelManager.fullSavePath`](@ref)                     | [`PhysiCellModelManager.svgSavePath`](@ref)       |
+| [`PhysiCellModelManager.substratePath`](@ref)        | [`PhysiCellModelManager.cyclePath`](@ref)        | [`PhysiCellModelManager.apoptosisPath`](@ref)                    | [`PhysiCellModelManager.necrosisPath`](@ref)      |
+| [`PhysiCellModelManager.volumePath`](@ref)           | [`PhysiCellModelManager.mechanicsPath`](@ref)    | [`PhysiCellModelManager.motilityPath`](@ref)                     | [`PhysiCellModelManager.secretionPath`](@ref)     |
+| [`PhysiCellModelManager.cellInteractionsPath`](@ref) | [`PhysiCellModelManager.phagocytosisPath`](@ref) | [`PhysiCellModelManager.attackRatePath`](@ref)                   | [`PhysiCellModelManager.fusionPath`](@ref)        |
+| [`PhysiCellModelManager.integrityPath`](@ref)        | [`PhysiCellModelManager.customDataPath`](@ref)   | [`PhysiCellModelManager.initialParameterDistributionPath`](@ref) | [`PhysiCellModelManager.userParameterPath`](@ref) |
 
 Here is a near-exhaustive list of the available tokens (the flexibiilty of `configPath` allows for some of these XML paths to be created in multiple ways):
 
@@ -99,38 +99,38 @@ icECMPath
 
 ## Config file specific functions
 ```@docs; canonical=false
-pcvct.domainPath
-pcvct.timePath
-pcvct.fullSavePath
-pcvct.svgSavePath
-pcvct.substratePath
-pcvct.cyclePath
-pcvct.apoptosisPath
-pcvct.necrosisPath
-pcvct.volumePath
-pcvct.mechanicsPath
-pcvct.motilityPath
-pcvct.secretionPath
-pcvct.cellInteractionsPath
-pcvct.phagocytosisPath
-pcvct.attackRatePath
-pcvct.fusionPath
-pcvct.integrityPath
-pcvct.customDataPath
-pcvct.initialParameterDistributionPath
-pcvct.userParameterPath
+PhysiCellModelManager.domainPath
+PhysiCellModelManager.timePath
+PhysiCellModelManager.fullSavePath
+PhysiCellModelManager.svgSavePath
+PhysiCellModelManager.substratePath
+PhysiCellModelManager.cyclePath
+PhysiCellModelManager.apoptosisPath
+PhysiCellModelManager.necrosisPath
+PhysiCellModelManager.volumePath
+PhysiCellModelManager.mechanicsPath
+PhysiCellModelManager.motilityPath
+PhysiCellModelManager.secretionPath
+PhysiCellModelManager.cellInteractionsPath
+PhysiCellModelManager.phagocytosisPath
+PhysiCellModelManager.attackRatePath
+PhysiCellModelManager.fusionPath
+PhysiCellModelManager.integrityPath
+PhysiCellModelManager.customDataPath
+PhysiCellModelManager.initialParameterDistributionPath
+PhysiCellModelManager.userParameterPath
 ```
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["configuration.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["configuration.jl"]
 Public = false
 ```

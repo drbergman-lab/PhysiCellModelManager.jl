@@ -32,7 +32,7 @@ out = run(simulation_from_import; force_recompile=false)
 
 success = importProject(path_to_project, src, dest)
 @test success
-@test isdir(pcvct.locationPath(:config, "immune_sample_1"))
+@test isdir(PhysiCellModelManager.locationPath(:config, "immune_sample_1"))
 
 src["rules"] = "not_rules.csv"
 success = importProject(path_to_project, src, dest)

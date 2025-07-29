@@ -10,14 +10,14 @@ Currently, only supports this for intracellular ODE (libRoadRunner) models.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["components.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["components.jl"]
 Public = false
 ```

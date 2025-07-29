@@ -11,7 +11,7 @@ pkg> add Plots
 
 ### `PhysiCellSnapshot`
 The base unit of PhysiCell output is the `PhysiCellSnapshot`.
-These are currently considered pcvct internals and so the API may change.
+These are currently considered PhysiCellModelManager.jl internals and so the API may change.
 Each snapshot records the path to the PhysiCell output folder, its index in the sequence of outputs, the time of the snapshot in the simulation, and optionally the cell, substrate, and mesh data at that snapshot.
 
 ### `PhysiCellSequence`
@@ -46,7 +46,7 @@ Plan your analyses accordingly as loading simulation data is not fast.
 ## Population plots
 
 ### Group by Monad
-Plotting population plots is one the most basic analysis tasks and pcvct makes it super easy!
+Plotting population plots is one the most basic analysis tasks and PhysiCellModelManager.jl makes it super easy!
 If you call `plot` on a `Simulation`, `Monad`, `Sampling`, or the return value of a call to `run` (though not for a sensitivity analysis),
 then a sequence of panels will be generated in a single figure.
 Each panel will correspond to a `Monad` (replicates using the same parameter values) and will plot mean +/- SD for each cell type.
@@ -58,7 +58,7 @@ Finer-grained control of the output is possible, too!
 - choose time units for the x-axis: `plot(...; ..., time_unit=:h, ...)`
 
 The `include_cell_type_names` and `exclude_cell_type_names` can also accept a `Vector{String}` to include or exclude certain cell types, respectively.
-Furthermore, if the value of `include_cell_type_names` is a `Vector` and one of its entries is a `Vector{String}`, pcvct will interpret this to sum up those cell types.
+Furthermore, if the value of `include_cell_type_names` is a `Vector` and one of its entries is a `Vector{String}`, PhysiCellModelManager.jl will interpret this to sum up those cell types.
 In other words, to get the total tumor cell count in addition to the epithelial (`"epi"`) and mesenchymal (`"mes"`) components, you could use
 ```julia
 using Plots
@@ -74,7 +74,7 @@ plot(Simulation(1); color=colors, include_cell_type_names=["cd8", "cancer"]) # w
 
 ### Group by cell type
 Invert the above by including all data for a single cell type across all monads in a single panel with a call to `plotbycelltype`.
-This function works on any `T<:AbstractTrial` (`Simulation`, `Monad`, `Sampling`, or `Trial`) as well as any `PCVCTOutput` object (the return value to `run`).
+This function works on any `T<:AbstractTrial` (`Simulation`, `Monad`, `Sampling`, or `Trial`) as well as any `PCMMOutput` object (the return value to `run`).
 Everything above for `plot` applies here.
 
 ```julia
@@ -83,14 +83,14 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 ```
 
 ## Substrate analysis
-pcvct supports two ways to summarize substrate information over time.
+PhysiCellModelManager.jl supports two ways to summarize substrate information over time.
 
 ### `AverageSubstrateTimeSeries`
 An `AverageSubstrateTimeSeries` gives the time series for the average substrate across the entire domain.
 
 ```julia
 simulation_id = 1
-asts = pcvct.AverageSubstrateTimeSeries(simulation_id)
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(simulation_id)
 using Plots
 plot(asts.time, asts["oxygen"])
 ```
@@ -101,7 +101,7 @@ In a simulation with `cd8` cells and `IFNg` diffusible substrate, plot the avera
 
 ```julia
 simulation_id = 1
-ests = pcvct.ExtracellularSubstrateTimeSeries(simulation_id)
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(simulation_id)
 using Plots
 plot(ests.time, ests["cd8"]["IFNg"])
 ```
@@ -129,7 +129,7 @@ mss = motilityStatistics(simulation_id; direction=:x) # only consider the moveme
 Sometimes referred to as radial distribution functions, the pair correlation function (PCF) computes the density of target cells around center cells.
 If the two sets of cells are the same (centers = targets), this is called PCF.
 If the two are not equal, this is sometimes called cross-PCF.
-Both can be computed with a call to `pcvct.pcf` (or just `pcf` if `using PairCorrelationFunction` has been called).
+Both can be computed with a call to `PhysiCellModelManager.pcf` (or just `pcf` if `using PairCorrelationFunction` has been called).
 
 ### Arguments
 PCF computations can readily be called on `PhysiCellSnapshot`'s, `PhysiCellSequence`'s, or `Simulation`'s.
@@ -150,41 +150,41 @@ The following keyword arguments are available:
 - `dr::Float64 = 20.0`: the step size for the radial bins in micrometers.
 
 ### Output
-The output of `pcf` is a `PCVCTPCFResult` object which has two fields: `time` and `pcf_result`.
+The output of `pcf` is a `PCMMPCFResult` object which has two fields: `time` and `pcf_result`.
 The `time` field is always a vector of the time points at which the PCF was computed, even if computing PCF for a single snapshot.
 The `pcf_result` is of type `PairCorrelationFunction.PCFResult` and has two fields: `radii` and `g`.
 The `radii` is the set of cutoffs used to compute the PCF and `g` is either a vector or a matrix of the PCF values of size `length(radii)-1` by `length(time)`.
 
 ### Plotting
 An API to make use of the `PairCorrelationFunction` package plotting interface is available through the `plot` function.
-Simply pass in the `PCVCTPCFResult`!
-You can pass in as many such objects as you like or pass in a `Vector{PCVCTPCFResult}`.
+Simply pass in the `PCMMPCFResult`!
+You can pass in as many such objects as you like or pass in a `Vector{PCMMPCFResult}`.
 In this case, these are interpreted as stochastic realizations of the same PCF and summary statistics are used to plot.
 See the `PairCorrelationFunction` documentation for more details.
 
-The pcvct implementation supports two keyword arguments:
-- `time_unit::Symbol = :min`: the time unit to use for the time axis (only relevant if the `PCVCTPCFResult` has more than one time point).
+The PhysiCellModelManager.jl implementation supports two keyword arguments:
+- `time_unit::Symbol = :min`: the time unit to use for the time axis (only relevant if the `PCMMPCFResult` has more than one time point).
   - The default is `:min` and the other options are `:s`, `:h`, `:d`, `:w`, `:mo`, `:y`.
 - `distance_unit::Symbol = :um`: the distance unit to use for the distance axis.
   - The default is `:um` and the other options are `:mm` and `:cm`.
 
 Finally, a keyword argument supported by `PairCorrelationFunction` is `colorscheme` which can be used to change the colorscheme of the color map.
-pcvct overrides the default from `PairCorrelationFunction` (`:tofino`) with `:cork` to use white to represent values near one.
+PhysiCellModelManager.jl overrides the default from `PairCorrelationFunction` (`:tofino`) with `:cork` to use white to represent values near one.
 
 ### Examples
 ```julia
 simulation_id = 1
-result = pcvct.pcf(simulation_id, "cancer", "cd8") # using PairCorrelationFunction will obviate the need to prefix with `pcvct`
+result = PhysiCellModelManager.pcf(simulation_id, "cancer", "cd8") # using PairCorrelationFunction will obviate the need to prefix with `PhysiCellModelManager`
 plot(result) # heatmap of proximity of (living) cd8s to (living) cancer cells throughout simulation 1
 ```
 ```julia
 monad = Monad(1) # let's assume that there are >1 simulations in this monad
-results = [pcvct.pcf(simulation_id, :final, "cancer", "cd8") for simulation_id in simulationIDs(monad)] # one vector of PCF values for each simulation at the final snapshot
+results = [PhysiCellModelManager.pcf(simulation_id, :final, "cancer", "cd8") for simulation_id in simulationIDs(monad)] # one vector of PCF values for each simulation at the final snapshot
 plot(results) # line plot of average PCF values against radius across the monad +/- 1 SD
 ```
 ```julia
 monad = Monad(1) # let's assume that there are >1 simulations in this monad
-results = [pcvct.pcf(simulation_id, "cancer", "cd8") for simulation_id in simulationIDs(monad)] # one matrix of PCF values for each simulation across all time points
+results = [PhysiCellModelManager.pcf(simulation_id, "cancer", "cd8") for simulation_id in simulationIDs(monad)] # one matrix of PCF values for each simulation across all time points
 plot(results) # heatmap of average PCF values with time on the x-axis and radius on the y-axis; averages omit NaN values that can occur at higher radii
 ```
 
@@ -195,10 +195,10 @@ For each graph, the vertices are the cell agents and the edges are as follows:
 - `:attachments`: manually-defined attachments between cells
 - `:spring_attachments`: spring attachments formed automatically using attachment rates
 Each of these graphs is expected to be symmetric, i.e., if cell A is attached to cell B, then cell B is attached to cell A.
-Nonetheless, pcvct holds the data in a directed graph.
+Nonetheless, PhysiCellModelManager.jl holds the data in a directed graph.
 
-Currently, pcvct supports computing connected components for any of these graphs using the [`connectedComponents`](@ref) function.
-For an [`pcvct.AbstractPhysiCellSequence`](@ref) object, the graphs can be loaded using the [`loadGraph!`](@ref) function for any other analysis.
+Currently, PhysiCellModelManager.jl supports computing connected components for any of these graphs using the [`connectedComponents`](@ref) function.
+For an [`PhysiCellModelManager.AbstractPhysiCellSequence`](@ref) object, the graphs can be loaded using the [`loadGraph!`](@ref) function for any other analysis.
 
 ### Examples
 For all examples that follow, we will assume a [`PhysiCellSnapshot`](@ref) object called `snapshot` has been created, e.g., as follows:
@@ -213,7 +213,7 @@ To get a list of the connected components for the `:neighbors` graph for all liv
 connected_components = connectedComponents(snapshot) # defaults to the :neighbors graph, all cells, and exclude dead cells
 ```
 The `connected_components` object is a `Dict` with the cell type names in a single vector as the only key with value a vector of vectors.
-Each element is a vector of the cell IDs belonging to that connected component in the wrapper type [`pcvct.AgentID`](@ref).
+Each element is a vector of the cell IDs belonging to that connected component in the wrapper type [`PhysiCellModelManager.AgentID`](@ref).
 
 If you want to compute connected components for subsets of cells, pass in a vector of vectors of cell type names (`String`s) such that each vector corresponds to a subset of cell types.
 ```julia

@@ -1,5 +1,5 @@
 # Helper functions to define targets
-For each of the varied input types, pcvct has a helper function to create the XML path.
+For each of the varied input types, PhysiCellModelManager.jl has a helper function to create the XML path.
 
 ## Varying config parameters
 The [`configPath`](@ref) function can be used to create the XML path to almost[^1] any parameter in the configuration file intuitively.
@@ -33,9 +33,9 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
 ```
 
 ## Varying initial cell parameters
-pcvct supports an XML-based initialization of cell locations using [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl).
+PhysiCellModelManager.jl supports an XML-based initialization of cell locations using [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl).
 See the documentation of that package for details on how to create the XML file.
-Use [`pcvct.createICCellXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
+Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
 From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).
 
 To vary parameters in this XML file, the [`icCellsPath`](@ref) function can be used.
@@ -53,9 +53,9 @@ icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id
 ```
 
 ## Varying initial ECM parameters
-pcvct supports an XML-based initialization of ECMs using [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl).
+PhysiCellModelManager.jl supports an XML-based initialization of ECMs using [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl).
 See the documentation of that package for details on how to create the XML file.
-Use [`pcvct.createICECMXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
+Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
 From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).
 
 To vary parameters in this XML file, the [`icECMPath`](@ref) function can be used.

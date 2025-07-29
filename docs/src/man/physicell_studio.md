@@ -1,6 +1,6 @@
 # Using PhysiCell Studio
 See [PhysiCell-Studio](https://github.com/PhysiCell-Tools/PhysiCell-Studio).
-Using PhysiCell Studio within pcvct is designed for visualizing output in the `Plot` tab and observing model parameters in the remaining tabs.
+Using PhysiCell Studio within PhysiCellModelManager.jl is designed for visualizing output in the `Plot` tab and observing model parameters in the remaining tabs.
 
 **Do not use the `Run` tab in PhysiCell Studio as this may delete simulation data.**
 
@@ -8,13 +8,13 @@ See [below](#editing-in-physicell-studio) for how to edit the configuration and 
 
 ## Setting paths
 ### Environment variables
-You must first inform pcvct where your desired `python` executable is and the PhysiCell Studio folder.
+You must first inform PhysiCellModelManager.jl where your desired `python` executable is and the PhysiCell Studio folder.
 The recommended way to do this is to add the following two lines to your shell environment file (e.g. `~/.bashrc` or `~/.zshenv`):
 ```
-export PCVCT_PYTHON_PATH="/usr/bin/python3"
-export PCVCT_STUDIO_PATH="/home/user/PhysiCell-Studio"
+export PCMM_PYTHON_PATH="/usr/bin/python3"
+export PCMM_STUDIO_PATH="/home/user/PhysiCell-Studio"
 ```
-If your python executable is on your PATH, you can set `PCVCT_PYTHON_PATH="python3"`, for example.
+If your python executable is on your PATH, you can set `PCMM_PYTHON_PATH="python3"`, for example.
 
 After making these changes, make sure to source the file to apply the changes:
 ```sh
@@ -31,7 +31,7 @@ See below for the function signature.
 First, launch julia in a new shell session and make sure the project is initialized by running:
 ```julia
 # if you used createProject(), these are the first two lines of GenerateData.jl
-using pcvct
+using PhysiCellModelManager
 initializeModelManager()
 ```
 As soon as the simulation has begun (so that its PhysiCell-generated `output` folder is created and populated), you can launch PhysiCell Studio.

@@ -1,5 +1,5 @@
 [deps]
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
-pcvct = "3c374bc7-7384-4f83-8ca0-87b8c727e6ff"
+PhysiCellModelManager = "7582d1aa-5e58-4d65-a123-4418a61a2644"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"

@@ -1,10 +1,10 @@
 # Sensitivity analysis
 
-pcvct supports some sensitivity analysis workflows.
-By using pcvct, you will have the opportunity to readily reuse previous simulations to perform and extend sensitivity analyses.
+PhysiCellModelManager.jl supports some sensitivity analysis workflows.
+By using PhysiCellModelManager.jl, you will have the opportunity to readily reuse previous simulations to perform and extend sensitivity analyses.
 
 ## Supported sensitivity analysis methods
-pcvct currently supports three sensitivity analysis methods:
+PhysiCellModelManager.jl currently supports three sensitivity analysis methods:
 - Morris One-At-A-Time (MOAT)
 - Sobol
 - Random Balance Design (RBD)
@@ -24,7 +24,7 @@ To pick a random point within the bin, set `add_noise=true`.
 If `n=k^d` for some integer `k`, then the LHS will be orthogonal.
 Here, `n` is the requested number of base points and `d` is the number of parameters varied.
 For example, if `n=16` and `d=4`, then `k=2` and the LHS will be orthogonal.
-To force pcvct to NOT use an orthogonal LHS, set `orthogonalize=false`.
+To force PhysiCellModelManager.jl to NOT use an orthogonal LHS, set `orthogonalize=false`.
 
 To use the MOAT method, any of the following signatures can be used:
 ```julia
@@ -40,7 +40,7 @@ It relies on a Sobol sequence, a deterministic sequence of points that are evenl
 The important main feature of the Sobol sequence is that it is a _low-discrepancy_ sequence, meaning that it fills the space very evenly.
 Thus, using such sequences can give a very good approximation of certain quantities (like integrals) with fewer points than a random sequence would require.
 The Sobol sequence is built around powers of 2, and so picking `n=2^k` (as well as ±1) will give the best results.
-See [`SobolVariation`](@ref) for more information on how pcvct will use the Sobol sequence to sample the parameter space and how you can control it.
+See [`SobolVariation`](@ref) for more information on how PhysiCellModelManager.jl will use the Sobol sequence to sample the parameter space and how you can control it.
 
 If the extremes of your distributions (where the CDF is 0 or 1) are non-physical, e.g., an unbounded normal distribution, then consider using `n=2^k-1` to pick a subsequence that does not include the extremes.
 For example, if you choose `n=7`, then the Sobol sequence will be `[0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875]`.
@@ -64,10 +64,10 @@ Choosing `n` design points, RBD will run `n` monads.
 It will then rearrange the `n` output values so that each parameter in turn is varied along a sinusoid and computes the Fourier transforms to estimate the first order indices.
 By default, it looks up to the 6th harmonic, but you can control this with the `num_harmonics` keyword argument.
 
-By default, pcvct will make use of the Sobol sequence to pick the design points.
+By default, PhysiCellModelManager.jl will make use of the Sobol sequence to pick the design points.
 It is best to pick `n` such that is differs from a power of 2 by at most 1, e.g. 7, 8, or 9.
-In this case, pcvct will actually use a half-period of a sinusoid when converting the design points into CDF space.
-Otherwise, pcvct will use random permuations of `n` uniformly spaced points in each parameter dimension and will use a full period of a sinusoid when converting the design points into CDF space.
+In this case, PhysiCellModelManager.jl will actually use a half-period of a sinusoid when converting the design points into CDF space.
+Otherwise, PhysiCellModelManager.jl will use random permuations of `n` uniformly spaced points in each parameter dimension and will use a full period of a sinusoid when converting the design points into CDF space.
 
 To use the RBD method, any of the following signatures can be used:
 ```julia
@@ -78,8 +78,8 @@ RBD(32; num_harmonics=4) # will look up to the 4th harmonic, instead of the defa
 ```
 
 If you choose `n=2^k - 1` or `n=2^k + 1`, then you will be well-positioned to increment `k` by one and rerun the RBD method to get more accurate results.
-The reason: pcvct will start from the start of the Sobol sequence to cover these `n` points, meaning runs will not need to be repeated.
-If `n=2^k`, then pcvct will choose the `n` odd multiples of `1/2^(k+1)` from the Sobol sequence, which will not be used if `k` is incremented.
+The reason: PhysiCellModelManager.jl will start from the start of the Sobol sequence to cover these `n` points, meaning runs will not need to be repeated.
+If `n=2^k`, then PhysiCellModelManager.jl will choose the `n` odd multiples of `1/2^(k+1)` from the Sobol sequence, which will not be used if `k` is incremented.
 
 ## Setting up a sensitivity analysis
 
@@ -90,13 +90,13 @@ Having chosen a sensitivity analysis method, you must now choose the same set of
 - `evs::Vector{<:ElementaryVariation}` to define the parameters to conduct the sensitivity analysis on and their ranges/distributions
 
 Unlike for (most) trials, the `ElementaryVariation`'s you will want here are likely to be [`DistributedVariation`](@ref)'s to allow for a continuum of parameter values to be tested.
-pcvct offers [`UniformDistributedVariation`](@ref) and [`NormalDistributedVariation`](@ref) as convenience functions to create these `DistributedVariation`'s.
+PhysiCellModelManager.jl offers [`UniformDistributedVariation`](@ref) and [`NormalDistributedVariation`](@ref) as convenience functions to create these `DistributedVariation`'s.
 You can also use any `d::Distribution` to create a `DistributedVariation` directly:
 ```julia
 dv = DistributedVariation(xml_path, d)
 ```
 
-Currently, pcvct does not support defining relationships between parameters in any context.
+Currently, PhysiCellModelManager.jl does not support defining relationships between parameters in any context.
 `CoVariation`'s are a work-in-progress and will be a sibling of `ElementaryVariation` in the type tree.
 
 ### Sensitivity functions
@@ -122,7 +122,7 @@ sensitivity_sampling = run(method, inputs, n_replicates, evs)
 ```
 
 ## Post-processing
-The object `sensitivity_sampling` is of type [`pcvct.GSASampling`](@ref), meaning you can use [`pcvct.calculateGSA!`](@ref) to compute sensitivity analyses.
+The object `sensitivity_sampling` is of type [`PhysiCellModelManager.GSASampling`](@ref), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
 f = simulation_id -> finalPopulationCount(simulation_id)["default"] # count the final population of cell type "default"
 calculateGSA!(sensitivity_sampling, f)
@@ -136,10 +136,10 @@ The exact concrete type of `sensitivity_sampling` will depend on the `method` us
 This, in turn, is used by `calculateGSA!` to determine how to compute the sensitivity indices.
 
 Likewise, the `method` will determine how the sensitivity scheme is saved
-After running the simulations, pcvct will print a CSV in the `data/outputs/sampling/$(sampling)` folder named based on the `method`.
+After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling)` folder named based on the `method`.
 This can later be used to reload the `GSASampling` and continue doing analysis.
 Currently, this requires some ingenuity by the user.
-A future version of pcvct could provide convenience functions for simplifying this.
+A future version of PhysiCellModelManager.jl could provide convenience functions for simplifying this.
 ```julia
 using CSV, DataFrames
 sampling_id = 1 # for example

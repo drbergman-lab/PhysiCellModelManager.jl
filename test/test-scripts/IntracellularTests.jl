@@ -12,10 +12,10 @@ inputs = InputFolders(config, custom_code; intracellular=intracellular)
 dv1 = DiscreteVariation(["overall", "max_time"], 12.0)
 xml_path = ["intracellulars", "intracellular:ID:1", "sbml", "model", "listOfReactions", "reaction:id:Aerobic", "kineticLaw", "math", "apply", "apply", "cn"]
 dv2 = DiscreteVariation(xml_path, [5, 6])
-pcvct_output_intracellular = run(inputs, [dv1, dv2]) #! save for later use
-@test pcvct_output_intracellular.n_success == 2
+pcmm_output_intracellular = run(inputs, [dv1, dv2]) #! save for later use
+@test pcmm_output_intracellular.n_success == 2
 
-macros_lines = pcvct.readMacrosFile(pcvct_output_intracellular.trial)
+macros_lines = PhysiCellModelManager.readMacrosFile(pcmm_output_intracellular.trial)
 @test "ADDON_ROADRUNNER" in macros_lines
 
 #! more test coverage

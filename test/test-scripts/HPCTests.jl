@@ -5,15 +5,15 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-pcvct.useHPC()
+PhysiCellModelManager.useHPC()
 
 simulation = Simulation(1)
 monad = Monad(simulation)
 
-cmd_local = pcvct.prepareSimulationCommand(simulation, monad.id, true, false)
+cmd_local = PhysiCellModelManager.prepareSimulationCommand(simulation, monad.id, true, false)
 cmd_local_str = string(Cmd(cmd_local.exec))
 cmd_local_str = strip(cmd_local_str, '`')
-cmd_hpc = pcvct.prepareHPCCommand(cmd_local, simulation.id)
+cmd_hpc = PhysiCellModelManager.prepareHPCCommand(cmd_local, simulation.id)
 
 cmd_string = string(cmd_hpc)
 cmd_string = strip(cmd_string, '`')
@@ -24,10 +24,10 @@ cmd_string = strip(cmd_string, '`')
 
 # test prep of command
 # gh actions runners not expected to have `sbatch` installed
-@test_throws Base.IOError pcvct.SimulationProcess(simulation)
+@test_throws Base.IOError PhysiCellModelManager.SimulationProcess(simulation)
 
 # test hpc removal of file that does not exist
-@test isnothing(pcvct.rm_hpc_safe("not_a_file.txt"))
+@test isnothing(PhysiCellModelManager.rm_hpc_safe("not_a_file.txt"))
 
 # test hpc removal of file that does exist
 current_time = Dates.now()
@@ -39,29 +39,29 @@ if is_about_to_be_next_day
     #! if it's about to be the next day, wait until it is the next day
     sleep(threshold_seconds + 1)
 end
-path_to_dummy_file = joinpath(pcvct.dataDir(), "test.txt")
+path_to_dummy_file = joinpath(PhysiCellModelManager.dataDir(), "test.txt")
 open(path_to_dummy_file, "w") do f
     write(f, "test")
 end
-pcvct.rm_hpc_safe(path_to_dummy_file)
-@test joinpath(pcvct.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test.txt") |> isfile
+PhysiCellModelManager.rm_hpc_safe(path_to_dummy_file)
+@test joinpath(PhysiCellModelManager.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test.txt") |> isfile
 
 # test hpc removal of file with same name
-path_to_dummy_file = joinpath(pcvct.dataDir(), "test.txt")
+path_to_dummy_file = joinpath(PhysiCellModelManager.dataDir(), "test.txt")
 open(path_to_dummy_file, "w") do f
     write(f, "test")
 end
-pcvct.rm_hpc_safe(path_to_dummy_file)
-@test joinpath(pcvct.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test-1.txt") |> isfile
+PhysiCellModelManager.rm_hpc_safe(path_to_dummy_file)
+@test joinpath(PhysiCellModelManager.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test-1.txt") |> isfile
 
 # revert back to not using HPC for remainder of tests
-pcvct.useHPC(false)
+PhysiCellModelManager.useHPC(false)
 
 new_hpc_options = Dict("cpus-per-task" => "2",
                        "job-name" => simulation_id -> "test_$(simulation_id)")
-pcvct.setJobOptions(new_hpc_options)
-@test pcvct.pcvct_globals.sbatch_options["cpus-per-task"] == "2"
-hpc_command = pcvct.prepareHPCCommand(cmd_local, 78)
+PhysiCellModelManager.setJobOptions(new_hpc_options)
+@test PhysiCellModelManager.pcmm_globals.sbatch_options["cpus-per-task"] == "2"
+hpc_command = PhysiCellModelManager.prepareHPCCommand(cmd_local, 78)
 
 cmd_string = string(hpc_command)
 cmd_string = strip(cmd_string, '`')

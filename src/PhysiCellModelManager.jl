@@ -1,4 +1,4 @@
-module pcvct
+module PhysiCellModelManager
 
 using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
 using PhysiCellXMLRules, PhysiCellCellCreator
@@ -23,7 +23,7 @@ include("ic_ecm.jl")
 include("runner.jl")
 include("recorder.jl")
 include("up.jl")
-include("pcvct_version.jl")
+include("pcmm_version.jl")
 include("physicell_version.jl")
 include("components.jl")
 
@@ -53,39 +53,37 @@ else
 end
 
 function __init__()
-    pcvct_globals.physicell_compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
+    pcmm_globals.physicell_compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
 
-    pcvct_globals.max_number_of_parallel_simulations = haskey(ENV, "PCVCT_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCVCT_NUM_PARALLEL_SIMS"]) : 1
+    pcmm_globals.max_number_of_parallel_simulations = haskey(ENV, "PCMM_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCMM_NUM_PARALLEL_SIMS"]) : 1
 
-    pcvct_globals.path_to_python = haskey(ENV, "PCVCT_PYTHON_PATH") ? ENV["PCVCT_PYTHON_PATH"] : missing
-    pcvct_globals.path_to_studio = haskey(ENV, "PCVCT_STUDIO_PATH") ? ENV["PCVCT_STUDIO_PATH"] : missing
-    pcvct_globals.path_to_magick = haskey(ENV, "PCVCT_IMAGEMAGICK_PATH") ? ENV["PCVCT_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
-    pcvct_globals.path_to_ffmpeg = haskey(ENV, "PCVCT_FFMPEG_PATH") ? ENV["PCVCT_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
+    pcmm_globals.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing
+    pcmm_globals.path_to_studio = haskey(ENV, "PCMM_STUDIO_PATH") ? ENV["PCMM_STUDIO_PATH"] : missing
+    pcmm_globals.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
+    pcmm_globals.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
 
 end
 
 ################## Initialization Functions ##################
 
 """
-    pcvctLogo()
+    pcmmLogo()
 
-Return a string representation of the awesome pcvct logo.
+Return a string representation of the awesome PhysiCellModelManager.jl logo.
 """
-function pcvctLogo()
+function pcmmLogo()
     return """
     \n
-    ▐▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▌
-    ▐                                                                     ▌
-    ▐   ███████████    █████████  █████   █████   █████████  ███████████  ▌
-    ▐  ░░███░░░░░███  ███░░░░░███░░███   ░░███   ███░░░░░███░█░░░███░░░█  ▌
-    ▐   ░███    ░███ ███     ░░░  ░███    ░███  ███     ░░░ ░   ░███  ░   ▌
-    ▐   ░██████████ ░███          ░███    ░███ ░███             ░███      ▌
-    ▐   ░███░░░░░░  ░███          ░░███   ███  ░███             ░███      ▌
-    ▐   ░███        ░░███     ███  ░░░█████░   ░░███     ███    ░███      ▌
-    ▐   █████        ░░█████████     ░░███      ░░█████████     █████     ▌
-    ▐  ░░░░░          ░░░░░░░░░       ░░░        ░░░░░░░░░     ░░░░░      ▌
-    ▐                                                                     ▌
-    ▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌
+    ▐▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▌
+    ▐~~███████████~~~~█████████~~██████~~~██████~██████~~~██████~▌
+    ▐~░░███░░░░░███~~███░░░░░███░░██████~██████~░░██████~██████~~▌
+    ▐~~░███~~~~░███~███~~~~~░░░~~░███░█████░███~~░███░█████░███~~▌
+    ▐~~░██████████~░███~~~~~~~~~~░███░░███~░███~~░███░░███~░███~~▌
+    ▐~~░███░░░░░░~~░███~~~~~~~~~~░███~░░░~~░███~~░███~░░░~~░███~~▌
+    ▐~~░███~~~~~~~~░░███~~~~~███~░███~~~~~~░███~~░███~~~~~~░███~~▌
+    ▐~~█████~~~~~~~~░░█████████~~█████~~~~~█████~█████~~~~~█████~▌
+    ▐~░░░░░~~~~~~~~~~░░░░░░░░░~~░░░░░~~~~~░░░░░~░░░░░~~~~~░░░░░~~▌
+    ▐▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▌
     \n
       """
 end
@@ -95,7 +93,7 @@ end
     initializeModelManager(path_to_project_dir::AbstractString)
     initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString)
 
-Initialize the pcvct project model manager, identifying the data folder, PhysiCell folder, and loading the central database.
+Initialize the PhysiCellModelManager.jl project model manager, identifying the data folder, PhysiCell folder, and loading the central database.
 
 If no arguments are provided, it assumes that the PhysiCell and data directories are in the current working directory.
 
@@ -105,33 +103,35 @@ If no arguments are provided, it assumes that the PhysiCell and data directories
 - `path_to_data::AbstractString`: Path to the data directory as either an absolute or relative path.
 """
 function initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString; auto_upgrade::Bool=false)
-    global pcvct_globals
-    #! print big logo of PCVCT here
-    println(pcvctLogo())
+    global pcmm_globals
+    #! print big logo of PhysiCellModelManager.jl here
+    println(pcmmLogo())
     println("----------INITIALIZING----------")
-    pcvct_globals.physicell_dir = abspath(path_to_physicell)
-    pcvct_globals.data_dir = abspath(path_to_data)
-    pcvct_globals.db = SQLite.DB(joinpath(dataDir(), "vct.db"))
-    #! start with pcvct version info
-    if !resolvePCVCTVersion(auto_upgrade)
+    pcmm_globals.physicell_dir = abspath(path_to_physicell)
+    pcmm_globals.data_dir = abspath(path_to_data)
+    pcmm_globals.db = SQLite.DB(joinpath(dataDir(), "vct.db"))
+    #! start with PhysiCellModelManager.jl version info
+    if !resolvePCMMVersion(auto_upgrade)
         println("Could not successfully upgrade database. Please check the logs for more information.")
         return false
     end
-    println(rpad("pcvct version:", 25, ' ') * string(pcvctVersion()))
+    s = "PhysiCellModelManager.jl v$(string(pcmmVersion()))"
+    println(s)
+    println("-"^length(s))
     println(rpad("Path to PhysiCell:", 25, ' ') * physicellDir())
     println(rpad("Path to data:", 25, ' ') * dataDir())
     println(rpad("Path to database:", 25, ' ') * centralDB().file)
     println(rpad("Path to inputs.toml:", 25, ' ') * pathToInputsConfig())
     success = initializeDatabase()
     if !success
-        pcvct_globals.db = SQLite.DB()
+        pcmm_globals.db = SQLite.DB()
         println("Database initialization failed.")
         return
     end
     println(rpad("PhysiCell version:", 25, ' ') * physicellInfo())
-    println(rpad("Compiler:", 25, ' ') * pcvct_globals.physicell_compiler)
-    println(rpad("Running on HPC:", 25, ' ') * string(pcvct_globals.run_on_hpc))
-    println(rpad("Max parallel sims:", 25, ' ') * string(pcvct_globals.max_number_of_parallel_simulations))
+    println(rpad("Compiler:", 25, ' ') * pcmm_globals.physicell_compiler)
+    println(rpad("Running on HPC:", 25, ' ') * string(pcmm_globals.run_on_hpc))
+    println(rpad("Max parallel sims:", 25, ' ') * string(pcmm_globals.max_number_of_parallel_simulations))
     flush(stdout)
 end
 
@@ -326,7 +326,7 @@ trialFolder(T::AbstractTrial) = trialFolder(typeof(T), T.id)
     lowerClassString(T::AbstractTrial)
     lowerClassString(T::Type{<:AbstractTrial})
 
-Return the lowercase string representation of the type of `T`, excluding the module name. Without this, it may return, e.g., Main.pcvct.Sampling.
+Return the lowercase string representation of the type of `T`, excluding the module name. Without this, it may return, e.g., Main.PhysiCellModelManager.Sampling.
 
 # Examples
 ```julia
@@ -347,7 +347,7 @@ lowerClassString(T::AbstractTrial) = lowerClassString(typeof(T))
 Set the march flag to `flag`. Used for compiling the PhysiCell code.
 """
 function setMarchFlag(flag::String)
-    pcvct_globals.march_flag = flag
+    pcmm_globals.march_flag = flag
 end
 
 """
@@ -356,7 +356,7 @@ end
 Set the maximum number of parallel simulations to `n`.
 """
 function setNumberOfParallelSims(n::Int)
-    pcvct_globals.max_number_of_parallel_simulations = n
+    pcmm_globals.max_number_of_parallel_simulations = n
 end
 
 end

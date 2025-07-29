@@ -33,7 +33,7 @@ createTrial(reference::AbstractMonad, av::AbstractVariation; n_replicates::Integ
 ```
 inputs = InputFolders(config_folder, custom_code_folder)
 dv_max_time = DiscreteVariation([\"overall\", \"max_time\"], 1440)
-dv_apoptosis = DiscreteVariation(pcvct.apoptosisPath(cell_type, "rate"), [1e-6, 1e-5])
+dv_apoptosis = DiscreteVariation(PhysiCellModelManager.apoptosisPath(cell_type, "rate"), [1e-6, 1e-5])
 simulation = createTrial(inputs, dv_max_time)
 monad = createTrial(inputs, dv_max_time; n_replicates=2)
 sampling = createTrial(monad, dv_apoptosis; n_replicates=2) # uses the max time defined for monad

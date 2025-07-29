@@ -1,9 +1,9 @@
 using Parameters, SQLite
 
 """
-    PCVCTGlobals
+    PCMMGlobals
 
-A mutable struct to hold global variables for the PCVCT package.
+A mutable struct to hold global variables for the PhysiCellModelManager.jl package.
 
 # Fields
 - `initialized::Bool`: Indicates whether the project database has been initialized.
@@ -16,15 +16,15 @@ A mutable struct to hold global variables for the PCVCT package.
 - `current_physicell_version_id::Int`: The ID of the current version of PhysiCell being used as defined in the database. This is set when the model manager is initialized.
 - `physicell_compiler::String`: The compiler used to compile the PhysiCell code. This is set when the model manager is initialized.
 - `march_flag::String`: The march flag to be used when compiling the code. If running on an HPC, this is set to "x86-64" which will work across different CPU manufacturers that may be present on an HPC. Otherwise, set to "native".
-- `run_on_hpc::Bool`: A boolean that indicates whether the code is running on an HPC environment. This is set to true if the `sbatch` command is available when compiling pcvct.
+- `run_on_hpc::Bool`: A boolean that indicates whether the code is running on an HPC environment. This is set to true if the `sbatch` command is available when compiling PhysiCellModelManager.jl.
 - `sbatch_options::Dict{String,Any}`: A dictionary that will be used to pass options to the sbatch command. The keys are the flag names and the values are the values used for the flag. This is initialized using [`defaultJobOptions`](@ref) and can be modified using [`setJobOptions`](@ref).
-- `max_number_of_parallel_simulations::Int`: The maximum number of parallel simulations that can be run at once. If running on an HPC, this is ignored and instead pcvct will queue one job per simulation.
+- `max_number_of_parallel_simulations::Int`: The maximum number of parallel simulations that can be run at once. If running on an HPC, this is ignored and instead PhysiCellModelManager.jl will queue one job per simulation.
 - `path_to_python::Union{Missing,String}`: The path to the python executable for running PhysiCell Studio. See [`runStudio`](@ref).
 - `path_to_studio::Union{Missing,String}`: The path to the PhysiCell Studio directory. See [`runStudio`](@ref).
 - `path_to_magick::Union{Missing,String}`: The path to the ImageMagick installation. See [`makeMovie`](@ref).
 - `path_to_ffmpeg::Union{Missing,String}`: The path to the FFmpeg installation. See [`makeMovie`](@ref).
 """
-@with_kw mutable struct PCVCTGlobals
+@with_kw mutable struct PCMMGlobals
     initialized::Bool = false
 
     data_dir::String = ""
@@ -52,39 +52,39 @@ A mutable struct to hold global variables for the PCVCT package.
     path_to_ffmpeg::Union{Missing,String} = missing
 end
 
-const pcvct_globals = PCVCTGlobals()
+const pcmm_globals = PCMMGlobals()
 
 """
     dataDir()
 
 Get the data directory global variable for the current project.
 """
-dataDir() = pcvct_globals.data_dir
+dataDir() = pcmm_globals.data_dir
 
 """
     physicellDir()
 
 Get the PhysiCell directory global variable for the current project.
 """
-physicellDir() = pcvct_globals.physicell_dir
+physicellDir() = pcmm_globals.physicell_dir
 
 """
     inputsDict()
 
 Get the inputs dictionary global variable for the current project.
 """
-inputsDict() = pcvct_globals.inputs_dict
+inputsDict() = pcmm_globals.inputs_dict
 
 """
     projectLocations()
 
 Get the project locations global variable for the current project.
 """
-projectLocations() = pcvct_globals.project_locations
+projectLocations() = pcmm_globals.project_locations
 
 """
     centralDB()
 
 Get the database global variable for the current project.
 """
-centralDB() = pcvct_globals.db
+centralDB() = pcmm_globals.db

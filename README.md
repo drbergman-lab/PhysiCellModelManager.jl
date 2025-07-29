@@ -1,33 +1,33 @@
-# pcvct
+# PhysiCellModelManager.jl
 
-[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://drbergman.github.io/pcvct/stable/)
-[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://drbergman.github.io/pcvct/dev/)
-[![Build Status](https://github.com/drbergman/pcvct/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/drbergman/pcvct/actions/workflows/CI.yml?query=branch%3Amain)
-[![Coverage](https://codecov.io/gh/drbergman/pcvct/branch/main/graph/badge.svg)](https://codecov.io/gh/drbergman/pcvct)
+[![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/)
+[![Dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://drbergman-lab.github.io/PhysiCellModelManager.jl/dev/)
+[![Build Status](https://github.com/drbergman-lab/PhysiCellModelManager.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/drbergman-lab/PhysiCellModelManager.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Coverage](https://codecov.io/gh/drbergman-lab/PhysiCellModelManager.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/drbergman-lab/PhysiCellModelManager.jl)
 
-Check out [Getting started](https://drbergman.github.io/pcvct/stable/man/getting_started/) for a quick guide to using pcvct.
-Make sure you are familiar with the [Best practices](https://drbergman.github.io/pcvct/stable/man/best_practices/) section before using pcvct.
+Check out [Getting started](https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/getting_started/) for a quick guide to using PhysiCellModelManager.jl.
+Make sure you are familiar with the [Best practices](https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/) section before using PhysiCellModelManager.jl.
 
 # Quick start
 
-See [Getting started](https://drbergman.github.io/pcvct/stable/man/getting_started/) for more details.
+See [Getting started](https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/getting_started/) for more details.
 
 1. [Install Julia](https://julialang.org/install).
 2. Ensure the general registry is added:
 ```julia-repl
 pkg> registry add General
 ```
-3. Add the PCVCTRegistry:
+3. Add the BergmanLabRegistry:
 ```julia-repl
-pkg> registry add https://github.com/drbergman/PCVCTRegistry
+pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
 ```
-4. Install pcvct:
+4. Install PhysiCellModelManager.jl:
 ```julia-repl
-pkg> add pcvct
+pkg> add PhysiCellModelManager
 ```
 5. Create a new project:
 ```julia-repl
-julia> using pcvct
+julia> using PhysiCellModelManager
 julia> createProject()
 ```
 6. Import a project:

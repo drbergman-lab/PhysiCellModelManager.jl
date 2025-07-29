@@ -101,7 +101,7 @@ struct SimulationProcess
         DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);" )
         println("\tRunning simulation: $(simulation.id)...")
         flush(stdout)
-        if pcvct_globals.run_on_hpc
+        if pcmm_globals.run_on_hpc
             cmd = prepareHPCCommand(cmd, simulation.id)
             p = run(pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "hpc.out"), stderr=joinpath(path_to_simulation_folder, "hpc.err")); wait=true)
         else
@@ -136,9 +136,9 @@ function prepareHPCCommand(cmd::Cmd, simulation_id::Int)
              "--error=$(joinpath(path_to_simulation_folder, "output.err"))",
              "--chdir=$(physicellDir())"
             ]
-    for (k, v) in pcvct_globals.sbatch_options
+    for (k, v) in pcmm_globals.sbatch_options
         if k in ["wrap", "output", "error", "wait", "chdir"]
-            println("WARNING: The key $k is reserved for pcvct to set in the sbatch command. Skipping this key.")
+            println("WARNING: The key $k is reserved for PhysiCellModelManager.jl to set in the sbatch command. Skipping this key.")
             continue
         end
         if typeof(v) <: Function
@@ -259,27 +259,27 @@ function collectSimulationTasks(trial::Trial; force_recompile::Bool=false)
 end
 
 """
-    PCVCTOutput{T<:AbstractTrial}
+    PCMMOutput{T<:AbstractTrial}
 
-A struct to hold the output of the PCVCT run, including the [`AbstractTrial`](@ref) object, the number of scheduled simulations, and the number of successful simulations.
+A struct to hold the output of the PhysiCellModelManager.jl run, including the [`AbstractTrial`](@ref) object, the number of scheduled simulations, and the number of successful simulations.
 
 # Fields
 - `trial::T`: The trial, sampling, monad, or simulation that was run.
 - `n_scheduled::Int`: The number of simulations that were scheduled to run.
 - `n_success::Int`: The number of simulations that were successfully completed.
 """
-struct PCVCTOutput{T<:AbstractTrial}
+struct PCMMOutput{T<:AbstractTrial}
     trial::T
     n_scheduled::Int
     n_success::Int
 
-    function PCVCTOutput(trial::T, n_scheduled::Int, n_success::Int) where T<:AbstractTrial
+    function PCMMOutput(trial::T, n_scheduled::Int, n_success::Int) where T<:AbstractTrial
         new{T}(trial, n_scheduled, n_success)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", output::PCVCTOutput)
-    println(io, "PCVCT Output")
+function Base.show(io::IO, ::MIME"text/plain", output::PCMMOutput)
+    println(io, "PCMM Output")
     println(io, "------------")
     show(io, MIME"text/plain"(), output.trial)
     println(io, "")
@@ -289,25 +289,25 @@ function Base.show(io::IO, ::MIME"text/plain", output::PCVCTOutput)
 end
 
 """
-    simulationIDs(output::PCVCTOutput)
+    simulationIDs(output::PCMMOutput)
 
-Get the simulation IDs from the output of the PCVCT run.
+Get the simulation IDs from the output of the PhysiCellModelManager.jl run.
 """
-simulationIDs(output::PCVCTOutput) = simulationIDs(output.trial)
-
-"""
-    trialType(output::PCVCTOutput)
-
-Get the type of the trial from the output of the PCVCT run.
-"""
-trialType(output::PCVCTOutput) = trialType(output.trial)
+simulationIDs(output::PCMMOutput) = simulationIDs(output.trial)
 
 """
-    trialID(output::PCVCTOutput)
+    trialType(output::PCMMOutput)
 
-Get the ID of the trial from the output of the PCVCT run.
+Get the type of the trial from the output of the PhysiCellModelManager.jl run.
 """
-trialID(output::PCVCTOutput) = trialID(output.trial)
+trialType(output::PCMMOutput) = trialType(output.trial)
+
+"""
+    trialID(output::PCMMOutput)
+
+Get the ID of the trial from the output of the PhysiCellModelManager.jl run.
+"""
+trialID(output::PCMMOutput) = trialID(output.trial)
 
 """
     run(T::AbstractTrial[; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions()])`
@@ -329,7 +329,7 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
 
     println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulations...")
 
-    num_parallel_sims = pcvct_globals.run_on_hpc ? n_simulation_tasks : pcvct_globals.max_number_of_parallel_simulations
+    num_parallel_sims = pcmm_globals.run_on_hpc ? n_simulation_tasks : pcmm_globals.max_number_of_parallel_simulations
     queue_channel = Channel{Task}(n_simulation_tasks)
     result_channel = Channel{Bool}(n_simulation_tasks)
     @async for simulation_task in simulation_tasks
@@ -373,13 +373,13 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
         println()
     end
     if print_low_schedule_message
-        println("\n($(repeat("*", asterisks["low_schedule_message"]))) pcvct found matching simulations and will save you time by not re-running them!")
+        println("\n($(repeat("*", asterisks["low_schedule_message"]))) PhysiCellModelManager.jl found matching simulations and will save you time by not re-running them!")
     end
     if print_low_success_warning
         println("\n($(repeat("*", asterisks["low_success_warning"]))) Some simulations did not complete successfully. Check the output.err files for more information.")
     end
     println("\n--------------------------------------------------\n")
-    return PCVCTOutput(T, n_simulation_tasks, n_success)
+    return PCMMOutput(T, n_simulation_tasks, n_success)
 end
 
 """

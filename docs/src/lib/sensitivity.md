@@ -8,14 +8,14 @@ Run sensitivity analyses on a model.
 
 ## Public API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["sensitivity.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [pcvct]
+Modules = [PhysiCellModelManager]
 Pages = ["sensitivity.jl"]
 Public = false
 ```

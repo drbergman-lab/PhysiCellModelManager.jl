@@ -413,7 +413,7 @@ Remove files and take care if on an HPC since the NFS filesystem can leave behin
 If on an HPC, move deleted files into the hidden directory `data/.trash/` in a time-stamped folder.
 """
 function rm_hpc_safe(path::String; force::Bool=false, recursive::Bool=false)
-    if !pcvct_globals.run_on_hpc
+    if !pcmm_globals.run_on_hpc
         rm(path; force=force, recursive=recursive)
         return
     end

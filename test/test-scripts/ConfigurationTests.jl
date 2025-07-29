@@ -30,7 +30,7 @@ cell_type_double_tokens = ["total", "fluid_fraction", "nuclear", "fluid_change_r
 append!(element_paths, [configPath(cell_type, token) for token in cell_type_double_tokens])
 
 push!(element_paths, configPath("user_parameters", "number_of_cells"))
-push!(element_paths, pcvct.userParametersPath("number_of_cells"))
+push!(element_paths, PhysiCellModelManager.userParametersPath("number_of_cells"))
 
     #! triple token paths
 append!(element_paths, [configPath(substrate, "Dirichlet_options", token) for token in ["xmin", "xmax", "ymin", "ymax", "zmin", "zmax"]])
@@ -54,8 +54,8 @@ append!(element_paths, [configPath(cell_type, substrate, tag) for tag in ["secre
 append!(element_paths, [configPath(cell_type, "phagocytose", tag) for tag in ["apoptotic", "necrotic", "other_dead", cell_type]])
 
 append!(element_paths, [configPath(cell_type, tag, cell_type) for tag in ["fuse to", "attack", "transform to"]])
-push!(element_paths, pcvct.attackPath(cell_type, cell_type))
-push!(element_paths, pcvct.attackRatesPath(cell_type, cell_type))
+push!(element_paths, PhysiCellModelManager.attackPath(cell_type, cell_type))
+push!(element_paths, PhysiCellModelManager.attackRatesPath(cell_type, cell_type))
 
 push!(element_paths, configPath(cell_type, "custom", "sample"))
 
@@ -89,7 +89,7 @@ paths_to_skip = [
 xml_doc = parse_file(path_to_xml)
 indices_to_pop = []
 for (i, ep) in enumerate(element_paths)
-    ce = pcvct.retrieveElement(xml_doc, ep; required=false)
+    ce = PhysiCellModelManager.retrieveElement(xml_doc, ep; required=false)
     test_fn = !isnothing #! default test function
     if ep in paths_not_in_template
         test_fn = isnothing
@@ -124,7 +124,7 @@ for (i, xml_path) in enumerate(element_paths)
         push!(discrete_variations, DiscreteVariation(xml_path, float(i)))
     end
 end
-@test_throws ArgumentError pcvct.phagocytosisPath(cell_type, :not_a_type)
+@test_throws ArgumentError PhysiCellModelManager.phagocytosisPath(cell_type, :not_a_type)
 push!(discrete_variations, DiscreteVariation(["overall", "max_time"], [12.0]))
 
 out = run(inputs, discrete_variations; n_replicates=n_replicates)
@@ -197,15 +197,15 @@ addAttackRateVariationDimension!(discrete_variations, cell_type, cell_type, [0.1
 out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 @test out.n_success == length(out.trial)
 
-@test isnothing(pcvct.prepareVariedInputFolder(:custom_code, Sampling(1))) #! returns nothing because custom codes is not varied
-@test_throws ArgumentError pcvct.shortLocationVariationID(:not_a_location)
-@test_nowarn pcvct.shortVariationName(:intracellular, "not_a_var")
-@test_nowarn pcvct.shortVariationName(:intracellular, "intracellular_variation_id")
-@test_throws ArgumentError pcvct.shortVariationName(:not_a_location, "not_a_var")
+@test isnothing(PhysiCellModelManager.prepareVariedInputFolder(:custom_code, Sampling(1))) #! returns nothing because custom codes is not varied
+@test_throws ArgumentError PhysiCellModelManager.shortLocationVariationID(:not_a_location)
+@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "not_a_var")
+@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
+@test_throws ArgumentError PhysiCellModelManager.shortVariationName(:not_a_location, "not_a_var")
 
 xml_doc = parse_file(path_to_xml)
 xml_path = ["not", "a", "path"]
-@test_throws ArgumentError pcvct.retrieveElement(xml_doc, xml_path)
+@test_throws ArgumentError PhysiCellModelManager.retrieveElement(xml_doc, xml_path)
 
 # test the xml rules extended
 xml_path = rulePath("increasing_partial_hill", "custom:sample", "increasing_signals", "max_response")
@@ -215,4 +215,4 @@ dv = DiscreteVariation(xml_path, vals)
 config_folder = rules_folder = custom_code_folder = ic_cell_folder = "template_xml_rules_extended"
 inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rules_folder, ic_cell=ic_cell_folder)
 simulation = createTrial(inputs, dv)
-pcvct.prepareVariedInputFolder(:rulesets_collection, simulation)
+PhysiCellModelManager.prepareVariedInputFolder(:rulesets_collection, simulation)

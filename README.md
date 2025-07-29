@@ -17,9 +17,9 @@ See [Getting started](https://drbergman-lab.github.io/PhysiCellModelManager.jl/s
 ```julia-repl
 pkg> registry add General
 ```
-3. Add the PCVCTRegistry:
+3. Add the BergmanLabRegistry:
 ```julia-repl
-pkg> registry add https://github.com/drbergman/PCVCTRegistry
+pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
 ```
 4. Install PhysiCellModelManager.jl:
 ```julia-repl

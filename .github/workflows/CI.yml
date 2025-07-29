@@ -85,14 +85,14 @@ jobs:
 
     - uses: julia-actions/cache@v2
 
-    - name: Add PCVCTRegistry (Windows)
+    - name: Add BergmanLabRegistry (Windows)
       if: matrix.os == 'windows-latest'
       shell: pwsh
-      run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman/PCVCTRegistry.git"))'
+      run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'
 
-    - name: Add PCVCTRegistry (non-Windows)
+    - name: Add BergmanLabRegistry (non-Windows)
       if: matrix.os != 'windows-latest'
-      run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman/PCVCTRegistry.git"))'
+      run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'
 
     - uses: julia-actions/julia-buildpkg@v1
 
@@ -139,8 +139,8 @@ jobs:
 
       - uses: julia-actions/cache@v2
 
-      - name: Add PCVCTRegistry
-        run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman/PCVCTRegistry.git"))'
+      - name: Add BergmanLabRegistry
+        run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'
 
       - name: Configure doc environment
         shell: julia --project=docs --color=yes {0}

@@ -60,8 +60,8 @@ function resolvePCMMVersion(is_new_db::Bool, auto_upgrade::Bool)
         msg = """
         The PhysiCellModelManager.jl version is $(pcmm_version) but the database version is $(pcmm_db_version). \
         Upgrade your PhysiCellModelManager.jl version to $(pcmm_db_version) or higher:
-            pkg> registry add https://github.com/drbergman/PCVCTRegistry
-            pkg> registry up PCVCTRegistry
+            pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
+            pkg> registry up BergmanLabRegistry
         """
         println(msg)
         success = false

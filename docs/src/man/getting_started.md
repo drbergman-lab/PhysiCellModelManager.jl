@@ -16,12 +16,12 @@ Note: this command also installs the [JuliaUp](https://github.com/JuliaLang/juli
 
 See [here](https://julialang.org/install) for the Julia installation home page. See [here](https://julialang.org/downloads/) for more download options.
 
-### Add the PCVCTRegistry
+### Add the BergmanLabRegistry
 Launch julia by running `julia` in a shell.
 Then, enter the Pkg REPL by pressing `]`.
-Finally, add the PCVCTRegistry by running:
+Finally, add the BergmanLabRegistry by running:
 ```julia-repl
-pkg> registry add https://github.com/drbergman/PCVCTRegistry
+pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
 ```
 
 ### Install PhysiCellModelManager.jl
@@ -30,7 +30,7 @@ Still in the Pkg REPL, run:
 pkg> add PhysiCellModelManager
 ```
 
-Troubleshoot: If this fails, it may be because the General registry is not set up correctly. The output of `] registry status` should show the PCVCTRegistry and General registry. If it does not, you can add the General registry by running:
+Troubleshoot: If this fails, it may be because the General registry is not set up correctly. The output of `] registry status` should show the BergmanLabRegistry and General registry. If it does not, you can add the General registry by running:
 ```julia-repl
 pkg> registry add General
 ```

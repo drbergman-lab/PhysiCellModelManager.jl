@@ -111,6 +111,7 @@ jobs:
         PCMM_FFMPEG_PATH: another/not/real/path/just/for/testing
         PHYSICELL_CPP: ${{ matrix.compiler }} # maybe necessary for windows??
         PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
+        JULIA_DEBUG: PhysiCellModelManager
 
     - uses: julia-actions/julia-processcoverage@v1
       with:

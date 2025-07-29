@@ -41,12 +41,13 @@ function pcmmDBVersion()
 end
 
 """
-    versionFromTable(table_name::String)
+    versionFromTable(table_name::String; kwargs...)
 
 Returns the version from the specified table if it exists, otherwise returns nothing.
+The `kwargs...` are passed to the `tableExists` function to check if the table exists.
 """
-function versionFromTable(table_name::String)
-    if !(DBInterface.execute(centralDB(), "SELECT name FROM sqlite_master WHERE type='table' AND name='$(table_name)';") |> DataFrame |> x -> (length(x.name) == 1))
+function versionFromTable(table_name::String; kwargs...)
+    if !tableExists(table_name; kwargs...)
         return nothing
     end
 

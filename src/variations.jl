@@ -564,7 +564,12 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
         for (new_column_name, data_type) in zip(new_column_names, new_column_data_types)
             DBInterface.execute(db_columns, "ALTER TABLE $(table_name) ADD COLUMN '$(new_column_name)' $(data_type);")
         end
-        DBInterface.execute(db_columns, "UPDATE $(table_name) SET ($(join("\"".*new_column_names.*"\"",",")))=($(join("\"".*default_values_for_new.*"\"",",")));") #! set newly added columns to default values
+
+        columns = join("\"" .* new_column_names .* "\"", ",")
+        placeholders = join(["?" for _ in new_column_names], ",")
+        query = "UPDATE $table_name SET ($columns) = ($placeholders);"
+        stmt = SQLite.Stmt(db_columns, query)
+        DBInterface.execute(stmt, Tuple(default_values_for_new))
 
         index_name = "$(table_name)_index"
         SQLite.dropindex!(db_columns, index_name; ifexists=true) #! remove previous index
@@ -581,50 +586,65 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
 end
 
 """
-    addVariationRow(location::Symbol, folder_id::Int, table_features::String, static_values::String, varied_values::String)
+    addVariationRows(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int, all_varied_values::AbstractVector{<:AbstractVector})
 
-Add a new row to the variations database for the given location and folder_id if it doesn't already exist.
+Add new rows to the variations database for the given location and folder_id if they don't already exist.
 """
-function addVariationRow(location::Symbol, folder_id::Int, table_features::String, static_values::String, varied_values::String)
-    values_str = "$(static_values)$(varied_values)"
-    db_columns = variationsDatabase(location, folder_id)
-    table_name = variationsTableName(location)
-    variation_id_name = locationVariationIDName(location)
+function addVariationRows(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int, all_varied_values::AbstractVector{<:AbstractVector})
+    db_columns, table_name, variation_id_name, static_values, table_features = setUpColumns(location, folder_id, evs, reference_variation_id)
 
-    new_id = DBInterface.execute(db_columns, "INSERT OR IGNORE INTO $(table_name) ($(table_features)) VALUES($(values_str)) RETURNING $(variation_id_name);") |> DataFrame |> x->x[!,1]
-    new_added = length(new_id)==1
-    if  !new_added
-        query = constructSelectQuery(table_name, "WHERE ($(table_features))=($(values_str))"; selection=variation_id_name)
-        new_id = queryToDataFrame(query; db=db_columns, is_row=true) |> x->x[!,1]
+    @assert columnsExist(table_features, table_name; db=db_columns) "Columns $(table_features) do not exist in table $(table_name)."
+
+    feature_str = join("\"" .* table_features .* "\"", ",")
+    placeholders = join(["?" for _ in table_features], ",")
+    stmt = SQLite.Stmt(db_columns, "INSERT OR IGNORE INTO $(table_name) ($(feature_str)) VALUES($placeholders) RETURNING $(variation_id_name);")
+
+    return [addVariationRow(stmt, static_values, string.(varied_values), feature_str, placeholders, table_name, variation_id_name, db_columns) for varied_values in all_varied_values]
+end
+
+"""
+    addVariationRow(stmt::SQLite.Stmt, static_values::Vector{String}, varied_values::Vector{String}, feature_str::String, placeholders::String, table_name::String, variation_id_name::String, db_columns::SQLite.DB)
+
+Add a new row to the variations database using the prepared statement.
+If the row already exists, it returns the existing variation ID.
+"""
+function addVariationRow(stmt::SQLite.Stmt, static_values::Vector{String}, varied_values::Vector{String}, feature_str::String, placeholders::String, table_name::String, variation_id_name::String, db_columns::SQLite.DB)
+    params = Tuple([static_values; varied_values]) #! Combine static and varied values into a single tuple for database insertion
+    new_id = DBInterface.execute(stmt, params) |> DataFrame |> x -> x[!, 1]
+
+    new_added = length(new_id) == 1
+    if !new_added
+        where_str = "WHERE ($feature_str)=($placeholders)"
+        stmt_str = constructSelectQuery(table_name, where_str; selection=variation_id_name)
+        stmt = SQLite.Stmt(db_columns, stmt_str)
+        df = stmtToDataFrame(stmt, params; is_row=true)
+        new_id = df[!, 1]
     end
     return new_id[1]
 end
 
 """
-    setUpColumns(location::Symbol, evs::Vector{<:ElementaryVariation}, folder_id::Int, reference_variation_id::Int)
+    setUpColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int)
 
 Set up the columns for the variations database for the given location and folder_id.
 """
-function setUpColumns(location::Symbol, evs::Vector{<:ElementaryVariation}, folder_id::Int, reference_variation_id::Int)
+function setUpColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int)
     static_column_names, varied_column_names = addColumns(location, folder_id, evs)
     db_columns = variationsDatabase(location, folder_id)
     table_name = variationsTableName(location)
     variation_id_name = locationVariationIDName(location)
 
     if isempty(static_column_names)
-        static_values = ""
-        table_features = ""
+        static_values = String[]
+        table_features = String[]
     else
         query = constructSelectQuery(table_name, "WHERE $(variation_id_name)=$(reference_variation_id);"; selection=join("\"" .* static_column_names .* "\"", ", "))
-        static_values = queryToDataFrame(query; db=db_columns, is_row=true) |> x -> join(x |> eachcol .|> c -> "\"$(string(c[1]))\"", ",")
-        table_features = join("\"" .* static_column_names .* "\"", ",")
-        if !isempty(varied_column_names)
-            static_values *= ","
-            table_features *= ","
-        end
+        static_values = queryToDataFrame(query; db=db_columns, is_row=true) |> x -> [string(c[1]) for c in eachcol(x)] |> Vector{String}
+        table_features = static_column_names
     end
-    table_features *= join("\"" .* varied_column_names .* "\"", ",")
-    return static_values, table_features
+    append!(table_features, varied_column_names)
+
+    return db_columns, table_name, variation_id_name, static_values, table_features
 end
 
 ################## Specialized Variations ##################
@@ -837,7 +857,7 @@ end
 A struct that holds the parsed variations and their sizes for all locations.
 
 # Fields
-- `sz::Vector{Int}`: The sizes of the variations for each location.
+- `sz::Vector{Int}`: The size of each variation, i.e., the number of values in each variation.
 - `variations::Vector{<:AbstractVariation}`: The variations used to create the parsed variations.
 - `location_parsed_variations::NamedTuple`: A named tuple of [`LocationParsedVariations`](@ref)s for each location.
 """
@@ -891,8 +911,9 @@ end
 
 function addVariations(::GridVariation, inputs::InputFolders, pv::ParsedVariations, reference_variation_id::VariationID)
     @assert all(pv.sz .!= -1) "GridVariation only works with DiscreteVariations"
-    all_location_variation_ids = [addLocationGridVariations(location, inputs, pv, reference_variation_id) for location in projectLocations().varied]
-    return [([location => loc_var_ids[i] for (location, loc_var_ids) in zip(projectLocations().varied, all_location_variation_ids)] |> VariationID) for i in eachindex(all_location_variation_ids[1])] |> AddGridVariationsResult
+    varied_locations = projectLocations().varied
+    all_location_variation_ids = [addLocationGridVariations(location, inputs, pv, reference_variation_id) for location in varied_locations]
+    return [([location => loc_var_ids[i] for (location, loc_var_ids) in zip(varied_locations, all_location_variation_ids)] |> VariationID) for i in eachindex(all_location_variation_ids[1])] |> AddGridVariationsResult
 end
 
 """
@@ -926,23 +947,29 @@ function gridToDB(evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_va
 end
 
 function gridToDB(location::Symbol, evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_variation_id::Int, ev_dims::AbstractVector{Int})
-    static_values, table_features = setUpColumns(location, evs, folder_id, reference_variation_id)
-
-    all_values = []
+    
+    all_varied_values = []
     for ev_dim in unique(ev_dims)
         dim_indices = findall(ev_dim .== ev_dims)
-        push!(all_values, zip(variationValues.(evs[dim_indices])...))
+        push!(all_varied_values, zip(variationValues.(evs[dim_indices])...))
     end
-
-    NDG = ndgrid(collect.(all_values)...)
+    
+    NDG = ndgrid(collect.(all_varied_values)...)
     sz_variations = size(NDG[1])
-    variation_ids = zeros(Int, sz_variations)
-    for i in eachindex(NDG[1])
-        dim_vals_as_vecs = [[A[i]...] for A in NDG] #! ith entry is a vector of the values for the ith dimension
-        varied_values = vcat(dim_vals_as_vecs...) .|> string |> x -> join("\"" .* x .* "\"", ",")
-        variation_ids[i] = addVariationRow(location, folder_id, table_features, static_values, varied_values)
-    end
-    return variation_ids
+
+    #! each ndg in NDG is an ND-array corresponding to one of the parameter dimensions varied.
+    #! Each entry is a tuple of values for each parameter that corresponds to that dimension.
+    #! By construction, the order in which the parameters appear matches the order of the dimensions.
+    #! In other words, all parameters in dimension 1 are first in evs, then dimension 2, etc.
+    #! So this line loops over all these tuples in ndg (`for x in ndg`) and puts them each into a vector (`[x...]`).
+    #! These are then turned into columns of a matrix (`reduce(hcat, ...)`) which has the same number of rows as there are parameters in that dimension...
+    #! ...and the number of columns is the total number of samples.
+    #! These matrices, one per dimension, are then concatenated into a single matrix (`reduce(vcat, ...)`)...
+    #! ...which has the same number of rows as there are parameters in total in this location.
+    #! Each column of this matrix is a single parameter vector that corresponds to a sample.
+    all_varied_values = reduce(vcat, [reduce(hcat, ([x...] for x in ndg)) for ndg in NDG]) |> eachcol
+
+    return reshape(addVariationRows(location, folder_id, evs, reference_variation_id, all_varied_values), sz_variations)
 end
 
 ################## Latin Hypercube Sampling Functions ##################
@@ -1250,10 +1277,12 @@ end
 Convert the CDFs to variation IDs in the database.
 """
 function cdfsToVariations(location::Symbol, pv::ParsedVariations, folder_id::Int, reference_variation_id::Int, cdfs::AbstractMatrix{Float64})
+    #! CDFs come in as nsamples x ndims matrix. If any parameters are co-varying, they correspond to a single column in the CDFs matrix.
+    #! This function goes parameter-by-parameter, identifying the column it is associated with and then computing the new values for that parameter.
+    #! These are the `new_value` vectors (of length nsamples) that are pushed into `new_values`.
+    #! Converting this into a matrix (using `reduce(hcat, new_values)`) gives us the final varied values, and we use `eachrow` to iterate over the rows.
     evs = pv[location].variations
-    static_values, table_features = setUpColumns(location, evs, folder_id, reference_variation_id)
 
-    n = size(cdfs, 1)
     new_values = []
     ev_dims = pv[location].indices
     for (ev, col_ind) in zip(evs, ev_dims)
@@ -1261,11 +1290,7 @@ function cdfsToVariations(location::Symbol, pv::ParsedVariations, folder_id::Int
         push!(new_values, new_value)
     end
 
-    variation_ids = zeros(Int, n)
+    all_varied_values = reduce(hcat, new_values) |> eachrow
 
-    for i in 1:n
-        varied_values = [new_value[i] for new_value in new_values] .|> string |> x -> join("\"" .* x .* "\"", ",")
-        variation_ids[i] = addVariationRow(location, folder_id, table_features, static_values, varied_values)
-    end
-    return variation_ids
+    return addVariationRows(location, folder_id, evs, reference_variation_id, all_varied_values)
 end

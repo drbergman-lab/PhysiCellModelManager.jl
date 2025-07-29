@@ -106,10 +106,9 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     global pcmm_globals
     #! print big logo of PhysiCellModelManager.jl here
     println(pcmmLogo())
-    println("----------INITIALIZING----------")
     pcmm_globals.physicell_dir = abspath(path_to_physicell)
     pcmm_globals.data_dir = abspath(path_to_data)
-    pcmm_globals.db = SQLite.DB(joinpath(dataDir(), "vct.db"))
+    findCentralDB()
     #! start with PhysiCellModelManager.jl version info
     if !resolvePCMMVersion(auto_upgrade)
         println("Could not successfully upgrade database. Please check the logs for more information.")

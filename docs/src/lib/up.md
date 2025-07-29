@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # PhysiCellModelManager.jl Upgrade
 
-Functionality for upgrading the database to match the current version of PhysiCellModelManager.
+Functionality for upgrading the database to match the current version of PhysiCellModelManager.jl.
 
 ## Public API
 ```@autodocs

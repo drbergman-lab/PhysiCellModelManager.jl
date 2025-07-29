@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Import
 
-Import a project from the standard PhysiCell format into the PhysiCellModelManager format.
+Import a project from the standard PhysiCell format into the PhysiCellModelManager.jl format.
 
 ## Public API
 ```@autodocs

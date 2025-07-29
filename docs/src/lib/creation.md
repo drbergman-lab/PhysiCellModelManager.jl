@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Creation
 
-Create a new PhysiCellModelManager project.
+Create a new PhysiCellModelManager.jl project.
 
 ## Public API
 ```@autodocs

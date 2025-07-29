@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Core
 
-Core functionality for PhysiCellModelManager.
+Core functionality for PhysiCellModelManager.jl.
 
 ## Public API
 ```@autodocs

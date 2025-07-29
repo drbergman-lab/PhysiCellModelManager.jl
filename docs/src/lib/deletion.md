@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Deletion
 
-Safely delete output from a PhysiCellModelManager project.
+Safely delete output from a PhysiCellModelManager.jl project.
 
 ## Public API
 

@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # HPC
 
-Run PhysiCellModelManager on an HPC.
+Run PhysiCellModelManager.jl on an HPC.
 
 ## Public API
 ```@autodocs

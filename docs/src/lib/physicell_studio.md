@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # PhysiCell Studio
 
-Launch PhysiCell Studio for a simulation run in PhysiCellModelManager.
+Launch PhysiCell Studio for a simulation run in PhysiCellModelManager.jl.
 
 ## Public API
 ```@autodocs

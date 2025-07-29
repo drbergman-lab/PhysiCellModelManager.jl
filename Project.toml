@@ -1,7 +1,7 @@
 name = "PhysiCellModelManager"
 uuid = "3c374bc7-7384-4f83-8ca0-87b8c727e6ff"
 authors = ["Daniel Bergman <danielrbergman@gmail.com> and contributors"]
-version = "0.0.29"
+version = "0.1.0"
 
 [deps]
 AutoHashEquals = "15f4f7f2-30c1-5605-9d31-71845cf9641f"

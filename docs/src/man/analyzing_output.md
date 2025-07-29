@@ -11,7 +11,7 @@ pkg> add Plots
 
 ### `PhysiCellSnapshot`
 The base unit of PhysiCell output is the `PhysiCellSnapshot`.
-These are currently considered PhysiCellModelManager internals and so the API may change.
+These are currently considered PhysiCellModelManager.jl internals and so the API may change.
 Each snapshot records the path to the PhysiCell output folder, its index in the sequence of outputs, the time of the snapshot in the simulation, and optionally the cell, substrate, and mesh data at that snapshot.
 
 ### `PhysiCellSequence`
@@ -46,7 +46,7 @@ Plan your analyses accordingly as loading simulation data is not fast.
 ## Population plots
 
 ### Group by Monad
-Plotting population plots is one the most basic analysis tasks and PhysiCellModelManager makes it super easy!
+Plotting population plots is one the most basic analysis tasks and PhysiCellModelManager.jl makes it super easy!
 If you call `plot` on a `Simulation`, `Monad`, `Sampling`, or the return value of a call to `run` (though not for a sensitivity analysis),
 then a sequence of panels will be generated in a single figure.
 Each panel will correspond to a `Monad` (replicates using the same parameter values) and will plot mean +/- SD for each cell type.
@@ -58,7 +58,7 @@ Finer-grained control of the output is possible, too!
 - choose time units for the x-axis: `plot(...; ..., time_unit=:h, ...)`
 
 The `include_cell_type_names` and `exclude_cell_type_names` can also accept a `Vector{String}` to include or exclude certain cell types, respectively.
-Furthermore, if the value of `include_cell_type_names` is a `Vector` and one of its entries is a `Vector{String}`, PhysiCellModelManager will interpret this to sum up those cell types.
+Furthermore, if the value of `include_cell_type_names` is a `Vector` and one of its entries is a `Vector{String}`, PhysiCellModelManager.jl will interpret this to sum up those cell types.
 In other words, to get the total tumor cell count in addition to the epithelial (`"epi"`) and mesenchymal (`"mes"`) components, you could use
 ```julia
 using Plots
@@ -83,7 +83,7 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 ```
 
 ## Substrate analysis
-PhysiCellModelManager supports two ways to summarize substrate information over time.
+PhysiCellModelManager.jl supports two ways to summarize substrate information over time.
 
 ### `AverageSubstrateTimeSeries`
 An `AverageSubstrateTimeSeries` gives the time series for the average substrate across the entire domain.
@@ -162,14 +162,14 @@ You can pass in as many such objects as you like or pass in a `Vector{PCMMPCFRes
 In this case, these are interpreted as stochastic realizations of the same PCF and summary statistics are used to plot.
 See the `PairCorrelationFunction` documentation for more details.
 
-The PhysiCellModelManager implementation supports two keyword arguments:
+The PhysiCellModelManager.jl implementation supports two keyword arguments:
 - `time_unit::Symbol = :min`: the time unit to use for the time axis (only relevant if the `PCMMPCFResult` has more than one time point).
   - The default is `:min` and the other options are `:s`, `:h`, `:d`, `:w`, `:mo`, `:y`.
 - `distance_unit::Symbol = :um`: the distance unit to use for the distance axis.
   - The default is `:um` and the other options are `:mm` and `:cm`.
 
 Finally, a keyword argument supported by `PairCorrelationFunction` is `colorscheme` which can be used to change the colorscheme of the color map.
-PhysiCellModelManager overrides the default from `PairCorrelationFunction` (`:tofino`) with `:cork` to use white to represent values near one.
+PhysiCellModelManager.jl overrides the default from `PairCorrelationFunction` (`:tofino`) with `:cork` to use white to represent values near one.
 
 ### Examples
 ```julia
@@ -195,9 +195,9 @@ For each graph, the vertices are the cell agents and the edges are as follows:
 - `:attachments`: manually-defined attachments between cells
 - `:spring_attachments`: spring attachments formed automatically using attachment rates
 Each of these graphs is expected to be symmetric, i.e., if cell A is attached to cell B, then cell B is attached to cell A.
-Nonetheless, PhysiCellModelManager holds the data in a directed graph.
+Nonetheless, PhysiCellModelManager.jl holds the data in a directed graph.
 
-Currently, PhysiCellModelManager supports computing connected components for any of these graphs using the [`connectedComponents`](@ref) function.
+Currently, PhysiCellModelManager.jl supports computing connected components for any of these graphs using the [`connectedComponents`](@ref) function.
 For an [`PhysiCellModelManager.AbstractPhysiCellSequence`](@ref) object, the graphs can be loaded using the [`loadGraph!`](@ref) function for any other analysis.
 
 ### Examples

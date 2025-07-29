@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Database
 
-Create and manage the PhysiCellModelManager database.
+Create and manage the PhysiCellModelManager.jl database.
 
 ## Public API
 ```@autodocs

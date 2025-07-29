@@ -7,7 +7,7 @@ using PhysiCellCellCreator
 
 Create folder with a template XML file for IC cells.
 
-See the [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) documentation for more information on IC cells and how this function works outside of PhysiCellModelManager.
+See the [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) documentation for more information on IC cells and how this function works outside of PhysiCellModelManager.jl.
 This PhysiCellModelManager.jl function runs the `createICCellXMLTemplate` function from PhysiCellCellCreator.jl and then updates the database.
 Furthermore, the folder can be passed in just as the name of the folder located in `data/inputs/ics/cells/` rather than the full path.
 

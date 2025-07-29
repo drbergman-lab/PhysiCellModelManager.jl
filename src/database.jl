@@ -30,7 +30,7 @@ end
 Reinitialize the database by searching through the `data/inputs` directory to make sure all are present in the database.
 """
 function reinitializeDatabase()
-    if !pcmm_globals.initialized
+    if !isInitialized()
         println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
         return
     end

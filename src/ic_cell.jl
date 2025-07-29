@@ -25,7 +25,7 @@ Importantly, no two simulations will use the same CSV file.
 """
 function createICCellXMLTemplate(folder::String)
     if length(splitpath(folder)) == 1
-        @assert pcmm_globals.initialized "Must supply a full path to the folder if the database is not initialized."
+        @assert isInitialized() "Must supply a full path to the folder if the database is not initialized."
         #! then the folder is just the name of the ics/cells/folder folder
         path_to_folder = locationPath(:ic_cell, folder)
     else
@@ -41,7 +41,7 @@ function createICCellXMLTemplate(folder::String)
     PhysiCellCellCreator.createICCellXMLTemplate(path_to_folder)
 
     #! finish by adding this folder to the database
-    if pcmm_globals.initialized
+    if isInitialized()
         insertFolder(:ic_cell, folder)
     end
 

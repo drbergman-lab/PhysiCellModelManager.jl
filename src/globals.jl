@@ -88,3 +88,10 @@ projectLocations() = pcmm_globals.project_locations
 Get the database global variable for the current project.
 """
 centralDB() = pcmm_globals.db
+
+"""
+    isInitialized()
+
+Check if the model manager has been initialized for a project.
+"""
+isInitialized() = pcmm_globals.initialized

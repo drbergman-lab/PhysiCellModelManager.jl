@@ -12,7 +12,7 @@ Otherwise, it will prompt the user for confirmation before large upgrades.
 """
 function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
     println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
-    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.1"]
+    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.2"]
     @assert issorted(milestone_versions) "Milestone versions must be sorted in ascending order. Got $(milestone_versions)."
     next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
     next_milestones = milestone_versions[next_milestone_inds]
@@ -474,28 +474,30 @@ function upgradeToV0_0_30(auto_upgrade::Bool)
     return true
 end
 
-function upgradeToV0_1_1(auto_upgrade::Bool)
+function upgradeToV0_1_2(auto_upgrade::Bool)
     warning_msg = """
-    \t- Upgrading to version 0.1.1...
-    \nWARNING: Upgrading to version 0.1.1 will rename `vct.db` to `pcmm.db`.
+    \t- Upgrading to version 0.1.2...
+    \nWARNING: Upgrading to version 0.1.2 will rename `vct.db` to `pcmm.db`.
     See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
 
     ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
 
-    Continue upgrading to version 0.1.1? (y/n):
+    Continue upgrading to version 0.1.2? (y/n):
     """
     println(warning_msg)
     response = auto_upgrade ? "y" : readline()
     if response != "y"
-        println("Upgrade to version 0.1.1 aborted.")
+        println("Upgrade to version 0.1.2 aborted.")
         return false
     end
-    println("\t- Upgrading to version 0.1.1...")
+    println("\t- Upgrading to version 0.1.2...")
 
-    if isfile("vct.db")
-        mv("vct.db", "pcmm.db")
+    old_path = joinpath(dataDir(), "vct.db")
+    new_path = joinpath(dataDir(), "pcmm.db")
+    if isfile(old_path)
+        mv(old_path, new_path)
     else
-        println("While upgrading to version 0.1.1, the vct.db file was not found. This is unexpected.")
+        println("While upgrading to version 0.1.2, the vct.db file was not found. This is unexpected.")
         return false
     end
     return true

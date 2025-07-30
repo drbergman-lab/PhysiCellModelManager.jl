@@ -30,7 +30,7 @@ end
 Reinitialize the database by searching through the `data/inputs` directory to make sure all are present in the database.
 """
 function reinitializeDatabase()
-    if !pcmm_globals.initialized
+    if !isInitialized()
         println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
         return
     end
@@ -48,7 +48,7 @@ function createSchema()
         println("Project configuration file parsing failed.")
         return false
     end
-    
+
     #! make sure necessary directories are present
     if !necessaryInputsPresent()
         return false
@@ -60,7 +60,7 @@ function createSchema()
 
     #! initialize tables for all inputs
     for (location, location_dict) in pairs(inputsDict())
-        table_name = tableName(location)
+        table_name = locationTableName(location)
         table_schema = """
             $(locationIDName(location)) INTEGER PRIMARY KEY,
             folder_name UNIQUE,
@@ -68,9 +68,10 @@ function createSchema()
         """
         createPCMMTable(table_name, table_schema)
 
-        folders = readdir(locationPath(location); sort=false) |> filter(x -> isdir(joinpath(locationPath(location), x)))
+        location_path = locationPath(location; validate=false)
+        folders = readdir(location_path; sort=false) |> filter(x -> isdir(joinpath(location_path, x)))
         if location_dict["required"] && isempty(folders)
-            println("No folders in $(locationPath(location)) found. This is where to put the folders for $(tableName(location)).")
+            println("No folders in $location_path found. This is where to put the folders for $table_name.")
             return false
         end
         for folder in folders
@@ -121,8 +122,9 @@ function necessaryInputsPresent()
             continue
         end
 
-        if !(locationPath(location) |> isdir)
-            println("No $(locationPath(location)) found. This is where to put the folders for $(tableName(location)).")
+        location_path = locationPath(location)
+        if !isdir(location_path)
+            println("No $location_path found. This is where to put the folders for $(locationTableName(location)).")
             success = false
         end
     end
@@ -192,7 +194,7 @@ function abstractSamplingForeignReferenceSubSchema()
         REFERENCES physicell_versions (physicell_version_id),
     $(join(["""
     FOREIGN KEY ($(locationIDName(k)))
-        REFERENCES $(tableName(k)) ($(locationIDName(k)))\
+        REFERENCES $(locationTableName(k; validate=false)) ($(locationIDName(k; validate=false)))\
     """ for k in keys(inputsDict())], ",\n"))
     """
 end
@@ -248,7 +250,7 @@ function createPCMMTable(table_name::String, schema::String; db::SQLite.DB=centr
         throw(ErrorException(s))
     end
     #! check that schema has PRIMARY KEY named as table_name without the s followed by _id
-    id_name = locationIDName(Symbol(table_name[1:end-1]))
+    id_name = tableIDName(table_name)
     if !occursin("$(id_name) INTEGER PRIMARY KEY", schema)
         s = "Schema must have PRIMARY KEY named as $(id_name)."
         s *= "\n\tThis helps to normalize what the id names are for these entries."
@@ -263,6 +265,26 @@ function createPCMMTable(table_name::String, schema::String; db::SQLite.DB=centr
 end
 
 """
+    tableIDName(table::String; strip_s::Bool=true)
+
+Return the name of the ID column for the table as a String.
+If `strip_s` is `true`, it removes the trailing "s" from the table name.
+
+# Examples
+```jldoctest
+julia> PhysiCellModelManager.tableIDName("configs")
+"config_id"
+```
+"""
+function tableIDName(table::String; strip_s::Bool=true)
+    if strip_s
+        @assert last(table) == 's' "Table name must end in 's' to strip it."
+        table = table[1:end-1]
+    end
+    return "$(table)_id"
+end
+
+"""
     insertFolder(location::Symbol, folder::String, description::String="")
 
 Insert a folder into the database. If the folder already exists, it will be ignored.
@@ -273,14 +295,15 @@ function insertFolder(location::Symbol, folder::String, description::String="")
     path_to_folder = locationPath(location, folder)
     old_description = metadataDescription(path_to_folder)
     description = isempty(old_description) ? description : old_description
-    query = "INSERT OR IGNORE INTO $(tableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location));"
+    query = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location; validate=false));"
     df = queryToDataFrame(query)
     if !folderIsVaried(location, folder)
         return
     end
-    db_variations = joinpath(locationPath(location, folder), "$(location)_variations.db") |> SQLite.DB
-    createPCMMTable(variationsTableName(location), "$(locationVariationIDName(location)) INTEGER PRIMARY KEY"; db=db_variations)
-    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($(locationVariationIDName(location))) VALUES(0);")
+    db_variations = joinpath(path_to_folder, "$(location)_variations.db") |> SQLite.DB
+    location_variation_id_name = locationVariationIDName(location; validate=false)
+    createPCMMTable(variationsTableName(location), "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
+    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($location_variation_id_name) VALUES(0);")
     input_folder = InputFolder(location, folder)
     prepareBaseFile(input_folder)
 end
@@ -400,6 +423,25 @@ function queryToDataFrame(query::String; db::SQLite.DB=centralDB(), is_row::Bool
 end
 
 """
+    stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
+
+Execute a prepared statement with the given parameters and return the result as a DataFrame.
+Compare with [`queryToDataFrame`](@ref).
+
+The `params` argument must be a type that can be used with `DBInterface.execute(::SQLite.Stmt, params)`.
+See the [SQLite.jl documentation](https://juliadatabases.org/SQLite.jl/stable/) for details.
+
+If `is_row` is true, the function will assert that the result has exactly one row, i.e., a unique result.
+"""
+function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
+    df = DBInterface.execute(stmt, params) |> DataFrame
+    if is_row
+        @assert size(df,1)==1 "Did not find exactly one row matching the statement."
+    end
+    return df
+end
+
+"""
     constructSelectQuery(table_name::String, condition_stmt::String=""; selection::String="*")
 
 Construct a SELECT query for the given table name, condition statement, and selection.
@@ -416,23 +458,47 @@ function inputFolderName(location::Symbol, id::Int)
         return ""
     end
 
-    query = constructSelectQuery(tableName(location), "WHERE $(locationIDName(location))=$(id)"; selection="folder_name")
+    query = constructSelectQuery(locationTableName(location), "WHERE $(locationIDName(location; validate=false))=$(id)"; selection="folder_name")
     return queryToDataFrame(query; is_row=true) |> x -> x.folder_name[1]
 end
 
 """
-    inputFolderID(location::Symbol, folder_name::String; db::SQLite.DB=centralDB())
+    inputFolderID(location::Symbol, folder_name::String)
 
 Retrieve the ID of the folder associated with the given location and folder name.
 """
-function inputFolderID(location::Symbol, folder_name::String; db::SQLite.DB=centralDB())
+function inputFolderID(location::Symbol, folder_name::String)
     if folder_name == ""
         return -1
     end
     primary_key_string = locationIDName(location)
-    query = constructSelectQuery(tableName(location), "WHERE folder_name='$(folder_name)'"; selection=primary_key_string)
-    df = queryToDataFrame(query; is_row=true)
+
+    stmt_str = constructSelectQuery(locationTableName(location; validate=false), "WHERE folder_name=(:folder_name)"; selection=primary_key_string)
+    stmt = SQLite.Stmt(centralDB(), stmt_str)
+    params = (; :folder_name => folder_name)
+    df = stmtToDataFrame(stmt, params; is_row=true)
     return df[1, primary_key_string]
+end
+
+"""
+    tableExists(table_name::String; db::SQLite.DB=centralDB())
+
+Check if a table with the given name exists in the database.
+"""
+function tableExists(table_name::String; db::SQLite.DB=centralDB())
+    valid_table_names = DBInterface.execute(db, "SELECT name FROM sqlite_master WHERE type='table';") |> DataFrame |> x -> x.name
+    return table_name in valid_table_names
+end
+
+"""
+    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
+
+Check if all columns in `column_names` exist in the specified table in the database.
+"""
+function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
+    @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in the database."
+    valid_column_names = DBInterface.execute(db, "PRAGMA table_info($(table_name));") |> DataFrame |> x -> x.name
+    return all(c -> c in valid_column_names, column_names)
 end
 
 ########### Summarizing Database Functions ###########

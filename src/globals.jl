@@ -4,6 +4,7 @@ using Parameters, SQLite
     PCMMGlobals
 
 A mutable struct to hold global variables for the PhysiCellModelManager.jl package.
+The global variable `pcmm_globals` is the instance of this struct that is used throughout the package.
 
 # Fields
 - `initialized::Bool`: Indicates whether the project database has been initialized.
@@ -55,6 +56,20 @@ end
 const pcmm_globals = PCMMGlobals()
 
 """
+    findCentralDB()
+
+Find the central database for the PhysiCellModelManager.jl package and update the global `pcmm_globals.db` variable.
+This function checks for the existence of the old `vct.db` file and uses it if it exists, otherwise it uses the new `pcmm.db` file.
+"""
+function findCentralDB()
+    global pcmm_globals
+    path_to_db(f) = joinpath(dataDir(), f)
+    old_db_path = path_to_db("vct.db")
+    path_to_central_db = isfile(old_db_path) ? old_db_path : path_to_db("pcmm.db")
+    pcmm_globals.db = SQLite.DB(path_to_central_db)
+end
+
+"""
     dataDir()
 
 Get the data directory global variable for the current project.
@@ -88,3 +103,10 @@ projectLocations() = pcmm_globals.project_locations
 Get the database global variable for the current project.
 """
 centralDB() = pcmm_globals.db
+
+"""
+    isInitialized()
+
+Check if the model manager has been initialized for a project.
+"""
+isInitialized() = pcmm_globals.initialized

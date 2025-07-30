@@ -23,11 +23,32 @@ Returns the version of the PhysiCellModelManager.jl database. If the database do
 """
 function pcmmDBVersion()
     #! check if versions table exists
-    table_name = "pcmm_version"
-    versions_exists = DBInterface.execute(centralDB(), "SELECT name FROM sqlite_master WHERE type='table' AND name='$(table_name)';") |> DataFrame |> x -> (length(x.name) == 1)
-    if !versions_exists
-        DBInterface.execute(centralDB(), "CREATE TABLE IF NOT EXISTS $(table_name) (version TEXT PRIMARY KEY);")
-        DBInterface.execute(centralDB(), "INSERT INTO $(table_name) (version) VALUES ('$(pcmmVersion())');")
+    pcmm_version = versionFromTable("pcmm_version")
+    if !isnothing(pcmm_version)
+        return pcmm_version
+    end
+    #! if not, try looking for the old version table
+    pcvct_version = versionFromTable("pcvct_version")
+    if !isnothing(pcvct_version)
+        return pcvct_version
+    end
+    #! if neither exists, create a new version table with the current pcmm version
+    pcmm_version = pcmmVersion()
+    DBInterface.execute(centralDB(), "CREATE TABLE IF NOT EXISTS pcmm_version (version TEXT PRIMARY KEY);")
+    DBInterface.execute(centralDB(), "INSERT INTO pcmm_version (version) VALUES ('$(pcmm_version)');")
+
+    return pcmm_version
+end
+
+"""
+    versionFromTable(table_name::String; kwargs...)
+
+Returns the version from the specified table if it exists, otherwise returns nothing.
+The `kwargs...` are passed to the `tableExists` function to check if the table exists.
+"""
+function versionFromTable(table_name::String; kwargs...)
+    if !tableExists(table_name; kwargs...)
+        return nothing
     end
 
     return queryToDataFrame("SELECT * FROM $(table_name);") |> x -> x.version[1] |> VersionNumber

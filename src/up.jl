@@ -12,12 +12,11 @@ Otherwise, it will prompt the user for confirmation before large upgrades.
 """
 function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
     println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
-    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30"]
+    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.1"]
     @assert issorted(milestone_versions) "Milestone versions must be sorted in ascending order. Got $(milestone_versions)."
     next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
     next_milestones = milestone_versions[next_milestone_inds]
     success = true
-    version_table_name(version::VersionNumber) = version < v"0.1.0" ? "pcvct_version" : "pcmm_version"
     for next_milestone in next_milestones
         up_fn_symbol = Meta.parse("upgradeToV$(replace(string(next_milestone), "." => "_"))")
         if !isdefined(PhysiCellModelManager, up_fn_symbol)
@@ -27,12 +26,12 @@ function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, aut
         if !success
             break
         else
-            DBInterface.execute(centralDB(), "UPDATE $(version_table_name(next_milestone)) SET version='$(next_milestone)';")
+            DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(next_milestone)) SET version='$(next_milestone)';")
         end
     end
     if success && to_version > milestone_versions[end]
         println("\t- Upgrading to version $(to_version)...")
-        DBInterface.execute(centralDB(), "UPDATE $(version_table_name(to_version)) SET version='$(to_version)';")
+        DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(to_version)) SET version='$(to_version)';")
     end
     return success
 end
@@ -43,13 +42,24 @@ end
 Populate a target table with data from a source table, using a column mapping if provided.
 """
 function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String, String}=Dict{String,String}())
+    @assert tableExists(source_table; db=db) "Source table $(source_table) does not exist in the database."
+    @assert tableExists(target_table; db=db) "Target table $(target_table) does not exist in the database."
     source_columns = queryToDataFrame("PRAGMA table_info($(source_table));") |> x -> x[!, :name]
     target_columns = [haskey(column_mapping, c) ? column_mapping[c] : c for c in source_columns]
+    @assert columnsExist(target_columns, target_table; db=db) "One or more target columns do not exist in the target table."
     insert_into_cols = "(" * join(target_columns, ",") * ")"
     select_cols = join(source_columns, ",")
     query = "INSERT INTO $(target_table) $(insert_into_cols) SELECT $(select_cols) FROM $(source_table);"
     DBInterface.execute(db, query)
 end
+
+"""
+    pcmmVersionTableName(version::VersionNumber)
+
+Returns the name of the version table based on the given version number.
+Before version 0.0.30, the table name is "pcvct_version". Version 0.0.30 and later use "pcmm_version".
+"""
+pcmmVersionTableName(version::VersionNumber) = version < v"0.0.30" ? "pcvct_version" : "pcmm_version"
 
 """
     upgradeToX_Y_Z(auto_upgrade::Bool)
@@ -84,8 +94,8 @@ function upgradeToV0_0_1(::Bool)
             for column_name in column_names
                 xml_path = columnNameToXMLPath(column_name)
                 base_value = getContent(xml_doc, xml_path)
-                query = "UPDATE rulesets_variations SET '$(column_name)'=$(base_value) WHERE rulesets_collection_variation_id=0;"
-                DBInterface.execute(db_rulesets_variations, query)
+                stmt = SQLite.Stmt(db_rulesets_variations, "UPDATE rulesets_variations SET '$(column_name)'=(:base_value) WHERE rulesets_collection_variation_id=0;")
+                DBInterface.execute(stmt, (base_value,))
             end
             free(xml_doc)
         end
@@ -148,7 +158,7 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
         end
         db_config_variations = db_file |> SQLite.DB
         #! check if variations is a table name in the database
-        if DBInterface.execute(db_config_variations, "SELECT name FROM sqlite_master WHERE type='table' AND name='variations';") |> DataFrame |> x -> (length(x.name)==1)
+        if tableExists("variations"; db=db_config_variations)
             DBInterface.execute(db_config_variations, "ALTER TABLE variations RENAME TO config_variations;")
         end
         if DBInterface.execute(db_config_variations, "SELECT 1 FROM pragma_table_info('config_variations') WHERE name='config_variation_id';") |> DataFrame |> isempty
@@ -263,7 +273,7 @@ function upgradeToV0_0_13(::Bool)
         end
         mv(path_to_old_db, path_to_new_db)
         db_rulesets_collection_variations = SQLite.DB(path_to_new_db)
-        if DBInterface.execute(db_rulesets_collection_variations, "SELECT name FROM sqlite_master WHERE type='table' AND name='rulesets_variations';") |> DataFrame |> x -> (length(x.name)==1)
+        if tableExists("rulesets_variations"; db=db_rulesets_collection_variations)
             DBInterface.execute(db_rulesets_collection_variations, "ALTER TABLE rulesets_variations RENAME TO rulesets_collection_variations;")
         end
         if !(DBInterface.execute(db_rulesets_collection_variations, "SELECT 1 FROM pragma_table_info('rulesets_collection_variations') WHERE name='rulesets_variation_id';") |> DataFrame |> isempty)
@@ -455,10 +465,38 @@ function upgradeToV0_0_30(auto_upgrade::Bool)
     end
     println("\t- Upgrading to version 0.0.30...")
 
-    if DBInterface.execute(centralDB(), "SELECT name FROM sqlite_master WHERE type='table' AND name='pcvct_version';") |> DataFrame |> x -> (length(x.name)==1)
+    if tableExists("pcvct_version")
         DBInterface.execute(centralDB(), "ALTER TABLE pcvct_version RENAME TO pcmm_version;")
     else
         println("While upgrading to version 0.0.30, the pcvct_version table was not found. This is unexpected.")
         return false
     end
+    return true
+end
+
+function upgradeToV0_1_1(auto_upgrade::Bool)
+    warning_msg = """
+    \t- Upgrading to version 0.1.1...
+    \nWARNING: Upgrading to version 0.1.1 will rename `vct.db` to `pcmm.db`.
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
+
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+
+    Continue upgrading to version 0.1.1? (y/n):
+    """
+    println(warning_msg)
+    response = auto_upgrade ? "y" : readline()
+    if response != "y"
+        println("Upgrade to version 0.1.1 aborted.")
+        return false
+    end
+    println("\t- Upgrading to version 0.1.1...")
+
+    if isfile("vct.db")
+        mv("vct.db", "pcmm.db")
+    else
+        println("While upgrading to version 0.1.1, the vct.db file was not found. This is unexpected.")
+        return false
+    end
+    return true
 end

@@ -4,6 +4,12 @@ Not every release will change the database structure, but when one does in a way
 The warning will link to this page and the function will wait for user input to proceed.
 Changes are listed in reverse chronological order.
 
+## to v0.1.1
+Rename the database file from `pcvct.db` to `pcmm.db` to reflect the name change of the package.
+
+## to v0.0.30
+The `pcvct_version` table is renamed to `pcmm_version` due to the name change of the package.
+
 ## to v0.0.29
 The `inputs.toml` file has been moved from `data/` to `data/inputs/`.
 

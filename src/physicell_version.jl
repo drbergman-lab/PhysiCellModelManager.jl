@@ -7,11 +7,20 @@ Get the PhysiCell version ID from the database, adding it to the database if it 
 """
 function resolvePhysiCellVersionID()
     if !physicellIsGit()
+
         tag = readlines(joinpath(physicellDir(), "VERSION.txt"))[1]
-        df = DBInterface.execute(centralDB(), "INSERT OR IGNORE INTO physicell_versions (commit_hash) VALUES ('$(tag)-download') RETURNING physicell_version_id;") |> DataFrame
+        full_tag = "$tag-download"
+
+        stmt = SQLite.Stmt(centralDB(),
+            "INSERT OR IGNORE INTO physicell_versions (commit_hash) VALUES (:full_tag) RETURNING physicell_version_id;"
+        )
+        params = (; :full_tag => full_tag)
+        df = stmtToDataFrame(stmt, params)
         if isempty(df)
-            query = constructSelectQuery("physicell_versions", "WHERE commit_hash='$(tag)-download'"; selection="physicell_version_id")
-            df = queryToDataFrame(query; is_row=true)
+            where_str = "WHERE commit_hash=(:full_tag)"
+            stmt_str = constructSelectQuery("physicell_versions", where_str; selection="physicell_version_id")
+            stmt = SQLite.Stmt(centralDB(), stmt_str)
+            df = stmtToDataFrame(stmt, params; is_row=true)
         end
         return df.physicell_version_id[1]
     end

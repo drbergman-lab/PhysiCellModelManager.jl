@@ -19,6 +19,7 @@ PhysiCellModelManager.deleteSampling(1)
 PhysiCellModelManager.deleteTrial(1)
 
 deleteSimulations(1:78; filters=Dict("config_id" => 2))
+@test_throws ArgumentError deleteSimulations(1:78; filters=Dict("bad filter; --" => 2))
 
 input_buffer = IOBuffer("n")
 old_stdin = stdin  #! Save the original stdin

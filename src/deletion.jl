@@ -3,28 +3,30 @@ using Dates
 export deleteSimulation, deleteSimulations, deleteSimulationsByStatus, resetDatabase
 
 """
-    deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, and_constraints::String="")
+    deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
 
 Deletes the simulations with the input IDs from the database and from the `data/outputs/simulations` folder.
 
 Works with a vector of simulation IDs, a single simulation ID, a vector of `Simulation`s or a single `Simulation`.
 If `delete_supers` is `true`, it will also delete any monads, samplings, and trials that no longer have any simulations associated with them.
 It is recommended to leave this to `true` to keep the database clean.
-The `and_constraints` argument allows for additional SQLite conditions to be added to the `WHERE` clause of the SQLite query. Use this only after inspecting the `simulations` table in the `data/vct.db` database.
+The `filters` argument allows for additional SQLite conditions to be added to the `WHERE` clause of the SQLite query. Use this only after inspecting the `simulations` table in the `data/pcmm.db` database.
     Note: `deleteSimulation` is an alias for `deleteSimulations`.
 
 # Examples
 ```
 deleteSimulations(1:3)
 deleteSimulations(4)
-deleteSimulations(1:100; and_constraints="AND config_id = 1") # delete simulations with IDs 1 to 100 that have config_id = 1
+deleteSimulations(1:100; filters=Dict("config_id" => 1)) # delete simulations with IDs 1 to 100 that have config_id = 1
 ```
 """
-function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, and_constraints::String="")
+function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
     simulation_ids = Vector(simulation_ids) #! filter! does not work on AbstractRange, such as `simulation_ids = 1:3`
     filter!(x -> !ismissing(x), simulation_ids)
-    where_stmt = "WHERE simulation_id IN ($(join(simulation_ids,","))) $(and_constraints)"
-    sim_df = constructSelectQuery("simulations", where_stmt) |> queryToDataFrame
+    where_stmt, params = buildWhereClause("simulation_id", simulation_ids, filters)
+    stmt_str = constructSelectQuery("simulations", where_stmt)
+    stmt = SQLite.Stmt(centralDB(), stmt_str)
+    sim_df = stmtToDataFrame(stmt, params)
     simulation_ids = sim_df.simulation_id #! update based on the constraints added
     DBInterface.execute(centralDB(),"DELETE FROM simulations WHERE simulation_id IN ($(join(simulation_ids,",")));")
 
@@ -73,6 +75,36 @@ function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missin
     return nothing
 end
 
+"""
+    buildWhereClause(id_name::AbstractString, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
+
+Builds a `WHERE` clause for SQL queries based on the provided IDs and filters.
+
+# Arguments
+- `id_name`: The name of the ID column to filter by.
+- `ids`: A vector of IDs to include in the `WHERE` clause.
+- `filters`: A dictionary of additional filters to apply to the `WHERE` clause. Default is an empty dictionary. 
+  The keys should be valid column names and the values should be the values to filter by.
+
+# Examples
+```jldoctest
+julia> PhysiCellModelManager.buildWhereClause("simulation_id", [1, 2, 3], Dict("config_id" => 1))
+("WHERE simulation_id IN (1,2,3) AND config_id = ?", Any[1])
+```
+"""
+function buildWhereClause(id_name::AbstractString, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
+    clauses = ["$id_name IN ($(join(ids, ",")))"]
+    values = Any[]
+    for (col, val) in filters
+        if match(r"^[A-Za-z_][A-Za-z0-9_]*$", col) |> isnothing
+            throw(ArgumentError("Invalid column name: $col"))
+        end
+        push!(clauses, "$col = ?")
+        push!(values, val)
+    end
+    return "WHERE " * join(clauses, " AND "), values
+end
+
 deleteSimulations(simulation_id::Int; kwargs...) = deleteSimulations([simulation_id]; kwargs...)
 deleteSimulations(simulations::Vector{Simulation}; kwargs...) = deleteSimulations([sim.id for sim in simulations]; kwargs...)
 deleteSimulations(simulation::Simulation; kwargs...) = deleteSimulations([simulation]; kwargs...)
@@ -85,11 +117,11 @@ Alias for [`deleteSimulations`](@ref).
 deleteSimulation = deleteSimulations #! alias
 
 """
-    deleteAllSimulations(; delete_supers::Bool=true, and_constraints::String="")
+    deleteAllSimulations(; kwargs...)
 
 Delete all simulations. See [`deleteSimulations`](@ref) for the meaning of the keyword arguments.
 """
-deleteAllSimulations(; delete_supers::Bool=true, and_constraints::String="") = simulationIDs() |> x -> deleteSimulations(x; delete_supers=delete_supers, and_constraints=and_constraints)
+deleteAllSimulations(; kwargs...) = simulationIDs() |> x -> deleteSimulations(x; kwargs...)
 
 """
     deleteMonad(monad_ids::AbstractVector{<:Integer}; delete_subs::Bool=true, delete_supers::Bool=true)
@@ -276,7 +308,7 @@ function resetDatabase(; force_reset::Bool=false, force_continue::Bool=false)
         for folder in (readdir(path_to_location, sort=false, join=true) |> filter(x->isdir(x)))
             resetFolder(location, folder)
         end
-        folders = constructSelectQuery(tableName(location); selection="folder_name") |> queryToDataFrame |> x -> x.folder_name
+        folders = constructSelectQuery(locationTableName(location; validate=false); selection="folder_name") |> queryToDataFrame |> x -> x.folder_name
         for folder in folders
             resetFolder(location, joinpath(path_to_location, folder))
         end
@@ -385,9 +417,14 @@ function eraseSimulationIDFromConstituents(simulation_id::Int; monad_id::Union{M
         all_variation_id_values = [df[1, variation_id_feature] for variation_id_feature in all_variation_id_features]
         all_features = [all_id_features; all_variation_id_features]
         all_values = [add_id_values; all_variation_id_values]
-        where_stmt = "WHERE ($(join(all_features, ", "))) = ($(join(all_values, ", ")))"
-        query = constructSelectQuery("monads", where_stmt; selection="monad_id")
-        df = queryToDataFrame(query)
+
+        @assert columnsExist(all_features, "monads") "The columns $(all_features) do not all exist in the 'monads' table. Cannot erase simulation ID from constituents."
+        placeholders = join(["?" for _ in all_features], ",")
+        where_str = "WHERE ($(join(all_features, ", "))) = ($placeholders)"
+        stmt_str = constructSelectQuery("monads", where_str; selection="monad_id")
+        stmt = SQLite.Stmt(centralDB(), stmt_str)
+        df = stmtToDataFrame(stmt, all_values; is_row=true)
+
         monad_id = df.monad_id[1]
     end
     simulation_ids = readConstituentIDs(Monad, monad_id)

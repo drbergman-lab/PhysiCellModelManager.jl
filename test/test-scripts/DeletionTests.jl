@@ -18,6 +18,8 @@ PhysiCellModelManager.deleteMonad(1:4)
 PhysiCellModelManager.deleteSampling(1)
 PhysiCellModelManager.deleteTrial(1)
 
+deleteSimulations(1:78; filters=Dict("config_id" => 2))
+
 input_buffer = IOBuffer("n")
 old_stdin = stdin  #! Save the original stdin
 Base.stdin = input_buffer

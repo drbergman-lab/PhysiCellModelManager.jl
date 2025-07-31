@@ -32,6 +32,9 @@ append!(element_paths, [configPath(cell_type, token) for token in cell_type_doub
 push!(element_paths, configPath("user_parameters", "number_of_cells"))
 push!(element_paths, PhysiCellModelManager.userParametersPath("number_of_cells"))
 
+save_double_tokens = ["full", "SVG", "svg"]
+append!(element_paths, [configPath("save", token) for token in save_double_tokens])
+
     #! triple token paths
 append!(element_paths, [configPath(substrate, "Dirichlet_options", token) for token in ["xmin", "xmax", "ymin", "ymax", "zmin", "zmax"]])
 

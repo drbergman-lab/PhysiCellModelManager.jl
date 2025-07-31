@@ -11,16 +11,13 @@ function resolvePhysiCellVersionID()
         tag = readlines(joinpath(physicellDir(), "VERSION.txt"))[1]
         full_tag = "$tag-download"
 
-        stmt = SQLite.Stmt(centralDB(),
-            "INSERT OR IGNORE INTO physicell_versions (commit_hash) VALUES (:full_tag) RETURNING physicell_version_id;"
-        )
+        stmt_str = "INSERT OR IGNORE INTO physicell_versions (commit_hash) VALUES (:full_tag) RETURNING physicell_version_id;"
         params = (; :full_tag => full_tag)
-        df = stmtToDataFrame(stmt, params)
+        df = stmtToDataFrame(stmt_str, params)
         if isempty(df)
             where_str = "WHERE commit_hash=(:full_tag)"
             stmt_str = constructSelectQuery("physicell_versions", where_str; selection="physicell_version_id")
-            stmt = SQLite.Stmt(centralDB(), stmt_str)
-            df = stmtToDataFrame(stmt, params; is_row=true)
+            df = stmtToDataFrame(stmt_str, params; is_row=true)
         end
         return df.physicell_version_id[1]
     end

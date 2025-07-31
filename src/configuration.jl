@@ -401,6 +401,11 @@ function configPath(tokens::Vararg{Union{AbstractString,Integer}})
         elseif startswith(token2, "custom")
             new_token2 = token2[8:end] |> lstrip #! remove "custom:", "custom ", or "custom: " from the token
             return customDataPath(token1, new_token2)
+        elseif token1 == "save" && lowercase(token2) ∈ ["full", "svg"]
+            if lowercase(token2) == "full"
+                return fullSavePath()
+            end
+            return svgSavePath()
         elseif token1 ∈ ["user_parameter", "user_parameters"]
             return userParameterPath(token2)
         else
@@ -420,6 +425,9 @@ function configPath(tokens::Vararg{Union{AbstractString,Integer}})
 
             Alternatively, if this is a user parameter, make sure it is of the form:
               configPath("user_parameter", <parameter>)
+
+            Or if this is a save interval, use:
+              configPath("save", "full") or configPath("save", "svg")
             """
             throw(ArgumentError(msg))
         end

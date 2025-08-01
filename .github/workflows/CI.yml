@@ -80,8 +80,8 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: echo "C:\\hostedtoolcache\\windows\\julia\\${{ matrix.julia-version }}\\${{ matrix.arch }}\\bin" >> $GITHUB_PATH
 
-    - name: Set environment variable PHYSICELL_CPP
-      run: echo "PHYSICELL_CPP=${{ matrix.compiler }}" >> $GITHUB_ENV
+    # - name: Set environment variable PHYSICELL_CPP
+    #   run: echo "PHYSICELL_CPP=${{ matrix.compiler }}" >> $GITHUB_ENV
 
     - uses: julia-actions/cache@v2
 
@@ -109,9 +109,11 @@ jobs:
         PCMM_NUM_PARALLEL_SIMS: 8
         PCMM_IMAGEMAGICK_PATH: not/the/real/path/just/for/testing
         PCMM_FFMPEG_PATH: another/not/real/path/just/for/testing
-        PHYSICELL_CPP: ${{ matrix.compiler }} # maybe necessary for windows??
+        PHYSICELL_CPP: ${{ matrix.compiler }}
         PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
         JULIA_DEBUG: PhysiCellModelManager
+        DYLD_LIBRARY_PATH: ./addons/libRoadrunner/roadrunner/lib # used on macos-latest (should work)
+        LD_LIBRARY_PATH: ./addons/libRoadrunner/roadrunner/lib/testing/path # used otherwise (this path should fail; just for testing)
 
     - uses: julia-actions/julia-processcoverage@v1
       with:

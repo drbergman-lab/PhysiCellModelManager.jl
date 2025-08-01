@@ -122,9 +122,8 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
     physicell_version_id = row.physicell_version_id[1]
     where_str = "WHERE physicell_version_id = (:physicell_version_id)"
     stmt_str = constructSelectQuery("physicell_versions", where_str)
-    stmt = SQLite.Stmt(centralDB(), stmt_str)
     params = (; :physicell_version_id => physicell_version_id)
-    row = stmtToDataFrame(stmt, params; is_row=true)
+    row = stmtToDataFrame(stmt_str, params; is_row=true)
     physicell_version = row.tag[1]
     if ismissing(physicell_version)
         physicell_version = row.commit_hash[1]

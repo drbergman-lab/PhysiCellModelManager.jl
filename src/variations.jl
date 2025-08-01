@@ -550,7 +550,7 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
     xps = variationTarget.(evs)
     table_name = variationsTableName(location)
     id_column_name = locationVariationIDName(location)
-    column_names = queryToDataFrame("PRAGMA table_info($(table_name));"; db=db_columns) |> x->x[!,:name]
+    column_names = tableColumns(table_name; db=db_columns)
     filter!(x -> x != id_column_name, column_names)
     varied_column_names = [columnName(xp.xml_path) for xp in xps]
 
@@ -586,38 +586,55 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
 end
 
 """
+    ColumnSetup
+
+A struct to hold the setup for the columns in a variations database.
+
+# Fields
+- `db::SQLite.DB`: The database connection to the variations database.
+- `table::String`: The name of the table in the database.
+- `variation_id_name::String`: The name of the variation ID column in the table.
+- `static_values::Vector{String}`: The static values for the columns that are not varied.
+- `feature_str::String`: The string representation of the features (columns) in the table.
+- `placeholders::String`: The string representation of the placeholders for the values in the table.
+- `stmt_insert::SQLite.Stmt`: The prepared statement for inserting new rows into the table.
+- `stmt_select::SQLite.Stmt`: The prepared statement for selecting existing rows from the table.
+"""
+struct ColumnSetup
+    db::SQLite.DB
+    table::String
+    variation_id_name::String
+    static_values::Vector{String}
+    feature_str::String
+    placeholders::String
+    stmt_insert::SQLite.Stmt
+    stmt_select::SQLite.Stmt
+end
+
+"""
     addVariationRows(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int, all_varied_values::AbstractVector{<:AbstractVector})
 
 Add new rows to the variations database for the given location and folder_id if they don't already exist.
 """
 function addVariationRows(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int, all_varied_values::AbstractVector{<:AbstractVector})
-    db_columns, table_name, variation_id_name, static_values, table_features = setUpColumns(location, folder_id, evs, reference_variation_id)
+    column_setup = setUpColumns(location, folder_id, evs, reference_variation_id)
 
-    @assert columnsExist(table_features, table_name; db=db_columns) "Columns $(table_features) do not exist in table $(table_name)."
-
-    feature_str = join("\"" .* table_features .* "\"", ",")
-    placeholders = join(["?" for _ in table_features], ",")
-    stmt = SQLite.Stmt(db_columns, "INSERT OR IGNORE INTO $(table_name) ($(feature_str)) VALUES($placeholders) RETURNING $(variation_id_name);")
-
-    return [addVariationRow(stmt, static_values, string.(varied_values), feature_str, placeholders, table_name, variation_id_name, db_columns) for varied_values in all_varied_values]
+    return [addVariationRow(column_setup, string.(varied_values)) for varied_values in all_varied_values]
 end
 
 """
-    addVariationRow(stmt::SQLite.Stmt, static_values::Vector{String}, varied_values::Vector{String}, feature_str::String, placeholders::String, table_name::String, variation_id_name::String, db_columns::SQLite.DB)
+    addVariationRow(column_setup::ColumnSetup, varied_values::Vector{String})
 
 Add a new row to the variations database using the prepared statement.
 If the row already exists, it returns the existing variation ID.
 """
-function addVariationRow(stmt::SQLite.Stmt, static_values::Vector{String}, varied_values::Vector{String}, feature_str::String, placeholders::String, table_name::String, variation_id_name::String, db_columns::SQLite.DB)
-    params = Tuple([static_values; varied_values]) #! Combine static and varied values into a single tuple for database insertion
-    new_id = DBInterface.execute(stmt, params) |> DataFrame |> x -> x[!, 1]
+function addVariationRow(column_setup::ColumnSetup, varied_values::Vector{String})
+    params = Tuple([column_setup.static_values; varied_values]) #! Combine static and varied values into a single tuple for database insertion
+    new_id = stmtToDataFrame(column_setup.stmt_insert, params) |> x -> x[!, 1]
 
     new_added = length(new_id) == 1
     if !new_added
-        where_str = "WHERE ($feature_str)=($placeholders)"
-        stmt_str = constructSelectQuery(table_name, where_str; selection=variation_id_name)
-        stmt = SQLite.Stmt(db_columns, stmt_str)
-        df = stmtToDataFrame(stmt, params; is_row=true)
+        df = stmtToDataFrame(column_setup.stmt_select, params; is_row=true)
         new_id = df[!, 1]
     end
     return new_id[1]
@@ -644,7 +661,15 @@ function setUpColumns(location::Symbol, folder_id::Int, evs::Vector{<:Elementary
     end
     append!(table_features, varied_column_names)
 
-    return db_columns, table_name, variation_id_name, static_values, table_features
+    feature_str = join("\"" .* table_features .* "\"", ",")
+    placeholders = join(["?" for _ in table_features], ",")
+
+    stmt_insert = SQLite.Stmt(db_columns, "INSERT OR IGNORE INTO $(table_name) ($(feature_str)) VALUES($placeholders) RETURNING $(variation_id_name);")
+    where_str = "WHERE ($(feature_str))=($(placeholders))"
+    stmt_str = constructSelectQuery(table_name, where_str; selection=variation_id_name)
+    stmt_select = SQLite.Stmt(db_columns, stmt_str)
+
+    return ColumnSetup(db_columns, table_name, variation_id_name, static_values, feature_str, placeholders, stmt_insert, stmt_select)
 end
 
 ################## Specialized Variations ##################

@@ -512,9 +512,13 @@ function tableExists(table_name::String; db::SQLite.DB=centralDB())
 end
 
 """
-    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
+    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
+    columnsExist(column_names::AbstractVector{<:AbstractString}, valid_column_names::AbstractVector{<:AbstractString})
 
 Check if all columns in `column_names` exist in the specified table in the database.
+
+Alternatively, if the `valid_column_names` needs to be reused in the caller, it can be passed directly.
+Keyword arguments (such as `db`) are forwarded to [`tableColumns`](@ref).
 """
 function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
     valid_column_names = tableColumns(table_name; kwargs...)

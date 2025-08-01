@@ -11,7 +11,8 @@ function pcmmVersion()
         proj.version
     else
         deps = Pkg.dependencies()
-        pcmm_uuid = findfirst(kv[2].name == "PhysiCellModelManager" for kv in deps) #! kv = key-value pair
+        pcmm_uuid = findfirst(dep -> dep.name == "PhysiCellModelManager", deps)
+        isnothing(pcmm_uuid) && throw(ArgumentError("PhysiCellModelManager is not a dependency of the current project. How are you even running this?"))
         deps[pcmm_uuid].version
     end
     return version

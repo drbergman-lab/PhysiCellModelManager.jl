@@ -63,3 +63,8 @@ mkdir(path_to_bad_folder)
 
 rm(path_to_bad_folder; force=true, recursive=true)
 @test PhysiCellModelManager.initializeDatabase() == true
+
+# test stmtToDataFrame error
+stmt_str = "SELECT * FROM simulations WHERE simulation_id = :simulation_id;"
+params = (; :simulation_id => -1)
+@test_throws AssertionError PhysiCellModelManager.stmtToDataFrame(stmt_str, params; is_row=true)

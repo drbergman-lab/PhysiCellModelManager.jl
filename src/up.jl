@@ -44,7 +44,7 @@ Populate a target table with data from a source table, using a column mapping if
 function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String, String}=Dict{String,String}())
     @assert tableExists(source_table; db=db) "Source table $(source_table) does not exist in the database."
     @assert tableExists(target_table; db=db) "Target table $(target_table) does not exist in the database."
-    source_columns = queryToDataFrame("PRAGMA table_info($(source_table));") |> x -> x[!, :name]
+    source_columns = tableColumns(source_table; db=db)
     target_columns = [haskey(column_mapping, c) ? column_mapping[c] : c for c in source_columns]
     @assert columnsExist(target_columns, target_table; db=db) "One or more target columns do not exist in the target table."
     insert_into_cols = "(" * join(target_columns, ",") * ")"
@@ -84,7 +84,7 @@ function upgradeToV0_0_1(::Bool)
             if isempty(df)
                 continue
             end
-            column_names = queryToDataFrame("PRAGMA table_info(rulesets_variations);"; db=db_rulesets_variations) |> x -> x[!, :name]
+            column_names = tableColumns("rulesets_variations"; db=db_rulesets_variations)
             filter!(x -> x != "rulesets_collection_variation_id", column_names)
             path_to_xml = joinpath(path_to_rulesets_collection_folder, "base_rulesets.xml")
             if !isfile(path_to_xml)

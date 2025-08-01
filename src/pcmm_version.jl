@@ -11,7 +11,8 @@ function pcmmVersion()
         proj.version
     else
         deps = Pkg.dependencies()
-        deps[proj.dependencies["PhysiCellModelManager"]].version
+        pcmm_uuid = findfirst(kv[2].name == "PhysiCellModelManager" for kv in deps) #! kv = key-value pair
+        deps[pcmm_uuid].version
     end
     return version
 end
@@ -47,7 +48,7 @@ Returns the version from the specified table if it exists, otherwise returns not
 The `kwargs...` are passed to the `tableExists` function to check if the table exists.
 """
 function versionFromTable(table_name::String; kwargs...)
-    if !tableExists(table_name; kwargs...)
+    if !tableExists(table_name; kwargs...) #! important for helping upgrade to pcvct_version -> pcmm_version in db (can be removed at v0.2.0 or whenever we drop support for <0.30.0)
         return nothing
     end
 

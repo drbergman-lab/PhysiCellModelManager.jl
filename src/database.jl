@@ -68,7 +68,7 @@ function createSchema()
         """
         createPCMMTable(table_name, table_schema)
 
-        location_path = locationPath(location; validate=false)
+        location_path = locationPath(location)
         folders = readdir(location_path; sort=false) |> filter(x -> isdir(joinpath(location_path, x)))
         if location_dict["required"] && isempty(folders)
             println("No folders in $location_path found. This is where to put the folders for $table_name.")
@@ -194,7 +194,7 @@ function abstractSamplingForeignReferenceSubSchema()
         REFERENCES physicell_versions (physicell_version_id),
     $(join(["""
     FOREIGN KEY ($(locationIDName(k)))
-        REFERENCES $(locationTableName(k; validate=false)) ($(locationIDName(k; validate=false)))\
+        REFERENCES $(locationTableName(k)) ($(locationIDName(k)))\
     """ for k in keys(inputsDict())], ",\n"))
     """
 end
@@ -295,13 +295,13 @@ function insertFolder(location::Symbol, folder::String, description::String="")
     path_to_folder = locationPath(location, folder)
     old_description = metadataDescription(path_to_folder)
     description = isempty(old_description) ? description : old_description
-    query = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location; validate=false));"
+    query = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location));"
     df = queryToDataFrame(query)
     if !folderIsVaried(location, folder)
         return
     end
     db_variations = joinpath(path_to_folder, "$(location)_variations.db") |> SQLite.DB
-    location_variation_id_name = locationVariationIDName(location; validate=false)
+    location_variation_id_name = locationVariationIDName(location)
     createPCMMTable(variationsTableName(location), "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
     DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($location_variation_id_name) VALUES(0);")
     input_folder = InputFolder(location, folder)
@@ -401,13 +401,6 @@ end
 ########### Retrieving Database Information Functions ###########
 
 """
-    vctDBQuery(query::String; db::SQLite.DB=centralDB())
-    
-Execute a query against the database and return the result.
-"""
-vctDBQuery(query::String; db::SQLite.DB=centralDB()) = DBInterface.execute(db, query)
-
-"""
     queryToDataFrame(query::String; db::SQLite.DB=centralDB(), is_row::Bool=false)
 
 Execute a query against the database and return the result as a DataFrame.
@@ -415,7 +408,7 @@ Execute a query against the database and return the result as a DataFrame.
 If `is_row` is true, the function will assert that the result has exactly one row, i.e., a unique result.
 """
 function queryToDataFrame(query::String; db::SQLite.DB=centralDB(), is_row::Bool=false)
-    df = vctDBQuery(query; db=db) |> DataFrame
+    df = DBInterface.execute(db, query) |> DataFrame
     if is_row
         @assert size(df,1)==1 "Did not find exactly one row matching the query:\n\tDatabase file: $(db)\n\tQuery: $(query)\nResult: $(df)"
     end
@@ -424,6 +417,7 @@ end
 
 """
     stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
+    stmtToDataFrame(stmt_str::AbstractString, params; db::SQLite.DB=centralDB(), is_row::Bool=false)
 
 Execute a prepared statement with the given parameters and return the result as a DataFrame.
 Compare with [`queryToDataFrame`](@ref).
@@ -432,6 +426,17 @@ The `params` argument must be a type that can be used with `DBInterface.execute(
 See the [SQLite.jl documentation](https://juliadatabases.org/SQLite.jl/stable/) for details.
 
 If `is_row` is true, the function will assert that the result has exactly one row, i.e., a unique result.
+
+# Arguments
+- `stmt::SQLite.Stmt`: A prepared statement object. This includes the database connection and the SQL statement.
+- `stmt_str::AbstractString`: A string containing the SQL statement to prepare.
+- `params`: The parameters to bind to the prepared statement. Must be either 
+  - `Vector` or `Tuple` and match the order of the placeholders in the SQL statement.
+  - `NamedTuple` or `Dict` with keys matching the named placeholders in the SQL statement.
+
+# Keyword Arguments
+- `db::SQLite.DB`: The database connection to use. Defaults to the central database. Unnecessary if using a prepared statement.
+- `is_row::Bool`: If true, asserts that the result has exactly one row. Defaults to false.
 """
 function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
     df = DBInterface.execute(stmt, params) |> DataFrame
@@ -439,6 +444,23 @@ function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
         @assert size(df,1)==1 "Did not find exactly one row matching the statement."
     end
     return df
+end
+
+function stmtToDataFrame(stmt_str::AbstractString, params; db::SQLite.DB=centralDB(), is_row::Bool=false)
+    stmt = SQLite.Stmt(db, stmt_str)
+    try
+        return stmtToDataFrame(stmt, params; is_row=is_row)
+    catch e
+        msg = """
+        Error executing SQLite statement:
+            Statement: $stmt_str
+            Parameters: $params
+            Database: $(db.file)
+            Is row: $is_row
+        """
+        println(msg)
+        rethrow(e)
+    end
 end
 
 """
@@ -458,7 +480,7 @@ function inputFolderName(location::Symbol, id::Int)
         return ""
     end
 
-    query = constructSelectQuery(locationTableName(location), "WHERE $(locationIDName(location; validate=false))=$(id)"; selection="folder_name")
+    query = constructSelectQuery(locationTableName(location), "WHERE $(locationIDName(location))=$(id)"; selection="folder_name")
     return queryToDataFrame(query; is_row=true) |> x -> x.folder_name[1]
 end
 
@@ -473,10 +495,9 @@ function inputFolderID(location::Symbol, folder_name::String)
     end
     primary_key_string = locationIDName(location)
 
-    stmt_str = constructSelectQuery(locationTableName(location; validate=false), "WHERE folder_name=(:folder_name)"; selection=primary_key_string)
-    stmt = SQLite.Stmt(centralDB(), stmt_str)
+    stmt_str = constructSelectQuery(locationTableName(location), "WHERE folder_name=(:folder_name)"; selection=primary_key_string)
     params = (; :folder_name => folder_name)
-    df = stmtToDataFrame(stmt, params; is_row=true)
+    df = stmtToDataFrame(stmt_str, params; is_row=true)
     return df[1, primary_key_string]
 end
 
@@ -495,10 +516,23 @@ end
 
 Check if all columns in `column_names` exist in the specified table in the database.
 """
-function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
-    @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in the database."
-    valid_column_names = DBInterface.execute(db, "PRAGMA table_info($(table_name));") |> DataFrame |> x -> x.name
+function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
+    valid_column_names = tableColumns(table_name; kwargs...)
+    return columnsExist(column_names, valid_column_names)
+end
+
+function columnsExist(column_names::AbstractVector{<:AbstractString}, valid_column_names::AbstractVector{<:AbstractString})
     return all(c -> c in valid_column_names, column_names)
+end
+
+"""
+    tableColumns(table_name::String; db::SQLite.DB=centralDB())
+
+Return the names of the columns in the specified table in the database.
+"""
+function tableColumns(table_name::String; db::SQLite.DB=centralDB())
+    @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in the database."
+    return queryToDataFrame("PRAGMA table_info($(table_name));", db=db) |> x -> x.name
 end
 
 ########### Summarizing Database Functions ###########

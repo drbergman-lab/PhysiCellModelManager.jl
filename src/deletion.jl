@@ -23,10 +23,9 @@ deleteSimulations(1:100; filters=Dict("config_id" => 1)) # delete simulations wi
 function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
     simulation_ids = Vector(simulation_ids) #! filter! does not work on AbstractRange, such as `simulation_ids = 1:3`
     filter!(x -> !ismissing(x), simulation_ids)
-    where_stmt, params = buildWhereClause("simulation_id", simulation_ids, filters)
+    where_stmt, params = buildWhereClause("simulations", simulation_ids, filters)
     stmt_str = constructSelectQuery("simulations", where_stmt)
-    stmt = SQLite.Stmt(centralDB(), stmt_str)
-    sim_df = stmtToDataFrame(stmt, params)
+    sim_df = stmtToDataFrame(stmt_str, params)
     simulation_ids = sim_df.simulation_id #! update based on the constraints added
     DBInterface.execute(centralDB(),"DELETE FROM simulations WHERE simulation_id IN ($(join(simulation_ids,",")));")
 
@@ -76,33 +75,34 @@ function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missin
 end
 
 """
-    buildWhereClause(id_name::AbstractString, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
+    buildWhereClause(table_name::String, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}; db::SQLite.DB=centralDB())
 
 Builds a `WHERE` clause for SQL queries based on the provided IDs and filters.
 
+Following PCMM conventions, the ID of the table is expected to be named `\"\$(x)_id\"`, where `x` is the table name with the end `s` removed (e.g., `simulation_id` for the `simulations` table).
+
 # Arguments
-- `id_name`: The name of the ID column to filter by.
+- `table_name`: The name of the table to check for valid columns.
 - `ids`: A vector of IDs to include in the `WHERE` clause.
 - `filters`: A dictionary of additional filters to apply to the `WHERE` clause. Default is an empty dictionary. 
   The keys should be valid column names and the values should be the values to filter by.
 
+# Keyword Arguments
+- `db`: The SQLite database connection to use. Default is the central database.
+
 # Examples
-```jldoctest
-julia> PhysiCellModelManager.buildWhereClause("simulation_id", [1, 2, 3], Dict("config_id" => 1))
+```julia-repl
+julia> PhysiCellModelManager.buildWhereClause("simulations", [1, 2, 3], Dict("config_id" => 1))
 ("WHERE simulation_id IN (1,2,3) AND config_id = ?", Any[1])
 ```
 """
-function buildWhereClause(id_name::AbstractString, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
-    clauses = ["$id_name IN ($(join(ids, ",")))"]
-    values = Any[]
-    for (col, val) in filters
-        if match(r"^[A-Za-z_][A-Za-z0-9_]*$", col) |> isnothing
-            throw(ArgumentError("Invalid column name: $col"))
-        end
-        push!(clauses, "$col = ?")
-        push!(values, val)
-    end
-    return "WHERE " * join(clauses, " AND "), values
+function buildWhereClause(table_name::String, ids::Vector{<:Integer}, filters::Dict{<:AbstractString, <:Any}; db::SQLite.DB=centralDB())
+    id_name = tableIDName(table_name)
+    valid_column_names = tableColumns(table_name; db=db)
+    @assert columnsExist(keys(filters) |> collect, valid_column_names) "Invalid filter keys for table $(table_name): $(collect(setdiff(keys(filters), valid_column_names))). Valid columns are: $(valid_column_names)."
+    clauses = ["$id_name IN ($(join(ids, ",")))"; ["$col = ?" for col in keys(filters)]]
+    params = values(filters) |> collect
+    return "WHERE " * join(clauses, " AND "), params
 end
 
 deleteSimulations(simulation_id::Int; kwargs...) = deleteSimulations([simulation_id]; kwargs...)
@@ -308,7 +308,7 @@ function resetDatabase(; force_reset::Bool=false, force_continue::Bool=false)
         for folder in (readdir(path_to_location, sort=false, join=true) |> filter(x->isdir(x)))
             resetFolder(location, folder)
         end
-        folders = constructSelectQuery(locationTableName(location; validate=false); selection="folder_name") |> queryToDataFrame |> x -> x.folder_name
+        folders = constructSelectQuery(locationTableName(location); selection="folder_name") |> queryToDataFrame |> x -> x.folder_name
         for folder in folders
             resetFolder(location, joinpath(path_to_location, folder))
         end
@@ -422,8 +422,7 @@ function eraseSimulationIDFromConstituents(simulation_id::Int; monad_id::Union{M
         placeholders = join(["?" for _ in all_features], ",")
         where_str = "WHERE ($(join(all_features, ", "))) = ($placeholders)"
         stmt_str = constructSelectQuery("monads", where_str; selection="monad_id")
-        stmt = SQLite.Stmt(centralDB(), stmt_str)
-        df = stmtToDataFrame(stmt, all_values; is_row=true)
+        df = stmtToDataFrame(stmt_str, all_values; is_row=true)
 
         monad_id = df.monad_id[1]
     end

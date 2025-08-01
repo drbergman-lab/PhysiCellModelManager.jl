@@ -271,8 +271,8 @@ Get the value of the variation at the given variation ID for [`MOAT`](@ref) glob
 """
 function variationValue(ev::ElementaryVariation, variation_id::Int, folder::String)
     location = variationLocation(ev)
-    query = constructSelectQuery("$(location)_variations", "WHERE $(locationVariationIDName(location))=$variation_id"; selection="\"$(columnName(ev))\"")
-    variation_value_df = queryToDataFrame(query; db=variationsDatabase(location, folder), is_row=true)
+    query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$variation_id"; selection="\"$(columnName(ev))\"")
+    variation_value_df = queryToDataFrame(query; db=locationVariationsDatabase(location, folder), is_row=true)
     return variation_value_df[1,1]
 
 end

@@ -537,7 +537,7 @@ Add columns to the variations database for the given location and folder_id.
 function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation})
     @assert all(variationLocation.(evs) .== location) "All variations must be in the same location to do addColumns. Somehow found $(unique(variationLocation.(evs))) here."
     folder = inputFolderName(location, folder_id)
-    db_columns = variationsDatabase(location, folder)
+    db_columns = locationVariationsDatabase(location, folder)
     basenames = inputsDict()[location]["basename"]
     basenames = basenames isa Vector ? basenames : [basenames] #! force basenames to be a vector to handle all the same way
     basename_is_varied = inputsDict()[location]["varied"] .&& ([splitext(bn)[2] .== ".xml" for bn in basenames]) #! the varied entry is either a singleton Boolean or a vector of the same length as basenames
@@ -548,7 +548,7 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
     path_to_xml = joinpath(locationPath(location, folder), basenames[basename_ind[1]])
 
     xps = variationTarget.(evs)
-    table_name = variationsTableName(location)
+    table_name = locationVariationsTableName(location)
     id_column_name = locationVariationIDName(location)
     column_names = tableColumns(table_name; db=db_columns)
     filter!(x -> x != id_column_name, column_names)
@@ -647,8 +647,8 @@ Set up the columns for the variations database for the given location and folder
 """
 function setUpColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int)
     static_column_names, varied_column_names = addColumns(location, folder_id, evs)
-    db_columns = variationsDatabase(location, folder_id)
-    table_name = variationsTableName(location)
+    db_columns = locationVariationsDatabase(location, folder_id)
+    table_name = locationVariationsTableName(location)
     variation_id_name = locationVariationIDName(location)
 
     if isempty(static_column_names)

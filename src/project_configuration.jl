@@ -129,6 +129,7 @@ locationVariationIDNames() = (locationVariationIDName(loc) for loc in projectLoc
     locationTableName(location)
 
 Return the name of the table for the location (as either a String or Symbol).
+This table stores the folder names and their IDs for the location.
 
 # Examples
 ```jldoctest
@@ -139,11 +140,26 @@ julia> PhysiCellModelManager.locationTableName(:config)
 locationTableName(location::Union{String,Symbol}) = "$(location)s"
 
 """
-    variationsTableName(location)
+    locationVariationsTableName(location)
 
 Return the name of the variations table for the location (as either a String or Symbol).
+This table stores the variations of the folder it is located in.
 """
-variationsTableName(location::Union{String,Symbol}) = "$(location)_variations"
+locationVariationsTableName(location::Union{String,Symbol}) = "$(location)_variations"
+
+"""
+    locationVariationsFolder(location)
+
+Return the name of the variations folder for the location (as either a String or Symbol).
+"""
+locationVariationsFolder(location::Union{String,Symbol}) = locationVariationsTableName(location)
+
+"""
+    locationVariationsDBName(location::Union{String,Symbol})
+
+Return the name of the variations database for the location (as either a String or Symbol).
+"""
+locationVariationsDBName(location::Union{String,Symbol}) = "$(locationVariationsTableName(location)).db"
 
 """
     locationPath(location::Symbol, folder=missing)

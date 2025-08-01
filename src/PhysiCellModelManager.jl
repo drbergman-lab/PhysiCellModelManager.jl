@@ -104,10 +104,12 @@ If no arguments are provided, it assumes that the PhysiCell and data directories
 """
 function initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString; auto_upgrade::Bool=false)
     global pcmm_globals
+    path_to_physicell, path_to_data = (path_to_physicell, path_to_data) .|> abspath .|> normpath
+
     #! print big logo of PhysiCellModelManager.jl here
     println(pcmmLogo())
-    pcmm_globals.physicell_dir = abspath(path_to_physicell)
-    pcmm_globals.data_dir = abspath(path_to_data)
+    pcmm_globals.physicell_dir = path_to_physicell
+    pcmm_globals.data_dir = path_to_data
     findCentralDB()
     #! start with PhysiCellModelManager.jl version info
     if !resolvePCMMVersion(auto_upgrade)
@@ -132,15 +134,16 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     println(rpad("Running on HPC:", 25, ' ') * string(pcmm_globals.run_on_hpc))
     println(rpad("Max parallel sims:", 25, ' ') * string(pcmm_globals.max_number_of_parallel_simulations))
     flush(stdout)
+
+    return isInitialized()
 end
 
-function initializeModelManager()
-    physicell_dir = "PhysiCell"
-    data_dir = "data"
-    return initializeModelManager(physicell_dir, data_dir)
+function initializeModelManager(path_to_project::AbstractString; kwargs...)
+    path_to_physicell, path_to_data = (joinpath(path_to_project, folder) for folder in ("PhysiCell", "data"))
+    return initializeModelManager(path_to_physicell, path_to_data; kwargs...)
 end
 
-initializeModelManager(path_to_project_dir::AbstractString) = cd(() -> initializeModelManager(), path_to_project_dir)
+initializeModelManager(; kwargs...) = initializeModelManager("PhysiCell", "data"; kwargs...)
 
 ################## Selection Functions ##################
 

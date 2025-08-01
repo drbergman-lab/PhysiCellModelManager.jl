@@ -231,7 +231,7 @@ end
 Check if any of the simulations in `S` have a configuration file with `ecm_setup` enabled.
 """
 function isPhysiECMInConfig(M::AbstractMonad)
-    path_to_xml = joinpath(locationPath(:config, M), "config_variations", "config_variation_$(M.variation_id[:config]).xml")
+    path_to_xml = joinpath(locationPath(:config, M), locationVariationsFolder(:config), "config_variation_$(M.variation_id[:config]).xml")
     xml_doc = parse_file(path_to_xml)
     xml_path = ["microenvironment_setup", "ecm_setup"]
     ecm_setup_element = retrieveElement(xml_doc, xml_path; required=false)

@@ -192,11 +192,11 @@ makeXMLPath(x, xml_path::AbstractString) = makeXMLPath(x, [xml_path])
 
 Create XML file for the given location and variation_id in the given monad.
 
-The file is placed in `\$(location)_variations` and can be accessed from there to run the simulation(s).
+The file is placed in `$(PhysiCellModelManager.locationVariationsFolder("\$(location)"))` and can be accessed from there to run the simulation(s).
 """
 function createXMLFile(location::Symbol, M::AbstractMonad)
     path_to_folder = locationPath(location, M)
-    path_to_xml = joinpath(path_to_folder, variationsTableName(location), "$(location)_variation_$(M.variation_id[location]).xml")
+    path_to_xml = joinpath(path_to_folder, locationVariationsFolder(location), "$(location)_variation_$(M.variation_id[location]).xml")
     if isfile(path_to_xml)
         return path_to_xml
     end
@@ -208,8 +208,8 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
 
     xml_doc = parse_file(path_to_base_xml)
     if M.variation_id[location] != 0 #! only update if not using the base variation for the location
-        query = constructSelectQuery(variationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])")
-        variation_row = queryToDataFrame(query; db=variationsDatabase(location, M), is_row=true)
+        query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])")
+        variation_row = queryToDataFrame(query; db=locationVariationsDatabase(location, M), is_row=true)
         for column_name in names(variation_row)
             if column_name == locationVariationIDName(location)
                 continue
@@ -287,7 +287,7 @@ function pathToICCell(simulation::Simulation)
     if isfile(joinpath(path_to_ic_cell_folder, "cells.csv")) #! ic already given by cells.csv
         return joinpath(path_to_ic_cell_folder, "cells.csv")
     end
-    path_to_config_xml = joinpath(locationPath(:config, simulation), "config_variations", "config_variation_$(simulation.variation_id[:config]).xml")
+    path_to_config_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
     xml_doc = parse_file(path_to_config_xml)
     domain_dict = Dict{String,Float64}()
     for d in ["x", "y", "z"]
@@ -298,7 +298,7 @@ function pathToICCell(simulation::Simulation)
         end
     end
     free(xml_doc)
-    path_to_ic_cell_variations = joinpath(path_to_ic_cell_folder, "ic_cell_variations")
+    path_to_ic_cell_variations = joinpath(path_to_ic_cell_folder, locationVariationsFolder(:ic_cell))
     path_to_ic_cell_xml = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell]).xml")
     path_to_ic_cell_file = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell])_s$(simulation.id).csv")
     generateICCell(path_to_ic_cell_xml, path_to_ic_cell_file, domain_dict)
@@ -316,7 +316,7 @@ function pathToICECM(simulation::Simulation)
     if isfile(joinpath(path_to_ic_ecm_folder, "ecm.csv")) #! ic already given by ecm.csv
         return joinpath(path_to_ic_ecm_folder, "ecm.csv")
     end
-    path_to_config_xml = joinpath(locationPath(:config, simulation), "config_variations", "config_variation_$(simulation.variation_id[:config]).xml")
+    path_to_config_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
     xml_doc = parse_file(path_to_config_xml)
     config_dict = Dict{String,Float64}()
     for d in ["x", "y"] #! does not (yet?) support 3D
@@ -330,7 +330,7 @@ function pathToICECM(simulation::Simulation)
         config_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
     end
     free(xml_doc)
-    path_to_ic_ecm_variations = joinpath(path_to_ic_ecm_folder, "ic_ecm_variations")
+    path_to_ic_ecm_variations = joinpath(path_to_ic_ecm_folder, locationVariationsFolder(:ic_ecm))
     path_to_ic_ecm_xml = joinpath(path_to_ic_ecm_variations, "ic_ecm_variation_$(simulation.variation_id[:ic_ecm]).xml")
     path_to_ic_ecm_file = joinpath(path_to_ic_ecm_variations, "ic_ecm_variation_$(simulation.variation_id[:ic_ecm])_s$(simulation.id).csv")
     generateICECM(path_to_ic_ecm_xml, path_to_ic_ecm_file, config_dict)

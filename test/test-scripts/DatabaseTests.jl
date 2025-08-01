@@ -32,13 +32,13 @@ schema_without_primary_id = ""
 @test_throws ArgumentError PhysiCellModelManager.icFilename("ecm")
 
 # misc tests
-config_db = PhysiCellModelManager.variationsDatabase(:config, Simulation(1))
+config_db = PhysiCellModelManager.locationVariationsDatabase(:config, Simulation(1))
 @test config_db isa SQLite.DB
 
-ic_cell_db = PhysiCellModelManager.variationsDatabase(:ic_cell, Simulation(1))
+ic_cell_db = PhysiCellModelManager.locationVariationsDatabase(:ic_cell, Simulation(1))
 @test ic_cell_db isa Missing
 
-ic_ecm_db = PhysiCellModelManager.variationsDatabase(:ic_ecm, Simulation(1))
+ic_ecm_db = PhysiCellModelManager.locationVariationsDatabase(:ic_ecm, Simulation(1))
 @test ic_ecm_db isa Nothing
 
 PhysiCellModelManager.variationIDs(:config, Simulation(1))
@@ -50,10 +50,10 @@ PhysiCellModelManager.variationIDs(:ic_cell, Sampling(1))
 PhysiCellModelManager.variationIDs(:ic_ecm, Simulation(1))
 PhysiCellModelManager.variationIDs(:ic_ecm, Sampling(1))
 
-PhysiCellModelManager.variationsTable(:config, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:rulesets_collection, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:ic_cell, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:ic_ecm, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:config, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:rulesets_collection, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:ic_cell, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:ic_ecm, Sampling(1); remove_constants=true)
 
 # test bad folder
 path_to_bad_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "configs", "bad_folder")

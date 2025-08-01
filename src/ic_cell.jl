@@ -20,7 +20,7 @@ The `ID` attribute in `patch` elements is there exactly to allow variations to t
 Manually maintain these or you will not be able to vary specific patches effectively.
 
 Each time a simulation is run that is using a cells.xml file, a new CSV file will be created, drawing randomly from the patches defined in the XML file.
-These will all be stored with `data/inputs/ics/cells/folder/ic_cell_variations` as `ic_cell_variation_#_s#.csv` where the first `#` is the variation ID associated with variation on the XML file and the second `#` is the simulation ID.
+These will all be stored with `data/inputs/ics/cells/folder/$(PhysiCellModelManager.locationVariationsFolder(:ic_cell))` as `ic_cell_variation_#_s#.csv` where the first `#` is the variation ID associated with variation on the XML file and the second `#` is the simulation ID.
 Importantly, no two simulations will use the same CSV file.
 """
 function createICCellXMLTemplate(folder::String)

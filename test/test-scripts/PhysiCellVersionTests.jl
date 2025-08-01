@@ -17,7 +17,7 @@ open(path_to_file, "w") do f
 end
 
 @test !PhysiCellModelManager.gitDirectoryIsClean(PhysiCellModelManager.physicellDir())
-initializeModelManager(PhysiCellModelManager.physicellDir(), PhysiCellModelManager.dataDir())
+@test initializeModelManager(PhysiCellModelManager.physicellDir(), PhysiCellModelManager.dataDir())
 PhysiCellModelManager.physicellVersion()
 
 lines[1] = lines[1][1:end-1]
@@ -36,8 +36,8 @@ project_dir = "./test-project-download"
 createProject(project_dir; clone_physicell=false)
 data_dir = joinpath(project_dir, "data")
 physicell_dir = joinpath(project_dir, "PhysiCell")
-initializeModelManager(physicell_dir, data_dir)
+@test initializeModelManager(physicell_dir, data_dir)
 PhysiCellModelManager.resolvePhysiCellVersionID()
 
-initializeModelManager(original_project_dir)
+@test initializeModelManager(original_project_dir)
 PhysiCellModelManager.resolvePhysiCellVersionID()

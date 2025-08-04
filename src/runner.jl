@@ -23,7 +23,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
     end
 
     executable_str = joinpath(locationPath(:custom_code, simulation), baseToExecutable("project")) #! path to executable
-    config_str = joinpath(locationPath(:config, simulation), "config_variations", "config_variation_$(simulation.variation_id[:config]).xml")
+    config_str = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
     flags = ["-o", path_to_simulation_output]
     if simulation.inputs[:ic_cell].id != -1
         try
@@ -50,11 +50,11 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
         append!(flags, ["-d", joinpath(locationPath(:ic_dc, simulation), "dcs.csv")]) #! if ic file included (id != -1), then include this in the command
     end
     if simulation.variation_id[:rulesets_collection] != -1
-        path_to_rules_file = joinpath(locationPath(:rulesets_collection, simulation), "rulesets_collection_variations", "rulesets_collection_variation_$(simulation.variation_id[:rulesets_collection]).xml")
+        path_to_rules_file = joinpath(locationPath(:rulesets_collection, simulation), locationVariationsFolder(:rulesets_collection), "rulesets_collection_variation_$(simulation.variation_id[:rulesets_collection]).xml")
         append!(flags, ["-r", path_to_rules_file])
     end
     if simulation.variation_id[:intracellular] != -1
-        path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), "intracellular_variations", "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
+        path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), locationVariationsFolder(:intracellular), "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
         append!(flags, ["-n", path_to_intracellular_file])
     end
     return Cmd(`$executable_str $config_str $flags`; env=ENV, dir=physicellDir())

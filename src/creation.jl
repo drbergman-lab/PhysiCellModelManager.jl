@@ -34,6 +34,22 @@ function createProject(project_dir::String="."; clone_physicell::Bool=true, temp
     setUpInputs(data_dir, physicell_dir, template_as_default)
     setUpComponents(data_dir, physicell_dir)
     setUpScripts(project_dir, physicell_dir, data_dir, template_as_default, terse)
+    createDefaultGitIgnore(project_dir)
+    msg = """
+    PhysiCellModelManager.jl project created at $(abspath(project_dir))! A couple notes:
+    - Make sure to `cd` into the project directory before using the 0-argument `initializeModelManager()` function.
+    - Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
+    - A .gitignore file has been created in the data directory.
+    - If you want to track changes to this project, you can initialize a git repository:
+
+            cd $(abspath(project_dir))
+            git init
+            git submodule add https://github.com/drbergman/PhysiCell
+
+    - Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
+    - Have fun!
+    """
+    println(msg)
 end
 
 """
@@ -370,5 +386,43 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
 
     open(path_to_generate_data, "w") do f
         write(f, generate_data_lines)
+    end
+end
+
+"""
+    createDefaultGitIgnore(project_dir::String)
+
+Create a default `.gitignore` file for the data directory.
+The following are ignored:
+- all databases
+- all variations folders (folders containing modified versions of the base files)
+- compile-time-generated files
+- all outputs
+"""
+function createDefaultGitIgnore(project_dir::String)
+    data_gitignore_path = joinpath(project_dir, "data", ".gitignore")
+    mode = isfile(data_gitignore_path) ? "a" : "w" # append if file exists, otherwise write
+    open(data_gitignore_path, mode) do f
+        write(
+            f,
+            """
+            # PCMM
+
+            ## databases
+            *.db
+
+            ## variations folders
+            $(locationVariationsFolder("*"))/
+            
+            ## custom codes
+            compilation*
+            macros.txt
+            physicell_commit_hash.txt
+            project*
+
+            ## outputs
+            /outputs/
+            """
+        )
     end
 end

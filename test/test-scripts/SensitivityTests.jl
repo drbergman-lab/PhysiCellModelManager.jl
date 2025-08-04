@@ -90,12 +90,12 @@ n_simulations_expected = n_points * (1 + 1) * n_replicates
 @test length(moat_sampling.sampling) == n_simulations_expected
 
 sobol_index_methods = (first_order=:Sobol1993, total_order=:Homma1996)
-sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+sobol_sampling = run(SobolPCMM(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 sobol_index_methods = (first_order=:Saltelli2010, total_order=:Sobol2007)
-sobol_sampling = run(Sobolʼ(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
+sobol_sampling = run(SobolPCMM(n_points; sobol_index_methods=sobol_index_methods), inputs, av; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])
 
 reference = simulationIDs(sobol_sampling)[1] |> Simulation
-sobol_sampling = run(Sobolʼ(2), reference, av)
+sobol_sampling = run(SobolPCMM(2), reference, av)
 
 # Testing sensitivity with CoVariations
 dv_max_time = DiscreteVariation(["overall", "max_time"], 12.0)

@@ -295,15 +295,19 @@ function insertFolder(location::Symbol, folder::String, description::String="")
     path_to_folder = locationPath(location, folder)
     old_description = metadataDescription(path_to_folder)
     description = isempty(old_description) ? description : old_description
-    query = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location));"
-    df = queryToDataFrame(query)
+
+    stmt_str = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES (:folder, :description);"
+    params = (; :folder => folder, :description => description)
+    stmt = SQLite.Stmt(centralDB(), stmt_str)
+    DBInterface.execute(stmt, params)
     if !folderIsVaried(location, folder)
         return
     end
-    db_variations = joinpath(path_to_folder, "$(location)_variations.db") |> SQLite.DB
+    db_variations = joinpath(path_to_folder, locationVariationsDBName(location)) |> SQLite.DB # create the variations database
     location_variation_id_name = locationVariationIDName(location)
-    createPCMMTable(variationsTableName(location), "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
-    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($location_variation_id_name) VALUES(0);")
+    table_name = locationVariationsTableName(location)
+    createPCMMTable(table_name, "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
+    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $table_name ($location_variation_id_name) VALUES(0);")
     input_folder = InputFolder(location, folder)
     prepareBaseFile(input_folder)
 end
@@ -371,31 +375,31 @@ isStarted(simulation::Simulation; new_status_code::Union{Missing,String}=missing
 ################## DB Interface Functions ##################
 
 """
-    variationsDatabase(location::Symbol, folder::String)
+    locationVariationsDatabase(location::Symbol, folder::String)
 
-Return the database for the location and folder.
+Return the variations database for the location and folder.
 
 The second argument can alternatively be the ID of the folder or an AbstractSampling object (simulation, monad, or sampling) using that folder.
 """
-function variationsDatabase(location::Symbol, folder::String)
+function locationVariationsDatabase(location::Symbol, folder::String)
     if folder == ""
         return nothing
     end
-    path_to_db = joinpath(locationPath(location, folder), "$(location)_variations.db")
+    path_to_db = joinpath(locationPath(location, folder), locationVariationsDBName(location))
     if !isfile(path_to_db)
         return missing
     end
     return path_to_db |> SQLite.DB
 end
 
-function variationsDatabase(location::Symbol, id::Int)
+function locationVariationsDatabase(location::Symbol, id::Int)
     folder = inputFolderName(location, id)
-    return variationsDatabase(location, folder)
+    return locationVariationsDatabase(location, folder)
 end
 
-function variationsDatabase(location::Symbol, S::AbstractSampling)
+function locationVariationsDatabase(location::Symbol, S::AbstractSampling)
     folder = S.inputs[location].folder
-    return variationsDatabase(location, folder)
+    return locationVariationsDatabase(location, folder)
 end
 
 ########### Retrieving Database Information Functions ###########
@@ -485,18 +489,18 @@ function inputFolderName(location::Symbol, id::Int)
 end
 
 """
-    inputFolderID(location::Symbol, folder_name::String)
+    inputFolderID(location::Symbol, folder::String)
 
 Retrieve the ID of the folder associated with the given location and folder name.
 """
-function inputFolderID(location::Symbol, folder_name::String)
-    if folder_name == ""
+function inputFolderID(location::Symbol, folder::String)
+    if folder == ""
         return -1
     end
     primary_key_string = locationIDName(location)
 
-    stmt_str = constructSelectQuery(locationTableName(location), "WHERE folder_name=(:folder_name)"; selection=primary_key_string)
-    params = (; :folder_name => folder_name)
+    stmt_str = constructSelectQuery(locationTableName(location), "WHERE folder_name=(:folder)"; selection=primary_key_string)
+    params = (; :folder => folder)
     df = stmtToDataFrame(stmt_str, params; is_row=true)
     return df[1, primary_key_string]
 end
@@ -512,9 +516,13 @@ function tableExists(table_name::String; db::SQLite.DB=centralDB())
 end
 
 """
-    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
+    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
+    columnsExist(column_names::AbstractVector{<:AbstractString}, valid_column_names::AbstractVector{<:AbstractString})
 
 Check if all columns in `column_names` exist in the specified table in the database.
+
+Alternatively, if the `valid_column_names` needs to be reused in the caller, it can be passed directly.
+Keyword arguments (such as `db`) are forwarded to [`tableColumns`](@ref).
 """
 function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
     valid_column_names = tableColumns(table_name; kwargs...)
@@ -546,13 +554,13 @@ variationIDs(location::Symbol, M::AbstractMonad) = [M.variation_id[location]]
 variationIDs(location::Symbol, sampling::Sampling) = [monad.variation_id[location] for monad in sampling.monads]
 
 """
-    variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
+    locationVariationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given query and database.
 
 Remove constant columns if `remove_constants` is true and the DataFrame has more than one row.
 """
-function variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
+function locationVariationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
     df = queryToDataFrame(query, db=db)
     if remove_constants && size(df, 1) > 1
         col_names = names(df)
@@ -563,44 +571,44 @@ function variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=fa
 end
 
 """
-    variationsTableName(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
+    locationVariationsTableName(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given location, variations database, and variation IDs.
 """
-function variationsTable(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
+function locationVariationsTable(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
     used_variation_ids = filter(x -> x != -1, variation_ids) #! variation_id = -1 means this input is not even being used
-    query = constructSelectQuery(variationsTableName(location), "WHERE $(locationVariationIDName(location)) IN ($(join(used_variation_ids,",")))")
-    df = variationsTable(query, variations_database; remove_constants=remove_constants)
+    query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location)) IN ($(join(used_variation_ids,",")))")
+    df = locationVariationsTable(query, variations_database; remove_constants=remove_constants)
     rename!(name -> shortVariationName(location, name), df)
     return df
 end
 
 """
-    variationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
+    locationVariationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given location and sampling.
 """
-function variationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
-    return variationsTable(location, variationsDatabase(location, S), variationIDs(location, S); remove_constants=remove_constants)
+function locationVariationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
+    return locationVariationsTable(location, locationVariationsDatabase(location, S), variationIDs(location, S); remove_constants=remove_constants)
 end
 
 """
-    variationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    locationVariationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
 
 If the location is not being used, return a DataFrame with all variation IDs set to -1.
 """
-function variationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+function locationVariationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
     @assert all(x -> x == -1, variation_ids) "If the $(location) is not being used, then all $(locationVariationIDName(location))s must be -1."
     return DataFrame(shortLocationVariationID(location)=>variation_ids)
 end
 
 """
-    variationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    locationVariationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
 
 If the location folder does not contain a variations database, return a DataFrame with all variation IDs set to 0.
 """
-function variationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
-    @assert all(x -> x == 0, variation_ids) "If the $(location)_folder does not contain a $(location)_variations.db, then all $(locationVariationIDName(location))s must be 0."
+function locationVariationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    @assert all(x -> x == 0, variation_ids) "If the $(location)_folder does not contain a $(locationVariationsDBName(location)), then all $(locationVariationIDName(location))s must be 0."
     return DataFrame(shortLocationVariationID(location)=>variation_ids)
 end
 
@@ -688,7 +696,7 @@ function appendVariations(location::Symbol, df::DataFrame)
     var_df = DataFrame(short_var_name => Int[], :folder_name => String[])
     unique_tuples = [(row["$(location)_folder"], row[locationVariationIDName(location)]) for row in eachrow(df)] |> unique
     for unique_tuple in unique_tuples
-        temp_df = variationsTable(location, variationsDatabase(location, unique_tuple[1]), [unique_tuple[2]]; remove_constants=false)
+        temp_df = locationVariationsTable(location, locationVariationsDatabase(location, unique_tuple[1]), [unique_tuple[2]]; remove_constants=false)
         temp_df[!,:folder_name] .= unique_tuple[1]
         append!(var_df, temp_df, cols=:union)
     end

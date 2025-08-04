@@ -18,7 +18,7 @@ The `ID` attribute in `patch` elements is there to allow variations to target sp
 Manually maintain these or you will not be able to vary specific patches effectively.
 
 Each time a simulation is run that is using a ecm.xml file, a new CSV file will be created.
-These will all be stored with `data/inputs/ics/ecms/folder/ic_ecm_variations` as `ic_ecm_variation_#_s#.csv` where the first `#` is the variation ID associated with variation on the XML file and the second `#` is the simulation ID.
+These will all be stored with `data/inputs/ics/ecms/folder/$(PhysiCellModelManager.locationVariationsFolder(:ic_ecm))` as `ic_ecm_variation_#_s#.csv` where the first `#` is the variation ID associated with variation on the XML file and the second `#` is the simulation ID.
 Importantly, no two simulations will use the same CSV file.
 """
 function createICECMXMLTemplate(folder::String)

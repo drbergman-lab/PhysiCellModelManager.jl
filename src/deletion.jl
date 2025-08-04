@@ -45,7 +45,7 @@ function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missin
                 selection="COUNT(*)"
             ) |> queryToDataFrame
             if result_df.var"COUNT(*)"[1] == 0
-                rm_hpc_safe(joinpath(locationPath(location, folder), variationsTableName(location), "$(location)_variation_$(row[locationVariationIDName(location)]).xml"); force=true)
+                rm_hpc_safe(joinpath(locationPath(location, folder), locationVariationsTableName(location), "$(location)_variation_$(row[locationVariationIDName(location)]).xml"); force=true)
             end
         end
     end
@@ -356,8 +356,8 @@ function resetFolder(location::Symbol, folder::String)
             rm_hpc_safe(joinpath(path_to_folder, base_file); force=true)
         end
     end
-    rm_hpc_safe(joinpath(path_to_folder, "$(location)_variations.db"); force=true)
-    rm_hpc_safe(joinpath(path_to_folder, variationsTableName(location)); force=true, recursive=true)
+    rm_hpc_safe(joinpath(path_to_folder, locationVariationsDBName(location)); force=true)
+    rm_hpc_safe(joinpath(path_to_folder, locationVariationsTableName(location)); force=true, recursive=true)
 end
 
 """

@@ -58,7 +58,7 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
     row = queryToDataFrame(query; is_row=true)
 
     #! config file
-    path_to_xml = joinpath(locationPath(:config, simulation), "config_variations", "config_variation_$(row.config_variation_id[1]).xml")
+    path_to_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(row.config_variation_id[1]).xml")
     cp(path_to_xml, joinpath(export_config_folder, "PhysiCell_settings.xml"))
 
     #! custom code
@@ -70,7 +70,7 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
 
     #! rulesets
     if row.rulesets_collection_id[1] != -1
-        path_to_xml = joinpath(locationPath(:rulesets_collection, simulation), "rulesets_collection_variations", "rulesets_collection_variation_$(row.rulesets_collection_variation_id[1]).xml")
+        path_to_xml = joinpath(locationPath(:rulesets_collection, simulation), locationVariationsFolder(:rulesets_collection), "rulesets_collection_variation_$(row.rulesets_collection_variation_id[1]).xml")
         path_to_csv = joinpath(export_folder, "config", "cell_rules.csv")
         exportCSVRules(path_to_csv, path_to_xml)
     end
@@ -88,7 +88,7 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
         ic_cell_file_name = ic_cell_file_name[1]
         if endswith(ic_cell_file_name, ".xml")
             #! rel path from ic_cells_folder
-            ic_cell_file_name = joinpath("ic_cell_variations", "ic_cell_variation_$(row.ic_cell_variation_id[1])_s$(simulation.id).csv")
+            ic_cell_file_name = joinpath(locationVariationsFolder(:ic_cell), "ic_cell_variation_$(row.ic_cell_variation_id[1])_s$(simulation.id).csv")
         end
         cp(joinpath(path_to_ic_cells_folder, ic_cell_file_name), joinpath(export_folder, "config", "cells.csv"))
     end
@@ -107,7 +107,7 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
         ic_ecm_file_name = ic_ecm_file_name[1]
         if endswith(ic_ecm_file_name, ".xml")
             #! rel path from ic_ecm_folder
-            ic_ecm_file_name = joinpath("ic_ecm_variations", "ic_ecm_variation_$(row.ic_ecm_variation_id[1])_s$(simulation.id).csv")
+            ic_ecm_file_name = joinpath(locationVariationsFolder(:ic_ecm), "ic_ecm_variation_$(row.ic_ecm_variation_id[1])_s$(simulation.id).csv")
         end
         cp(joinpath(path_to_ic_ecm_folder, ic_ecm_file_name), joinpath(export_folder, "config", "ecm.csv"))
     end

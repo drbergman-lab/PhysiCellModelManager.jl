@@ -6,7 +6,7 @@ By using PhysiCellModelManager.jl, you will have the opportunity to readily reus
 ## Supported sensitivity analysis methods
 PhysiCellModelManager.jl currently supports three sensitivity analysis methods:
 - Morris One-At-A-Time (MOAT)
-- Sobol
+- Sobol'
 - Random Balance Design (RBD)
 
 ### Morris One-At-A-Time (MOAT)
@@ -34,52 +34,56 @@ MOAT(8; add_noise=true) # use a random point in the bin, not necessarily the cen
 MOAT(8; orthogonalize=false) # do not use an orthogonal LHS (even if d=3, so k=2 would make an orthogonal LHS)
 ```
 
-### Sobol
-The Sobol method is a more rigorous sensitivity analysis method, relying on the variance of the model output to quantify sensitivity.
-It relies on a Sobol sequence, a deterministic sequence of points that are evenly distributed in the unit hypercube.
-The important main feature of the Sobol sequence is that it is a _low-discrepancy_ sequence, meaning that it fills the space very evenly.
+### Sobol'
+The Sobol' method is a more rigorous sensitivity analysis method, relying on the variance of the model output to quantify sensitivity.
+It relies on a Sobol' sequence, a deterministic sequence of points that are evenly distributed in the unit hypercube.
+The important main feature of the Sobol' sequence is that it is a _low-discrepancy_ sequence, meaning that it fills the space very evenly.
 Thus, using such sequences can give a very good approximation of certain quantities (like integrals) with fewer points than a random sequence would require.
-The Sobol sequence is built around powers of 2, and so picking `n=2^k` (as well as ±1) will give the best results.
-See [`SobolVariation`](@ref) for more information on how PhysiCellModelManager.jl will use the Sobol sequence to sample the parameter space and how you can control it.
+The Sobol' sequence is built around powers of 2, and so picking `n=2^k` (as well as ±1) will give the best results.
+See [`SobolVariation`](@ref) for more information on how PhysiCellModelManager.jl will use the Sobol' sequence to sample the parameter space and how you can control it.
 
 If the extremes of your distributions (where the CDF is 0 or 1) are non-physical, e.g., an unbounded normal distribution, then consider using `n=2^k-1` to pick a subsequence that does not include the extremes.
-For example, if you choose `n=7`, then the Sobol sequence will be `[0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875]`.
+For example, if you choose `n=7`, then the Sobol' sequence will be `[0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875]`.
 If you do want to include the extremes, consider using `n=2^k+1`.
-For example, if you choose `n=9`, then the Sobol sequence will be `[0, 0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875, 1]`.
+For example, if you choose `n=9`, then the Sobol' sequence will be `[0, 0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875, 1]`.
 
-You can also choose which method is used to compute the first and total order Sobol indices.
+You can also choose which method is used to compute the first and total order Sobol' indices.
 For first order: the choices are `:Sobol1993`, `:Jansen1999`, and `:Saltelli2010`. Default is `:Jansen1999`.
 For total order: the choices are `:Homma1996`, `:Jansen1999`, and `:Sobol2007`. Default is `:Jansen1999`.
 
-To use the Sobol method, any of the following signatures can be used:
+To use the Sobol' method, any of the following signatures can be used:
 ```julia
 Sobolʼ(9)
 Sobolʼ(9; skip_start=true) # skip to the odd multiples of 1/32 (smallest one with at least 9)
 ```
 
+The rasp symbol is used to avoid conflict with the Sobol module.
+To type it in VS Code, use `\\rasp` and then press `tab`.
+Alternatively, the constructor [`SobolPCMM`](@ref) is provided as an alias for convenience.
+
 ### Random Balance Design (RBD)
-The RBD method uses a random design matrix (similar to the Sobol method) and uses a Fourier transform (as in in the FAST method) to compute the sensitivity indices.
-It is much cheaper than Sobol, but only gives first order indices.
+The RBD method uses a random design matrix (similar to the Sobol' method) and uses a Fourier transform (as in in the FAST method) to compute the sensitivity indices.
+It is much cheaper than Sobol', but only gives first order indices.
 Choosing `n` design points, RBD will run `n` monads.
 It will then rearrange the `n` output values so that each parameter in turn is varied along a sinusoid and computes the Fourier transforms to estimate the first order indices.
 By default, it looks up to the 6th harmonic, but you can control this with the `num_harmonics` keyword argument.
 
-By default, PhysiCellModelManager.jl will make use of the Sobol sequence to pick the design points.
+By default, PhysiCellModelManager.jl will make use of the Sobol' sequence to pick the design points.
 It is best to pick `n` such that is differs from a power of 2 by at most 1, e.g. 7, 8, or 9.
 In this case, PhysiCellModelManager.jl will actually use a half-period of a sinusoid when converting the design points into CDF space.
 Otherwise, PhysiCellModelManager.jl will use random permuations of `n` uniformly spaced points in each parameter dimension and will use a full period of a sinusoid when converting the design points into CDF space.
 
 To use the RBD method, any of the following signatures can be used:
 ```julia
-RBD(9) # will use a Sobol sequence with elements chosen from 0:0.125:1
-RBD(32; use_sobol=false) # opt out of using the Sobol sequence
-RBD(22) # will use the first 22 elements of the Sobol sequence, including 0
+RBD(9) # will use a Sobol' sequence with elements chosen from 0:0.125:1
+RBD(32; use_sobol=false) # opt out of using the Sobol' sequence
+RBD(22) # will use the first 22 elements of the Sobol' sequence, including 0
 RBD(32; num_harmonics=4) # will look up to the 4th harmonic, instead of the default 6th
 ```
 
 If you choose `n=2^k - 1` or `n=2^k + 1`, then you will be well-positioned to increment `k` by one and rerun the RBD method to get more accurate results.
-The reason: PhysiCellModelManager.jl will start from the start of the Sobol sequence to cover these `n` points, meaning runs will not need to be repeated.
-If `n=2^k`, then PhysiCellModelManager.jl will choose the `n` odd multiples of `1/2^(k+1)` from the Sobol sequence, which will not be used if `k` is incremented.
+The reason: PhysiCellModelManager.jl will start from the start of the Sobol' sequence to cover these `n` points, meaning runs will not need to be repeated.
+If `n=2^k`, then PhysiCellModelManager.jl will choose the `n` odd multiples of `1/2^(k+1)` from the Sobol' sequence, which will not be used if `k` is incremented.
 
 ## Setting up a sensitivity analysis
 

@@ -53,7 +53,7 @@ jobs:
     defaults:
       run:
         shell: ${{ matrix.shell }} {0}
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
@@ -63,14 +63,14 @@ jobs:
       run: |
         brew install imagemagick
         brew install ffmpeg
-      
+
     - name: Install MSYS2 on Windows
       if: matrix.os == 'windows-latest'
       uses: msys2/setup-msys2@v2
       with:
         update: true
         install: mingw-w64-x86_64-binutils mingw-w64-x86_64-gcc mingw-w64-x86_64-headers-git mingw-w64-x86_64-gcc-libs mingw-w64-x86_64-libwinpthread-git mingw-w64-x86_64-lapack mingw-w64-x86_64-openblas mingw-w64-x86_64-libxml2 mingw-w64-x86_64-bzip2 mingw-w64-x86_64-python mingw-w64-x86_64-python-zstandard mingw-w64-x86_64-python-cffi make bison flex mingw-w64-x86_64-ca-certificates mingw-w64-x86_64-diffutils
-      
+
     - uses: julia-actions/setup-julia@v2
       with:
         version: ${{ matrix.julia-version }}
@@ -115,13 +115,13 @@ jobs:
     - uses: julia-actions/julia-processcoverage@v1
       with:
         directories: src,deps
-    
+
     - uses: codecov/codecov-action@v5
       with:
         files: lcov.info
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
-        
+
   docs:
     name: Documentation
     runs-on: ubuntu-latest
@@ -148,14 +148,14 @@ jobs:
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.add("PairCorrelationFunction")
           Pkg.instantiate()
-          
+
       - uses: julia-actions/julia-buildpkg@v1
 
       - uses: julia-actions/julia-docdeploy@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}
-          
+
       - name: Run doctests
         shell: julia --project=docs --color=yes {0}
         env:

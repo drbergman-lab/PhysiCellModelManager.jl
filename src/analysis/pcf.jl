@@ -86,6 +86,9 @@ end
 
 """
     pcf(S::AbstractPhysiCellSequence, center_cell_types, target_cell_types=center_cell_types; include_dead::Union{Bool,Tuple{Bool,Bool}}=false, dr::Float64=20.0)
+    pcf(simulation::Simulation[, index], args...; kwargs...)
+    pcf(simulation_id::Integer[, index], args...; kwargs...)
+    pcf(pcmm_output::PCMMOutput{Simulation}[, index], args...; kwargs...)
 
 Calculate the pair correlation function (PCF) between two sets of cell types in a PhysiCell simulation snapshot or sequence.
 
@@ -95,10 +98,17 @@ If omitted, the target_cell_types will be the same as the center_cell_types, i.e
 The `include_dead` argument can be a boolean or a tuple of booleans to indicate whether to include the dead centers and/or targets, respectively.
 The `dr` argument specifies the bin size (thickness of each annulus) for the PCF calculation.
 
+In the signatures with an `index`, if it is provided then a single snapshot is analyzed, otherwise the entire sequence is analyzed.
+The `index` must be an integer or either the symbol `:initial` or `:final`.
+
 # Arguments
 - `S::AbstractPhysiCellSequence`: A [`PhysiCellSnapshot`](@ref) or [`PhysiCellSequence`](@ref) object.
 - `center_cell_types`: The cell type name(s) to use as the center of the PCF.
 - `target_cell_types`: The cell type name(s) to use as the target of the PCF.
+- `simulation::Simulation`: The simulation object.
+- `simulation_id::Integer`: The ID of the PhysiCell simulation.
+- `pcmm_output::PCMMOutput{Simulation}`: The output of a PCMM simulation run.
+- `index::Union{Integer, Symbol}`: The index of the snapshot to analyze (can be an integer or the symbol `:initial` or `:final`).
 
 # Keyword Arguments
 - `include_dead::Union{Bool,Tuple{Bool,Bool}}`: Whether to include dead cells in the PCF calculation. If a tuple, the first element indicates whether to include dead centers and the second element indicates whether to include dead targets.
@@ -127,7 +137,7 @@ function pcf(sequence::PhysiCellSequence, center_cell_types, target_cell_types=c
     return hcat(all_results...)
 end
 
-pcf(simulation::Simulation, index::Union{Integer, Symbol}, center_cell_types, target_cell_types=center_cell_types; kwargs...) = pcf(PhysiCellSnapshot(simulation, index), center_cell_types, target_cell_types; kwargs...)
+pcf(simulation::Simulation, index::Union{Integer, Symbol}, args...; kwargs...) = pcf(PhysiCellSnapshot(simulation, index), args...; kwargs...)
 pcf(simulation_id::Integer, index::Union{Integer, Symbol}, center_cell_types, target_cell_types=center_cell_types; kwargs...) = pcf(PhysiCellSnapshot(simulation_id, index), center_cell_types, target_cell_types; kwargs...)
 
 function pcf(simulation_id::Integer, center_cell_types, target_cell_types=center_cell_types; kwargs...)
@@ -137,7 +147,9 @@ function pcf(simulation_id::Integer, center_cell_types, target_cell_types=center
     return result
 end
 
-pcf(simulation::Simulation, center_cell_types, target_cell_types=center_cell_types; kwargs...) = pcf(simulation.id, center_cell_types, target_cell_types; kwargs...)
+pcf(simulation::Simulation, args...; kwargs...) = pcf(simulation.id, args...; kwargs...)
+
+pcf(pcmm_output::PCMMOutput{Simulation}, args...; kwargs...) = pcf(pcmm_output.trial, args...; kwargs...)
 
 #! pcf helper functions
 """

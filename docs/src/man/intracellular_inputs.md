@@ -6,7 +6,7 @@ Briefly, the `intracellular.xml` file defines a mapping between cell definitions
 See the template provided [here](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/combined/template-combined/config/sample_combined_sbmls.xml).
 
 To facilitate creation of such files, and to make it easy to mix-and-match intracellular models, users can place the SBML files that define the ODEs into `data/components/roadrunner` and then simply reference those to construct the specialized XMLs needed.
-For example, place the `Toy_Metabolic_Model.xml` from [sample_projects_intracellular/ode/ode_energy/config/](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/ode/ode_energy/config) into `data/components/roadrunner` and assemble the XML as follows
+For example, place the `Toy_Metabolic_Model.xml` from [sample\_projects\_intracellular/ode/ode\_energy/config/](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/ode/ode_energy/config) into `data/components/roadrunner` and assemble the XML as follows
 
 ```julia
 cell_type = "default" # name of the cell type using this intracellular model

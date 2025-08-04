@@ -38,7 +38,7 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
     cp(joinpath(path_to_input_custom_codes, "Makefile"), joinpath(temp_physicell_dir, "Makefile"), force=true)
 
     if clean
-        cd(()->run(pipeline(`make clean`; stdout=devnull)), temp_physicell_dir)
+        cd(()->quietRun(`make clean`), temp_physicell_dir)
     end
 
     executable_name = baseToExecutable("project_ccid_$(S.inputs[:custom_code].id)")
@@ -327,10 +327,8 @@ function prepareLibRoadRunner()
     librr_file = joinpath(librr_dir, "include", "rr", "C", "rrc_api.h")
     if !isfile(librr_file)
         python = Sys.iswindows() ? "python" : "python3"
-        cd(() -> run(pipeline(`$(python) $(joinpath(".", "beta", "setup_libroadrunner.py"))`;
-                stdout=devnull,
-                stderr=devnull)),
-            physicellDir())
+        cmd = `$(python) $(joinpath(".", "beta", "setup_libroadrunner.py"))`
+        cd(() -> quietRun(cmd), physicellDir())
         @assert isfile(librr_file) "libRoadrunner was not downloaded properly."
 
         #! remove the downloaded binary (I would think the script would handle this, but it does not)

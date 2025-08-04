@@ -1,7 +1,7 @@
 using Distributions, DataFrames, CSV, Sobol, FFTW
 import GlobalSensitivity #! do not bring in their definition of Sobol as it conflicts with the Sobol module
 
-export MOAT, Sobolʼ, RBD
+export MOAT, Sobolʼ, SobolPCMM, RBD
 
 """
     GSAMethod
@@ -298,6 +298,8 @@ end
 Store the information necessary to run a Sobol' global sensitivity analysis as well as how to extract the first and total order indices.
 
 The rasp symbol is used to avoid conflict with the Sobol module. To type it in VS Code, use `\\rasp` and then press `tab`.
+Alternatively, the constructor [`SobolPCMM`](@ref) is provided as an alias for convenience.
+
 The methods available for the first order indices are `:Sobol1993`, `:Jansen1999`, and `:Saltelli2010`. Default is `:Jansen1999`.
 The methods available for the total order indices are `:Homma1996`, `:Jansen1999`, and `:Sobol2007`. Default is `:Jansen1999`.
 
@@ -324,6 +326,13 @@ end
 
 Sobolʼ(n::Int; sobol_index_methods::NamedTuple{(:first_order, :total_order), Tuple{Symbol, Symbol}}=(first_order=:Jansen1999, total_order=:Jansen1999), kwargs...) =
     Sobolʼ(SobolVariation(n; n_matrices=2, kwargs...), sobol_index_methods)
+
+"""
+    SobolPCMM
+
+Alias for [`Sobolʼ`](@ref) for convenience.
+"""
+SobolPCMM = Sobolʼ #! alias for convenience
 
 """
     SobolSampling

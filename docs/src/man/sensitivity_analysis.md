@@ -100,8 +100,7 @@ You can also use any `d::Distribution` to create a `DistributedVariation` direct
 dv = DistributedVariation(xml_path, d)
 ```
 
-Currently, PhysiCellModelManager.jl does not support defining relationships between parameters in any context.
-`CoVariation`'s are a work-in-progress and will be a sibling of `ElementaryVariation` in the type tree.
+Currently, PhysiCellModelManager.jl only supports [`CoVariation`](@ref)s to correlate parameters in a sensitivity analysis.
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.
@@ -139,14 +138,8 @@ println(sensitivity_sampling.results[f])
 The exact concrete type of `sensitivity_sampling` will depend on the `method` used.
 This, in turn, is used by `calculateGSA!` to determine how to compute the sensitivity indices.
 
-Likewise, the `method` will determine how the sensitivity scheme is saved
+Likewise, the `method` will determine how the sensitivity scheme is saved.
 After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling)` folder named based on the `method`.
 This can later be used to reload the `GSASampling` and continue doing analysis.
-Currently, this requires some ingenuity by the user.
-A future version of PhysiCellModelManager.jl could provide convenience functions for simplifying this.
-```julia
-using CSV, DataFrames
-sampling_id = 1 # for example
-monad_ids_df = CSV.read("data/outputs/samplings/$(sampling_id)/moat_scheme.csv", DataFrame) # if this was a MOAT scheme
-moat_sampling = MOATSampling(Sampling(sampling_id), monad_ids_df, Dict{Function, GlobalSensitivity.MorrisResult}())
-```
+The simplest way to do that in a new Julia session is to re-run the code that generated the `GSASampling` object.
+So long as the `use_previous` keyword argument is set to `true`, the previous results will be reused.

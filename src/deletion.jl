@@ -333,7 +333,7 @@ end
 
 """
     resetFolder(location::Symbol, folder::String)
-    
+
 Reset a specific folder in the database for a given location, removing the variations database and variations folder.
 
 # Arguments

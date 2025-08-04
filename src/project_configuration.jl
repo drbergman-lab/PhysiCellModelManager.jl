@@ -68,7 +68,7 @@ function parseProjectInputsConfigurationFile()
         @assert haskey(location_dict, "required") "inputs.toml: $(location): required must be defined."
         @assert haskey(location_dict, "varied") "inputs.toml: $(location): varied must be defined."
         if !("path_from_inputs" in keys(location_dict))
-            location_dict["path_from_inputs"] = locationTableName(location)
+            location_dict["path_from_inputs"] = locationFolder(location)
         else
             location_dict["path_from_inputs"] = location_dict["path_from_inputs"] .|> sanitizePathElement |> joinpath
         end
@@ -138,6 +138,14 @@ julia> PhysiCellModelManager.locationTableName(:config)
 ```
 """
 locationTableName(location::Union{String,Symbol}) = "$(location)s"
+
+"""
+    locationFolder(location::Union{String,Symbol})
+
+Return the name of the folder for the location (as either a String or Symbol).
+This is the folder where the directories with the input files for the location are stored.
+"""
+locationFolder(location::Union{String,Symbol}) = locationTableName(location)
 
 """
     locationVariationsTableName(location)

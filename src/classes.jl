@@ -175,6 +175,12 @@ The required inputs are sorted alphabetically and used as the positional argumen
 The optional inputs are used as keyword arguments with a default value of `\"\"`, indicating they are unused.
 """
 function createSimpleInputFolders()
+    #! first, delete any existing "simple" InputFolders functions (probably better to find a way to handle this by resetting this and other stuff on re-initialization)
+    input_folders_methods = methods(InputFolders) |> collect
+    filter!(x -> x.file == :none, input_folders_methods) #! the one added here has no file, so we filter out any existing ones that have a file
+    Base.delete_method.(input_folders_methods)
+
+    #! now, create the new "simple" InputFolders function
     fn_args = join(["$(location)::String" for location in projectLocations().required], ", ")
     fn_kwargs = join(["$(location)::String=\"\"" for location in setdiff(projectLocations().all, projectLocations().required)], ", ")
     ret_val = "[$(join([":$(location) => $(location)" for location in projectLocations().all], ", "))] |> InputFolders"

@@ -9,18 +9,25 @@ See [below](#editing-in-physicell-studio) for how to edit the configuration and 
 ## Setting paths
 ### Environment variables
 You must first inform PhysiCellModelManager.jl where your desired `python` executable is and the PhysiCell Studio folder.
-The recommended way to do this is to add the following two lines to your shell environment file (e.g. `~/.bashrc` or `~/.zshenv`):
+The recommended way to do this on macOS/Linux is to add the following two lines to your shell environment file (e.g. `~/.bashrc` or `~/.zshenv`):
 ```
-export PCMM_PYTHON_PATH="/usr/bin/python3"
-export PCMM_STUDIO_PATH="/home/user/PhysiCell-Studio"
+export PCMM_PYTHON_PATH=/usr/bin/python3
+export PCMM_STUDIO_PATH=/home/user/PhysiCell-Studio
 ```
-If your python executable is on your PATH, you can set `PCMM_PYTHON_PATH="python3"`, for example.
+If your python executable is on your PATH, you can set `PCMM_PYTHON_PATH=python3`, for example.
 
 After making these changes, make sure to source the file to apply the changes:
 ```sh
-$ source ~/.bashrc
+source ~/.bashrc
 ```
 Or open a new terminal window.
+
+On Windows, the simplest way to set these is to use the GUI for setting environment variables.
+
+Troubleshooting: If you are having trouble launching PhysiCell Studio...
+- `PCMM_PYTHON_PATH` must point to a valid python executable
+- `PCMM_STUDIO_PATH` must point to the PhysiCell Studio folder, **not the `studio.py` file**
+- the `~` character is not expanded when in quotes, so `export PCMM_STUDIO_PATH="~/PhysiCell-Studio"` will not work
 
 ### Using keyword arguments
 If you prefer not to set these environment variables, you can pass the paths as keyword arguments to the `runStudio` function.

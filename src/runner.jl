@@ -85,18 +85,18 @@ struct SimulationProcess
     simulation::Simulation
     monad_id::Int
     process::Union{Nothing,Base.Process}
-    
+
     function SimulationProcess(simulation::Simulation; monad_id::Union{Missing,Int}=missing, do_full_setup::Bool=true, force_recompile::Bool=false)
         if ismissing(monad_id)
             monad = Monad(simulation)
             monad_id = monad.id
         end
-    
+
         cmd = prepareSimulationCommand(simulation, monad_id, do_full_setup, force_recompile)
         if isnothing(cmd)
             return new(simulation, monad_id, nothing)
         end
-    
+
         path_to_simulation_folder = trialFolder(simulation)
         DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);" )
         println("\tRunning simulation: $(simulation.id)...")

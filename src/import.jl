@@ -36,7 +36,6 @@ mutable struct ImportSource
     end
 end
 
-
 """
     ImportSources
 
@@ -69,12 +68,16 @@ struct ImportSources
     ic_dc::ImportSource
 
     function ImportSources(src::Dict, path_to_project::AbstractString)
+        if haskey(src, "rules")
+            src["rulesets_collection"] = src["rules"]
+        end
+
         required = true
         config = ImportSource(src, "config", "config", "PhysiCell_settings.xml", "file", required)
         main = ImportSource(src, "main", "", "main.cpp", "file", required; input_folder_key = :custom_code)
         makefile = ImportSource(src, "makefile", "", "Makefile", "file", required; input_folder_key = :custom_code)
         custom_modules = ImportSource(src, "custom_modules", "", "custom_modules", "folder", required; input_folder_key = :custom_code)
-    
+
         required = false
         rules = prepareRulesetsCollectionImport(src, path_to_project)
         intracellular = prepareIntracellularImport(src, config, path_to_project) #! config here could contain the <intracellular> element which would inform this import
@@ -103,7 +106,7 @@ function prepareRulesetsCollectionImport(src::Dict, path_to_project::AbstractStr
     else
         required = false
     end
-    return ImportSource(src, "rules", "config", "cell_rules$(rules_ext)", "file", required; pcmm_name="base_rulesets$(rules_ext)")
+    return ImportSource(src, "rulesets_collection", "config", "cell_rules$(rules_ext)", "file", required; pcmm_name="base_rulesets$(rules_ext)")
 end
 
 """
@@ -132,7 +135,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
             continue
         end
         type = attribute(intracellular_element, "type")
-        @assert type ∈ ["roadrunner", "dfba"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner and dfba."
+        @assert type ∈ ["roadrunner"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner."
         path_to_file = find_element(intracellular_element, "sbml_filename") |> content
         temp_component = PhysiCellComponent(type, basename(path_to_file))
         #! now we have to rely on the path to the file is correct relative to the parent directory of the config file (that should usually be the case)
@@ -199,6 +202,13 @@ mutable struct ImportDestFolder
     path_from_inputs::AbstractString
     created::Bool
     description::AbstractString
+
+    function ImportDestFolder(location::Symbol, folder::AbstractString, description::AbstractString)
+        location_dict = inputsDict()[location]
+        path_from_inputs = joinpath(location_dict["path_from_inputs"], folder)
+        created = false
+        return new(path_from_inputs, created, description)
+    end
 end
 
 """
@@ -211,58 +221,69 @@ Used internally in the [`importProject`](@ref) function to manage the creation o
 # Fields
 - `config::ImportDestFolder`: The config folder to be created.
 - `custom_code::ImportDestFolder`: The custom code folder to be created.
-- `rules::ImportDestFolder`: The rules folder to be created.
+- `rulesets_collection::ImportDestFolder`: The rulesets_collection folder to be created.
 - `intracellular::ImportDestFolder`: The intracellular folder to be created.
 - `ic_cell::ImportDestFolder`: The intracellular cell folder to be created.
 - `ic_substrate::ImportDestFolder`: The intracellular substrate folder to be created.
 - `ic_ecm::ImportDestFolder`: The intracellular ECM folder to be created.
 - `ic_dc::ImportDestFolder`: The intracellular DC folder to be created.
 """
-struct ImportDestFolders
+@with_kw struct ImportDestFolders
     config::ImportDestFolder
     custom_code::ImportDestFolder
-    rules::ImportDestFolder
+    rulesets_collection::ImportDestFolder
     intracellular::ImportDestFolder
     ic_cell::ImportDestFolder
     ic_substrate::ImportDestFolder
     ic_ecm::ImportDestFolder
     ic_dc::ImportDestFolder
 
-    function ImportDestFolders(path_to_project::AbstractString, dest::Dict)
+    function ImportDestFolders(path_to_project::AbstractString, dest::Union{AbstractString,Dict})
         default_name = splitpath(path_to_project)[end]
-        path_fn(k::String, p::String) = joinpath(p, haskey(dest, k) ? dest[k] : default_name)
-        created = false
+
+        if dest isa Dict && haskey(dest, "rules")
+            dest["rulesets_collection"] = dest["rules"]
+        end
+
+        field_names = fieldnames(ImportDestFolders)
+
+        folder_name_pairs = dest isa AbstractString ?
+                            [loc => dest for loc in field_names] :
+                            [loc => haskey(dest, String(loc)) ? dest[String(loc)] : default_name for loc in field_names]
+
+        folder_name_dict = Dict(folder_name_pairs)
+
         description = "Imported from project at $(path_to_project)."
-    
-        #! required folders
-        config = ImportDestFolder(path_fn("config", "configs"), created, description)
-        custom_code = ImportDestFolder(path_fn("custom_code", "custom_codes"), created, description)
-    
-        #! optional folders
-        rules = ImportDestFolder(path_fn("rules", "rulesets_collections"), created, description)
-        intracellular = ImportDestFolder(path_fn("intracellular", "intracellulars"), created, description)
-        ic_cell = ImportDestFolder(path_fn("ic_cell", joinpath("ics", "cells")), created, description)
-        ic_substrate = ImportDestFolder(path_fn("ic_substrate", joinpath("ics", "substrates")), created, description)
-        ic_ecm = ImportDestFolder(path_fn("ic_ecm", joinpath("ics", "ecms")), created, description)
-        ic_dc = ImportDestFolder(path_fn("ic_dc", joinpath("ics", "dcs")), created, description)
-        return new(config, custom_code, rules, intracellular, ic_cell, ic_substrate, ic_ecm, ic_dc)
+        import_dest_folders = (ImportDestFolder(loc, folder_name_dict[loc], description) for loc in field_names)
+        return new(import_dest_folders...)
     end
 end
 
-
 """
-    importProject(path_to_project::AbstractString[, src=Dict(), dest=Dict()])
+    importProject(path_to_project::AbstractString[; src=Dict(), dest=Dict()])
 
 Import a project from the structured in the format of PhysiCell sample projects and user projects into the PhysiCellModelManager.jl structure.
 
 # Arguments
 - `path_to_project::AbstractString`: Path to the project to import. Relative paths are resolved from the current working directory where Julia was launched.
+
+# Keyword Arguments
 - `src::Dict`: Dictionary of the project sources to import. If absent, tries to use the default names.
-The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportSources)], ", ", ", and ")).
+The following keys are recognized: $(join(["`\"$fn\"`" for fn in fieldnames(ImportSources)], ", ", ", and ")).
 - `dest::Dict`: Dictionary of the inputs folders to create in the PhysiCellModelManager.jl structure. If absent, taken from the project name.
-The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportDestFolders)], ", ", ", and ")).
+The following keys are recognized: $(join(["`\"$fn\"`" for fn in fieldnames(ImportDestFolders)], ", ", ", and ")).
+- `dest::AbstractString`: If a single string is provided, it is used as the name of the folder to create in the `inputs` folder for all locations.
+
+For both `src` and `dest` (as `Dict`), the key `\"rules\"` is an alias for `\"rulesets_collection\"`.
+
+# Deprecated method
+The following method is deprecated and will be removed in the future.
+Note that the arguments are optional, positional arguments, not keyword arguments.
+```julia
+importProject(path_to_project::AbstractString, src::Dict, dest::Dict)
+```
 """
-function importProject(path_to_project::AbstractString, src=Dict(), dest=Dict())
+function importProject(path_to_project::AbstractString; src=Dict(), dest=Dict())
     project_sources = ImportSources(src, path_to_project)
     import_dest_folders = ImportDestFolders(path_to_project, dest)
     success = resolveProjectSources!(project_sources, path_to_project)
@@ -277,8 +298,8 @@ function importProject(path_to_project::AbstractString, src=Dict(), dest=Dict())
             - $(import_dest_folders.config.path_from_inputs)
             - $(import_dest_folders.custom_code.path_from_inputs)\
         """
-        if import_dest_folders.rules.created
-            msg *= "\n    - $(import_dest_folders.rules.path_from_inputs)"
+        if import_dest_folders.rulesets_collection.created
+            msg *= "\n    - $(import_dest_folders.rulesets_collection.path_from_inputs)"
         end
         if import_dest_folders.intracellular.created
             msg *= "\n    - $(import_dest_folders.intracellular.path_from_inputs)"
@@ -314,6 +335,11 @@ function importProject(path_to_project::AbstractString, src=Dict(), dest=Dict())
         end
     end
     return success
+end
+
+function importProject(path_to_project::AbstractString, src, dest=Dict())
+    Base.depwarn("`importProject` with more than one positional argument is deprecated. Use the method `importProject(path_to_project; src=Dict(), dest=Dict())` instead.", :importProject; force=true)
+    return importProject(path_to_project; src=src, dest=dest)
 end
 
 """

@@ -75,7 +75,6 @@ createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::Vararg; k
 
 createTrial(reference::AbstractMonad, args...; kwargs...) = createTrial(GridVariation(), reference, args...; kwargs...)
 
-
 function convertToAbstractVariationVector(avs::Vector)
     try
         return Vector{AbstractVariation}(avs)

@@ -844,7 +844,7 @@ function phagocytosisPath(cell_definition::AbstractString, death_process::Symbol
             msg = """
             The `death_process` symbol passed in to `phagocytosisPath` must be one of...
               :apoptosis, :necrosis, or :other_dead.
-              
+
               Got: $(death_process)
             """
             throw(ArgumentError(msg))

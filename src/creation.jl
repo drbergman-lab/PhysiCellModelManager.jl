@@ -413,7 +413,7 @@ function createDefaultGitIgnore(project_dir::String)
 
             ## variations folders
             $(locationVariationsFolder("*"))/
-            
+
             ## custom codes
             compilation*
             macros.txt

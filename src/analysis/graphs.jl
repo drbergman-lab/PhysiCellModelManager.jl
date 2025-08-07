@@ -109,7 +109,7 @@ end
 
 connectedComponents(snapshot::PhysiCellSnapshot, graph::String; kwargs...) = connectedComponents(snapshot, Symbol(graph); kwargs...)
 
-function connectedComponents(simulation::Simulation, index::Union{Integer, Symbol}, graph::Untion{Symbol,String}=:neighbors; kwargs...)
+function connectedComponents(simulation::Simulation, index::Union{Integer, Symbol}, graph::Union{Symbol,String}=:neighbors; kwargs...)
     snapshot = PhysiCellSnapshot(simulation, index)
     return connectedComponents(snapshot, graph; kwargs...)
 end

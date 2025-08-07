@@ -27,6 +27,10 @@ function runStudio(simulation_id::Int; python_path::Union{Missing,String}=pcmm_g
     end
 end
 
+runStudio(simulation::Simulation; kwargs...) = runStudio(simulation.id; kwargs...)
+
+runStudio(pcmm_output::PCMMOutput{Simulation}; kwargs...) = runStudio(pcmm_output.trial; kwargs...)
+
 """
     resolveStudioGlobals(python_path::Union{Missing,String}, studio_path::Union{Missing,String})
 
@@ -73,14 +77,14 @@ function setUpStudioInputs(simulation_id::Int)
     save_folder_element = makeXMLPath(xml_doc, ["save", "folder"])
     set_content(save_folder_element, path_to_output)
     if isfile(joinpath(path_to_output, output_rules_file))
-        rules_df = CSV.read(joinpath(path_to_output, output_rules_file), DataFrame; header=rules_header)
+        rules_df = CSV.read(joinpath(path_to_output, output_rules_file), DataFrame; header=rules_header, silencewarnings=true)
         if "base_response" in rules_header
             select!(rules_df, Not(:base_response))
         end
 
         input_rules_file = "cell_rules_temp.csv"
         path_to_input_rules = joinpath(path_to_output, input_rules_file)
-        CSV.write(path_to_input_rules, rules_df, writeheader=false)
+        CSV.write(path_to_input_rules, rules_df, header=false)
 
         enabled_ruleset_element = makeXMLPath(xml_doc, ["cell_rules", "rulesets", "ruleset:enabled:true"])
         folder_element = makeXMLPath(enabled_ruleset_element, "folder")

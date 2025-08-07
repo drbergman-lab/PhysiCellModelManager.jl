@@ -192,7 +192,7 @@ function createSimpleInputFolders()
     return
 end
 
-Base.getindex(input_folders::InputFolders, loc::Symbol) = input_folders.input_folders[loc]
+Base.getindex(input_folders::InputFolders, loc::Symbol)::InputFolder = input_folders.input_folders[loc]
 
 function Base.show(io::IO, ::MIME"text/plain", input_folders::InputFolders)
     println(io, "InputFolders:")
@@ -242,7 +242,7 @@ struct VariationID
     end
 end
 
-Base.getindex(variation_id::VariationID, loc::Symbol) = variation_id.ids[loc]
+Base.getindex(variation_id::VariationID, loc::Symbol)::Int = variation_id.ids[loc]
 
 function Base.show(io::IO, ::MIME"text/plain", variation_id::VariationID)
     println(io, "VariationID:")

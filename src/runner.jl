@@ -327,7 +327,7 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
     n_simulation_tasks = length(simulation_tasks)
     n_success = 0
 
-    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulations...")
+    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
 
     num_parallel_sims = pcmm_globals.run_on_hpc ? n_simulation_tasks : pcmm_globals.max_number_of_parallel_simulations
     queue_channel = Channel{Task}(n_simulation_tasks)

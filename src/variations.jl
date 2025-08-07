@@ -918,7 +918,7 @@ struct ParsedVariations
     end
 end
 
-Base.getindex(pv::ParsedVariations, location::Symbol) = pv.location_parsed_variations[location]
+Base.getindex(pv::ParsedVariations, location::Symbol)::LocationParsedVariations = pv.location_parsed_variations[location]
 
 ################## Grid Variations ##################
 

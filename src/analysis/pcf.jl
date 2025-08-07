@@ -137,7 +137,7 @@ function pcf(sequence::PhysiCellSequence, center_cell_types, target_cell_types=c
     return hcat(all_results...)
 end
 
-pcf(simulation::Simulation, index::Union{Integer, Symbol}, args...; kwargs...) = pcf(PhysiCellSnapshot(simulation, index), center_cell_types, target_cell_types; kwargs...)
+pcf(simulation::Simulation, index::Union{Integer, Symbol}, args...; kwargs...) = pcf(PhysiCellSnapshot(simulation, index), args...; kwargs...)
 pcf(simulation_id::Integer, index::Union{Integer, Symbol}, center_cell_types, target_cell_types=center_cell_types; kwargs...) = pcf(PhysiCellSnapshot(simulation_id, index), center_cell_types, target_cell_types; kwargs...)
 
 function pcf(simulation_id::Integer, center_cell_types, target_cell_types=center_cell_types; kwargs...)

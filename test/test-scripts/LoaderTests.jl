@@ -41,7 +41,7 @@ simulation_population_time_series = PhysiCellModelManager.populationTimeSeries(o
 for direction in [:x, :y, :z, :any]
     local mean_speed_dicts = motilityStatistics(Simulation(PhysiCellModelManager.trialID(out)); direction=direction)
 end
-temp_mean_speed_dicts = motilityStatistics(out; direction=direction)
+temp_mean_speed_dicts = motilityStatistics(out)
 @test ismissing(motilityStatistics(pruned_simulation_id))
 
 @test ismissing(PhysiCellSequence(pruned_simulation_id))

@@ -114,9 +114,7 @@ function connectedComponents(simulation::Simulation, index::Union{Integer, Symbo
     return connectedComponents(snapshot, graph; kwargs...)
 end
 
-function connectedComponents(pcmm_output::PCMMOutput{Simulation}, args...; kwargs...)
-    return connectedComponents(pcmm_output.trial, pcmm_output.index, args...; kwargs...)
-end
+connectedComponents(pcmm_output::PCMMOutput{Simulation}, args...; kwargs...) = connectedComponents(pcmm_output.trial, args...; kwargs...)
 
 """
     _connectedComponents(G::MetaGraph)

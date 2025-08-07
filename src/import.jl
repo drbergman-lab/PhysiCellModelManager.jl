@@ -516,10 +516,6 @@ Internal helper function to print the paths created during the import process in
 function printTogether!(paths_created::Vector{Vector{String}}, indent::Int=1)
     path = popfirst!(paths_created)
 
-    if length(path) == 1
-        print("\n" * " "^(4 * indent) * "- $(path[1])")
-    end
-
     paths_with_shared_first = filter(p -> p[1] == path[1], paths_created)
 
     if isempty(paths_with_shared_first)

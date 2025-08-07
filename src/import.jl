@@ -517,22 +517,24 @@ function printTogether!(paths_created::Vector{Vector{String}}, indent::Int=1)
     path = popfirst!(paths_created)
 
     if length(path) == 1
-        print("\n" * " "^(4*indent) * "- $(path[1])")
+        print("\n" * " "^(4 * indent) * "- $(path[1])")
     end
 
     paths_with_shared_first = filter(p -> p[1] == path[1], paths_created)
 
     if isempty(paths_with_shared_first)
-        print("\n" * " "^(4*indent) * "- $(joinpath(path...))")
+        print("\n" * " "^(4 * indent) * "- $(joinpath(path...))")
         return
     end
 
-    print("\n" * " "^(4*indent) * "- $(path[1])/")
+    print("\n" * " "^(4 * indent) * "- $(path[1])/")
 
-    next_level_paths = [path, paths_with_shared_first...]
+    next_level_paths = [path, paths_with_shared_first...] .|> copy
     popfirst!.(next_level_paths) #! remove the common folder from each path
 
-    printTogether!(next_level_paths, indent + 1)
+    while !isempty(next_level_paths)
+        printTogether!(next_level_paths, indent + 1)
+    end
 
     filter!(p -> p[1] != path[1], paths_created)
 end

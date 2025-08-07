@@ -18,6 +18,6 @@ Private = false
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["graphs.jl", "motility.jl", "pcf.jl", "population.jl", "preprocessing.jl", "substrate.jl"]
+Pages = ["analysis.jl"]
 Public = false
 ```

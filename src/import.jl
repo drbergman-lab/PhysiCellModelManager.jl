@@ -528,8 +528,11 @@ function printTogether!(paths_created::Vector{Vector{String}}, indent::Int=1)
     end
 
     print("\n" * " "^(4*indent) * "- $(path[1])/")
-    new_paths = [path[2:end]; [p[2:end] for p in paths_with_shared_first]]
-    printTogether!(new_paths, indent + 1)
+
+    next_level_paths = [path, paths_with_shared_first...]
+    popfirst!.(next_level_paths) #! remove the common folder from each path
+
+    printTogether!(next_level_paths, indent + 1)
 
     filter!(p -> p[1] != path[1], paths_created)
 end

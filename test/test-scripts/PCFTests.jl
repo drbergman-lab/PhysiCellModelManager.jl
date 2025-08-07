@@ -7,6 +7,7 @@ hashBorderPrint(str)
 
 simulation_id = 1
 simulation = Simulation(simulation_id)
+out = run(simulation)
 snapshot = PhysiCellSnapshot(simulation_id, :initial)
 cell_types = PhysiCellModelManager.cellTypeToNameDict(simulation) |> values |> collect
 result = pcf(simulation, cell_types[1])
@@ -19,7 +20,7 @@ Base.show(stdout, MIME"text/plain"(), result)
 
 result = PhysiCellModelManager.pcf(PhysiCellSnapshot(simulation_id, :initial), cell_types[1])
 result = PhysiCellModelManager.pcf(simulation_id, :initial, cell_types[1])
-result = PhysiCellModelManager.pcf(simulation, :initial, [cell_types[1]], cell_types[1])
+result = PhysiCellModelManager.pcf(out, :initial, [cell_types[1]], cell_types[1])
 
 plot(result; time_unit=:s)
 plot([result]; time_unit=:h)

@@ -8,6 +8,7 @@ export printSimulationsTable, simulationsTable
 Initialize the central database. If the database does not exist, it will be created.
 """
 function initializeDatabase()
+    global pcmm_globals
     close(centralDB()) #! close the old database connection if it exists
     pcmm_globals.db = SQLite.DB(centralDB().file)
     SQLite.transaction(centralDB(), "EXCLUSIVE")
@@ -19,7 +20,6 @@ function initializeDatabase()
         return false
     else
         SQLite.commit(centralDB())
-        pcmm_globals.initialized = true
         return true
     end
 end
@@ -30,12 +30,14 @@ end
 Reinitialize the database by searching through the `data/inputs` directory to make sure all are present in the database.
 """
 function reinitializeDatabase()
+    global pcmm_globals
     if !isInitialized()
         println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
         return
     end
-    pcmm_globals.initialized = false
-    return initializeDatabase()
+    pcmm_globals.initialized = false #! reset the initialized flag until the database is reinitialized
+    pcmm_globals.initialized = initializeDatabase()
+    return isInitialized()
 end
 
 """
@@ -44,15 +46,8 @@ end
 Create the schema for the database. This includes creating the tables and populating them with data.
 """
 function createSchema()
-    if !parseProjectInputsConfigurationFile()
-        println("Project configuration file parsing failed.")
-        return false
-    end
-
     #! make sure necessary directories are present
-    if !necessaryInputsPresent()
-        return false
-    end
+    @assert necessaryInputsPresent() "Necessary input folders are not present. Please check the inputs directory."
 
     #! initialize and populate physicell_versions table
     createPCMMTable("physicell_versions", physicellVersionsSchema())
@@ -70,10 +65,7 @@ function createSchema()
 
         location_path = locationPath(location)
         folders = readdir(location_path; sort=false) |> filter(x -> isdir(joinpath(location_path, x)))
-        if location_dict["required"] && isempty(folders)
-            println("No folders in $location_path found. This is where to put the folders for $table_name.")
-            return false
-        end
+        @assert !location_dict["required"] || !isempty(folders) "No folders in $location_path found. This is where to put the folders for $table_name."
         for folder in folders
             insertFolder(location, folder)
         end
@@ -106,8 +98,6 @@ function createSchema()
     createPCMMTable("trials", trials_schema)
 
     createDefaultStatusCodesTable()
-
-    return true
 end
 
 """
@@ -124,7 +114,7 @@ function necessaryInputsPresent()
 
         location_path = locationPath(location)
         if !isdir(location_path)
-            println("No $location_path found. This is where to put the folders for $(locationTableName(location)).")
+            println("No $location_path found. This is where to put the folders for $(locationFolder(location)).")
             success = false
         end
     end
@@ -476,7 +466,7 @@ constructSelectQuery(table_name::String, condition_stmt::String=""; selection::S
 
 """
     inputFolderName(location::Symbol, id::Int)
-    
+
 Retrieve the folder name associated with the given location and ID.
 """
 function inputFolderName(location::Symbol, id::Int)

@@ -123,11 +123,15 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     println(rpad("Path to data:", 25, ' ') * dataDir())
     println(rpad("Path to database:", 25, ' ') * centralDB().file)
     println(rpad("Path to inputs.toml:", 25, ' ') * pathToInputsConfig())
-    success = initializeDatabase()
-    if !success
+    if !parseProjectInputsConfigurationFile()
+        println("Project configuration file parsing failed.")
+        return false
+    end
+    pcmm_globals.initialized = initializeDatabase()
+    if !isInitialized()
         pcmm_globals.db = SQLite.DB()
         println("Database initialization failed.")
-        return
+        return false
     end
     println(rpad("PhysiCell version:", 25, ' ') * physicellInfo())
     println(rpad("Compiler:", 25, ' ') * pcmm_globals.physicell_compiler)

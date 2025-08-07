@@ -36,18 +36,24 @@ function createProject(project_dir::String="."; clone_physicell::Bool=true, temp
     setUpScripts(project_dir, physicell_dir, data_dir, template_as_default, terse)
     createDefaultGitIgnore(project_dir)
     msg = """
+    $(pcmmLogo())
     PhysiCellModelManager.jl project created at $(abspath(project_dir))! A couple notes:
-    - Make sure to `cd` into the project directory before using the 0-argument `initializeModelManager()` function.
-    - Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
-    - A .gitignore file has been created in the data directory.
-    - If you want to track changes to this project, you can initialize a git repository:
+    1. To get started:
+
+            shell> cd $(abspath(project_dir))
+            julia> initializeModelManager()
+
+    2. Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
+    3. A .gitignore file has been created in the data directory.
+    4. If you want to track changes to this project, you can initialize a git repository:
 
             cd $(abspath(project_dir))
             git init
             git submodule add https://github.com/drbergman/PhysiCell
 
-    - Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
-    - Have fun!
+    5. Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
+    
+    Have fun!
     """
     println(msg)
 end
@@ -413,7 +419,7 @@ function createDefaultGitIgnore(project_dir::String)
 
             ## variations folders
             $(locationVariationsFolder("*"))/
-            
+
             ## custom codes
             compilation*
             macros.txt

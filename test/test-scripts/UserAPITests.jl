@@ -14,6 +14,22 @@ dv = DiscreteVariation(configPath("max_time"), [12.0, 13.0])
 
 out = run(method, inputs, dv)
 
+#! test that `createTrial` and `run` work on PCMMOutput{Simulation}
+sim_ids = simulationIDs(out)
+new_out = run(Simulation(sim_ids[1]))
+test_trial = createTrial(new_out)
+@test test_trial == Simulation(sim_ids[1])
+test_out = run(new_out)
+@test new_out.trial == test_out.trial
+
+#! test that `createTrial` and `run` work on PCMMOutput{Monad}
+monad = Monad(Simulation(sim_ids[1]))
+new_out = run(monad)
+test_trial = createTrial(new_out; n_replicates=0)
+@test test_trial == monad
+test_out = run(new_out)
+@test new_out.trial == test_out.trial
+
 method = LHSVariation(3)
 dv = UniformDistributedVariation(configPath("max_time"), 12.0, 20.0)
 reference = simulationIDs(out)[1] |> Simulation

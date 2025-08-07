@@ -18,10 +18,13 @@ custom_code_src_folder =  joinpath(PhysiCellModelManager.dataDir(), "inputs", "c
 custom_code_dest_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "custom_codes_")
 mv(custom_code_src_folder, custom_code_dest_folder)
 
-@test PhysiCellModelManager.createSchema() == false
+@test_throws AssertionError PhysiCellModelManager.createSchema()
+@test initializeModelManager() == false
 
 mv(config_dest_folder, config_src_folder)
 mv(custom_code_dest_folder, custom_code_src_folder)
+
+@test initializeModelManager() == true
 
 # test bad table
 table_name_not_end_in_s = "test"
@@ -66,5 +69,5 @@ rm(path_to_bad_folder; force=true, recursive=true)
 
 # test stmtToDataFrame error
 stmt_str = "SELECT * FROM simulations WHERE simulation_id = :simulation_id;"
-params = (; :simulation_id => -1)
-@test_throws AssertionError PhysiCellModelManager.stmtToDataFrame(stmt_str, params; is_row=true)
+bad_params = (; :simulation_id => -1)
+@test_throws AssertionError PhysiCellModelManager.stmtToDataFrame(stmt_str, bad_params; is_row=true)

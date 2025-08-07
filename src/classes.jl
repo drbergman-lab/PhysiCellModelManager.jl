@@ -175,6 +175,12 @@ The required inputs are sorted alphabetically and used as the positional argumen
 The optional inputs are used as keyword arguments with a default value of `\"\"`, indicating they are unused.
 """
 function createSimpleInputFolders()
+    #! first, delete any existing "simple" InputFolders functions (probably better to find a way to handle this by resetting this and other stuff on re-initialization)
+    input_folders_methods = methods(InputFolders) |> collect
+    filter!(x -> x.file == :none, input_folders_methods) #! the one added here has no file, so we filter out any existing ones that have a file
+    Base.delete_method.(input_folders_methods)
+
+    #! now, create the new "simple" InputFolders function
     fn_args = join(["$(location)::String" for location in projectLocations().required], ", ")
     fn_kwargs = join(["$(location)::String=\"\"" for location in setdiff(projectLocations().all, projectLocations().required)], ", ")
     ret_val = "[$(join([":$(location) => $(location)" for location in projectLocations().all], ", "))] |> InputFolders"
@@ -186,7 +192,7 @@ function createSimpleInputFolders()
     return
 end
 
-Base.getindex(input_folders::InputFolders, loc::Symbol) = input_folders.input_folders[loc]
+Base.getindex(input_folders::InputFolders, loc::Symbol)::InputFolder = input_folders.input_folders[loc]
 
 function Base.show(io::IO, ::MIME"text/plain", input_folders::InputFolders)
     println(io, "InputFolders:")
@@ -236,7 +242,7 @@ struct VariationID
     end
 end
 
-Base.getindex(variation_id::VariationID, loc::Symbol) = variation_id.ids[loc]
+Base.getindex(variation_id::VariationID, loc::Symbol)::Int = variation_id.ids[loc]
 
 function Base.show(io::IO, ::MIME"text/plain", variation_id::VariationID)
     println(io, "VariationID:")
@@ -487,9 +493,7 @@ function addSimulationID(monad::Monad, simulation_id::Int)
     return
 end
 
-function Simulation(monad::Monad)
-    return Simulation(monad.inputs, monad.variation_id)
-end
+Simulation(monad::Monad) = Simulation(monad.inputs, monad.variation_id)
 
 function Base.show(io::IO, ::MIME"text/plain", monad::Monad)
     println(io, "Monad (ID=$(monad.id)):")

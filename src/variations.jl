@@ -918,7 +918,7 @@ struct ParsedVariations
     end
 end
 
-Base.getindex(pv::ParsedVariations, location::Symbol) = pv.location_parsed_variations[location]
+Base.getindex(pv::ParsedVariations, location::Symbol)::LocationParsedVariations = pv.location_parsed_variations[location]
 
 ################## Grid Variations ##################
 
@@ -972,13 +972,13 @@ function gridToDB(evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_va
 end
 
 function gridToDB(location::Symbol, evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_variation_id::Int, ev_dims::AbstractVector{Int})
-    
+
     all_varied_values = []
     for ev_dim in unique(ev_dims)
         dim_indices = findall(ev_dim .== ev_dims)
         push!(all_varied_values, zip(variationValues.(evs[dim_indices])...))
     end
-    
+
     NDG = ndgrid(collect.(all_varied_values)...)
     sz_variations = size(NDG[1])
 

@@ -182,7 +182,6 @@ function exportIntracellular(simulation::Simulation, export_folder::AbstractStri
     return
 end
 
-
 """
     revertSimulationFolderToCurrentPhysiCell(export_folder::AbstractString, physicell_version::AbstractString)
 

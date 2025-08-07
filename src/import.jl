@@ -2,88 +2,73 @@ using LightXML
 
 export importProject
 
+include("import_classes.jl")
+
 """
-    ImportSource
+    importProject(path_to_project::AbstractString[; src=Dict(), dest=Dict()])
 
-A struct to hold the information about a source file or folder to be imported into the PhysiCellModelManager.jl structure.
+Import a project from the structured in the format of PhysiCell sample projects and user projects into the PhysiCellModelManager.jl structure.
 
-Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the PhysiCellModelManager.jl structure.
+This function will create new directories every time it is called, even if the project was already imported.
+Copy the console output to your scripts to prepare inputs for running the imported project rather than repeatedly running this function.
 
-# Fields
-- `src_key::Symbol`: The key in the source dictionary.
-- `input_folder_key::Symbol`: The key in the destination dictionary.
-- `path_from_project::AbstractString`: The path to the source file or folder relative to the project.
-- `pcmm_name::AbstractString`: The name of the file or folder in the PhysiCellModelManager.jl structure.
-- `type::AbstractString`: The type of the source (e.g., file or folder).
-- `required::Bool`: Indicates if the source is required for the project.
-- `found::Bool`: Indicates if the source was found during import.
+# Arguments
+- `path_to_project::AbstractString`: Path to the project to import. Relative paths are resolved from the current working directory where Julia was launched.
+
+# Keyword Arguments
+- `src::Dict`: Dictionary of the project sources to import. If absent, tries to use the default names.
+The following keys are recognized: $(join(["`\"$fn\"`" for fn in fieldnames(ImportSources)], ", ", ", and ")).
+- `dest::Dict`: Dictionary of the inputs folders to create in the PhysiCellModelManager.jl structure. If absent, taken from the project name.
+Any valid project location can be used as a key. For example, `"config"`, `"custom_code"`, `"ic_cell"`, etc.
+- `dest::AbstractString`: If a single string is provided, it is used as the name of the folder to create in the `inputs` folder for all locations.
+
+For both `src` and `dest` (as `Dict`), the key `\"rules\"` is an alias for `\"rulesets_collection\"`.
+
+# Returns
+An `InputFolders` instance with the paths to the imported project files.
+This can immediately be used to run simulations.
+However, do not use this function in a script as it will repeatedly create new folders each call.
+
+# Deprecated method
+The following method is deprecated and will be removed in the future.
+Note that the arguments are optional, positional arguments, not keyword arguments.
+```julia
+importProject(path_to_project::AbstractString, src::Dict, dest::Dict)
+```
 """
-mutable struct ImportSource
-    src_key::Symbol
-    input_folder_key::Symbol
-    path_from_project::AbstractString
-    pcmm_name::AbstractString
-    type::AbstractString
-    required::Bool
-    found::Bool
-
-    function ImportSource(src::Dict, key::AbstractString, path_from_project_base::AbstractString, default::String, type::AbstractString, required::Bool; input_folder_key::Symbol=Symbol(key), pcmm_name::String=default)
-        is_key = haskey(src, key)
-        path_from_project = joinpath(path_from_project_base, is_key ? src[key] : default)
-        required |= is_key
-        found = false
-        return new(Symbol(key), input_folder_key, path_from_project, pcmm_name, type, required, found)
+function importProject(path_to_project::AbstractString; src=Dict(), dest=Dict())
+    project_sources = ImportSources(src, path_to_project)
+    import_dest_folders = ImportDestFolders(path_to_project, dest)
+    success = resolveProjectSources!(project_sources, path_to_project)
+    if success
+        success = createInputFolders!(import_dest_folders, project_sources)
+        success = success && copyFilesToFolders(path_to_project, project_sources, import_dest_folders) #! only copy if successful so far
+        success = success && adaptProject(import_dest_folders)
+    end
+    if success
+        return processSuccessfulImport(path_to_project, import_dest_folders)
+    else
+        msg = """
+        Failed to import user_project from $(path_to_project) into $(joinpath(dataDir(), "inputs")).
+        See the error messages above for more information.
+        Cleaning up what was created in $(joinpath(dataDir(), "inputs")).
+        """
+        println(msg)
+        path_to_inputs = joinpath(dataDir(), "inputs")
+        for loc in projectLocations().all
+            import_dest_folder = import_dest_folders[loc]
+            if import_dest_folder.created
+                path_to_folder = joinpath(path_to_inputs, import_dest_folder.path_from_inputs)
+                rm(path_to_folder; force=true, recursive=true)
+            end
+        end
+        return
     end
 end
 
-
-"""
-    ImportSources
-
-A struct to hold the information about the sources to be imported into the PhysiCellModelManager.jl structure.
-
-Used internally in the [`importProject`](@ref) function to manage the import of files and folders from a user project into the PhysiCellModelManager.jl structure.
-
-# Fields
-- `config::ImportSource`: The config file to be imported.
-- `main::ImportSource`: The main.cpp file to be imported.
-- `makefile::ImportSource`: The Makefile to be imported.
-- `custom_modules::ImportSource`: The custom modules folder to be imported.
-- `rulesets_collection::ImportSource`: The rulesets collection to be imported.
-- `intracellular::ImportSource`: The intracellular components to be imported.
-- `ic_cell::ImportSource`: The cell definitions to be imported.
-- `ic_substrate::ImportSource`: The substrate definitions to be imported.
-- `ic_ecm::ImportSource`: The extracellular matrix definitions to be imported.
-- `ic_dc::ImportSource`: The DC definitions to be imported.
-"""
-struct ImportSources
-    config::ImportSource
-    main::ImportSource
-    makefile::ImportSource
-    custom_modules::ImportSource
-    rulesets_collection::ImportSource
-    intracellular::ImportSource
-    ic_cell::ImportSource
-    ic_substrate::ImportSource
-    ic_ecm::ImportSource
-    ic_dc::ImportSource
-
-    function ImportSources(src::Dict, path_to_project::AbstractString)
-        required = true
-        config = ImportSource(src, "config", "config", "PhysiCell_settings.xml", "file", required)
-        main = ImportSource(src, "main", "", "main.cpp", "file", required; input_folder_key = :custom_code)
-        makefile = ImportSource(src, "makefile", "", "Makefile", "file", required; input_folder_key = :custom_code)
-        custom_modules = ImportSource(src, "custom_modules", "", "custom_modules", "folder", required; input_folder_key = :custom_code)
-    
-        required = false
-        rules = prepareRulesetsCollectionImport(src, path_to_project)
-        intracellular = prepareIntracellularImport(src, config, path_to_project) #! config here could contain the <intracellular> element which would inform this import
-        ic_cell = ImportSource(src, "ic_cell", "config", "cells.csv", "file", required)
-        ic_substrate = ImportSource(src, "ic_substrate", "config", "substrates.csv", "file", required)
-        ic_ecm = ImportSource(src, "ic_ecm", "config", "ecm.csv", "file", required)
-        ic_dc = ImportSource(src, "ic_dc", "config", "dcs.csv", "file", required)
-        return new(config, main, makefile, custom_modules, rules, intracellular, ic_cell, ic_substrate, ic_ecm, ic_dc)
-    end
+function importProject(path_to_project::AbstractString, src, dest=Dict())
+    Base.depwarn("`importProject` with more than one positional argument is deprecated. Use the method `importProject(path_to_project; src=Dict(), dest=Dict())` instead.", :importProject; force=true)
+    return importProject(path_to_project; src=src, dest=dest)
 end
 
 """
@@ -103,7 +88,7 @@ function prepareRulesetsCollectionImport(src::Dict, path_to_project::AbstractStr
     else
         required = false
     end
-    return ImportSource(src, "rules", "config", "cell_rules$(rules_ext)", "file", required; pcmm_name="base_rulesets$(rules_ext)")
+    return ImportSource(src, "rulesets_collection", "config", "cell_rules$(rules_ext)", "file", required; pcmm_name="base_rulesets$(rules_ext)")
 end
 
 """
@@ -132,7 +117,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
             continue
         end
         type = attribute(intracellular_element, "type")
-        @assert type ∈ ["roadrunner", "dfba"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner and dfba."
+        @assert type ∈ ["roadrunner"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner."
         path_to_file = find_element(intracellular_element, "sbml_filename") |> content
         temp_component = PhysiCellComponent(type, basename(path_to_file))
         #! now we have to rely on the path to the file is correct relative to the parent directory of the config file (that should usually be the case)
@@ -155,7 +140,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
     rm(locationPath(:intracellular, intracellular_folder); force=true, recursive=true)
 
     free(xml_doc)
-    return ImportSource(src, "intracellular", "config", "assembled_intracellular_for_import.xml", "file", true; pcmm_name="intracellular.xml")
+    return ImportSource(src, "intracellular", "config", "assembled_intracellular_for_import.xml", "file", true; pcmm_name="intracellular.xml", copy_or_move=_move_)
 end
 
 """
@@ -181,139 +166,6 @@ function createComponentDestFilename(path_to_file::String, component::PhysiCellC
         path_to_dest = joinpath(folder, base_filename * "_$(n)" * file_ext)
     end
     return path_to_dest
-end
-
-"""
-    ImportDestFolder
-
-A struct to hold the information about a destination folder to be created in the PhysiCellModelManager.jl structure.
-
-Used internally in the [`importProject`](@ref) function to manage the creation of folders in the PhysiCellModelManager.jl structure.
-
-# Fields
-- `path_from_inputs::AbstractString`: The path to the destination folder relative to the inputs folder.
-- `created::Bool`: Indicates if the folder was created during the import process.
-- `description::AbstractString`: A description of the folder.
-"""
-mutable struct ImportDestFolder
-    path_from_inputs::AbstractString
-    created::Bool
-    description::AbstractString
-end
-
-"""
-    ImportDestFolders
-
-A struct to hold the information about the destination folders to be created in the PhysiCellModelManager.jl structure.
-
-Used internally in the [`importProject`](@ref) function to manage the creation of folders in the PhysiCellModelManager.jl structure.
-
-# Fields
-- `config::ImportDestFolder`: The config folder to be created.
-- `custom_code::ImportDestFolder`: The custom code folder to be created.
-- `rules::ImportDestFolder`: The rules folder to be created.
-- `intracellular::ImportDestFolder`: The intracellular folder to be created.
-- `ic_cell::ImportDestFolder`: The intracellular cell folder to be created.
-- `ic_substrate::ImportDestFolder`: The intracellular substrate folder to be created.
-- `ic_ecm::ImportDestFolder`: The intracellular ECM folder to be created.
-- `ic_dc::ImportDestFolder`: The intracellular DC folder to be created.
-"""
-struct ImportDestFolders
-    config::ImportDestFolder
-    custom_code::ImportDestFolder
-    rules::ImportDestFolder
-    intracellular::ImportDestFolder
-    ic_cell::ImportDestFolder
-    ic_substrate::ImportDestFolder
-    ic_ecm::ImportDestFolder
-    ic_dc::ImportDestFolder
-
-    function ImportDestFolders(path_to_project::AbstractString, dest::Dict)
-        default_name = splitpath(path_to_project)[end]
-        path_fn(k::String, p::String) = joinpath(p, haskey(dest, k) ? dest[k] : default_name)
-        created = false
-        description = "Imported from project at $(path_to_project)."
-    
-        #! required folders
-        config = ImportDestFolder(path_fn("config", "configs"), created, description)
-        custom_code = ImportDestFolder(path_fn("custom_code", "custom_codes"), created, description)
-    
-        #! optional folders
-        rules = ImportDestFolder(path_fn("rules", "rulesets_collections"), created, description)
-        intracellular = ImportDestFolder(path_fn("intracellular", "intracellulars"), created, description)
-        ic_cell = ImportDestFolder(path_fn("ic_cell", joinpath("ics", "cells")), created, description)
-        ic_substrate = ImportDestFolder(path_fn("ic_substrate", joinpath("ics", "substrates")), created, description)
-        ic_ecm = ImportDestFolder(path_fn("ic_ecm", joinpath("ics", "ecms")), created, description)
-        ic_dc = ImportDestFolder(path_fn("ic_dc", joinpath("ics", "dcs")), created, description)
-        return new(config, custom_code, rules, intracellular, ic_cell, ic_substrate, ic_ecm, ic_dc)
-    end
-end
-
-
-"""
-    importProject(path_to_project::AbstractString[, src=Dict(), dest=Dict()])
-
-Import a project from the structured in the format of PhysiCell sample projects and user projects into the PhysiCellModelManager.jl structure.
-
-# Arguments
-- `path_to_project::AbstractString`: Path to the project to import. Relative paths are resolved from the current working directory where Julia was launched.
-- `src::Dict`: Dictionary of the project sources to import. If absent, tries to use the default names.
-The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportSources)], ", ", ", and ")).
-- `dest::Dict`: Dictionary of the inputs folders to create in the PhysiCellModelManager.jl structure. If absent, taken from the project name.
-The following keys are recognized: $(join(["`$fn`" for fn in fieldnames(ImportDestFolders)], ", ", ", and ")).
-"""
-function importProject(path_to_project::AbstractString, src=Dict(), dest=Dict())
-    project_sources = ImportSources(src, path_to_project)
-    import_dest_folders = ImportDestFolders(path_to_project, dest)
-    success = resolveProjectSources!(project_sources, path_to_project)
-    if success
-        success = createInputFolders!(import_dest_folders, project_sources)
-        success = success && copyFilesToFolders(path_to_project, project_sources, import_dest_folders) #! only copy if successful so far
-        success = success && adaptProject(import_dest_folders)
-    end
-    if success
-        msg = """
-        Imported project from $(path_to_project) into $(joinpath(dataDir(), "inputs")):
-            - $(import_dest_folders.config.path_from_inputs)
-            - $(import_dest_folders.custom_code.path_from_inputs)\
-        """
-        if import_dest_folders.rules.created
-            msg *= "\n    - $(import_dest_folders.rules.path_from_inputs)"
-        end
-        if import_dest_folders.intracellular.created
-            msg *= "\n    - $(import_dest_folders.intracellular.path_from_inputs)"
-        end
-        ics_started = false
-        for ic in ["cell", "substrate", "ecm", "dc"]
-            import_dest_folder = getfield(import_dest_folders, Symbol("ic_$(ic)"))::ImportDestFolder
-            if import_dest_folder.created
-                if !ics_started
-                    msg *= "\n    - ICs:"
-                    ics_started = true
-                end
-                msg *= "\n      - $(splitpath(import_dest_folder.path_from_inputs)[2:end] |> joinpath)"
-            end
-        end
-        println(msg)
-        println("Re-initializing the database to include these new entries...")
-        reinitializeDatabase()
-    else
-        msg = """
-        Failed to import user_project from $(path_to_project) into $(joinpath(dataDir(), "inputs")).
-        See the error messages above for more information.
-        Cleaning up what was created in $(joinpath(dataDir(), "inputs")).
-        """
-        println(msg)
-        path_to_inputs = joinpath(dataDir(), "inputs")
-        for fieldname in fieldnames(ImportDestFolders)
-            import_dest_folder = getfield(import_dest_folders, fieldname)
-            if import_dest_folder.created
-                path_to_folder = joinpath(path_to_inputs, import_dest_folder.path_from_inputs)
-                rm(path_to_folder; force=true, recursive=true)
-            end
-        end
-    end
-    return success
 end
 
 """
@@ -358,18 +210,11 @@ end
 Create input folders based on the provided project sources and destination folders.
 """
 function createInputFolders!(import_dest_folders::ImportDestFolders, project_sources::ImportSources)
-    #! required folders
-    success = createInputFolder!(import_dest_folders.config)
-    success &= createInputFolder!(import_dest_folders.custom_code)
-
-    #! optional folders
-    for fieldname in fieldnames(ImportSources)
-        if fieldname in [:config, :main, :makefile, :custom_modules]
-            continue
-        end
-        project_source = getfield(project_sources, fieldname)
-        if project_source.found
-            success &= createInputFolder!(getfield(import_dest_folders, project_source.src_key)::ImportDestFolder)
+    success = true
+    for loc in projectLocations().all
+        import_dest_folder = import_dest_folders[loc]
+        if loc in projectLocations().required || getfield(project_sources, loc).found
+            success &= createInputFolder!(import_dest_folder)
         end
     end
     return success
@@ -385,11 +230,10 @@ function createInputFolder!(import_dest_folder::ImportDestFolder)
     path_from_inputs_vec = splitpath(import_dest_folder.path_from_inputs)
     path_from_inputs_to_collection = joinpath(path_from_inputs_vec[1:end-1]...)
     folder_base = path_from_inputs_vec[end]
-    collection_contents = joinpath(path_to_inputs, path_from_inputs_to_collection) |> readdir
-    filter!(x->startswith(x, folder_base), collection_contents)
     folder_name = folder_base
+    path_base = joinpath(path_to_inputs, path_from_inputs_to_collection)
     n = 0
-    while folder_name in collection_contents
+    while isdir(joinpath(path_base, folder_name))
         n += 1
         folder_name = "$(folder_base)_$(n)"
     end
@@ -430,10 +274,10 @@ function copyFilesToFolders(path_to_project::AbstractString, project_sources::Im
             continue
         end
         src = joinpath(path_to_project, project_source.path_from_project)
-        import_dest_folder = getfield(import_dest_folders, project_source.input_folder_key)
+        import_dest_folder = import_dest_folders[project_source.input_folder_key]
         dest = joinpath(dataDir(), "inputs", import_dest_folder.path_from_inputs, project_source.pcmm_name)
         @assert (dest |> (project_source.type == "file" ? isfile : isdir)) == false "In copying $(src) to $(dest), found a $(project_source.type) with the same name. This should be avoided by PhysiCellModelManager. Please open an Issue on GitHub and document your setup and steps."
-        cp(src, dest)
+        project_source.copy_or_move == _copy_ ? cp(src, dest) : mv(src, dest)
     end
     return success
 end
@@ -444,8 +288,8 @@ end
 Adapt the project to be used in the PhysiCellModelManager.jl structure.
 """
 function adaptProject(import_dest_folders::ImportDestFolders)
-    success = adaptConfig(import_dest_folders.config)
-    success &= adaptCustomCode(import_dest_folders.custom_code)
+    success = adaptConfig(import_dest_folders[:config])
+    success &= adaptCustomCode(import_dest_folders[:custom_code])
     return success
 end
 
@@ -591,4 +435,102 @@ function adaptCustomCPP(path_from_inputs::AbstractString)
         end
     end
     return true
+end
+
+"""
+    processSuccessfulImport(path_to_project::AbstractString, import_dest_folders::ImportDestFolders)
+
+Process the successful import by printing the new folders created, re-initializing the database, printing Julia code to prepare inputs, and returning the `InputFolders` instance.
+
+[`importProject`](@ref) will create new input folders each time it is called, even if calling a project that was already imported.
+So, the printed Julia code should be used to add to scripts that prepare inputs for running the imported project.
+"""
+function processSuccessfulImport(path_to_project::AbstractString, import_dest_folders::ImportDestFolders)
+    printNewFolders!(path_to_project, import_dest_folders)
+    println("Re-initializing the database to include these new entries...\n")
+    reinitializeDatabase()
+
+    kwargs = Dict{Symbol, String}()
+    for (loc, folder) in pairs(import_dest_folders.import_dest_folders)
+        kwargs[loc] = folder.created ? splitpath(folder.path_from_inputs)[end] : ""
+    end
+
+    unique_folder_names = kwargs |> values |> unique
+    naming_str = ""
+    for unique_folder_name in unique_folder_names
+        if unique_folder_name == ""
+            continue
+        end
+        these_locs = filter(loc -> kwargs[loc] == unique_folder_name, keys(kwargs))
+        s = join(these_locs, " = ")
+        s *= " = " * "\"$unique_folder_name\""
+        naming_str *= s * "\n"
+    end
+
+    indent = 4
+    inputs_str = "inputs = InputFolders(\n" * " "^(indent)
+    inputs_str *= join([String(loc) for loc in projectLocations().required], ",\n" * " "^indent)
+
+    kwargs_str = join([String(loc) * " = " * String(loc) for loc in setdiff(projectLocations().all, projectLocations().required) if kwargs[loc] != ""], ",\n" * " "^indent)
+
+    if !isempty(kwargs_str)
+        inputs_str *= ";\n" * " "^(indent)
+        inputs_str *= kwargs_str
+    end
+    inputs_str *= "\n)"
+
+    first_line = "Copy the following into a Julia script to prepare the inputs for running this imported project:"
+    max_len = mapreduce(x -> split(x, "\n"), vcat, [naming_str, first_line, inputs_str]) .|> length |> maximum
+    padding = 4
+
+    println("#"^(max_len + padding))
+    println("$first_line\n" * "-"^length(first_line))
+    println(naming_str)
+    println(inputs_str)
+    println("#"^(max_len + padding))
+    println()
+
+    return InputFolders(; kwargs...)
+end
+
+"""
+    printNewFolders!(path_to_project::AbstractString, import_dest_folders::ImportDestFolders)
+
+Internal function to print the new folders created during the import process.
+"""
+function printNewFolders!(path_to_project::AbstractString, import_dest_folders::ImportDestFolders)
+    print("Imported project from $(path_to_project) into $(joinpath(dataDir(), "inputs")):")
+    paths_created = [splitpath(folder.path_from_inputs) for folder in import_dest_folders.import_dest_folders if folder.created]
+
+    while !isempty(paths_created)
+        printTogether!(paths_created)
+    end
+    println("\n")
+end
+
+"""
+    printTogether!(paths_created::Vector{Vector{String}}, indent::Int=1)
+
+Internal helper function to print the paths created during the import process in a structured way.
+"""
+function printTogether!(paths_created::Vector{Vector{String}}, indent::Int=1)
+    path = popfirst!(paths_created)
+
+    paths_with_shared_first = filter(p -> p[1] == path[1], paths_created)
+
+    if isempty(paths_with_shared_first)
+        print("\n" * " "^(4 * indent) * "- $(joinpath(path...))")
+        return
+    end
+
+    print("\n" * " "^(4 * indent) * "- $(path[1])/")
+
+    next_level_paths = [path, paths_with_shared_first...] .|> copy
+    popfirst!.(next_level_paths) #! remove the common folder from each path
+
+    while !isempty(next_level_paths)
+        printTogether!(next_level_paths, indent + 1)
+    end
+
+    filter!(p -> p[1] != path[1], paths_created)
 end

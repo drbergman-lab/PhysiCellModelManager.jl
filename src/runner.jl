@@ -85,18 +85,18 @@ struct SimulationProcess
     simulation::Simulation
     monad_id::Int
     process::Union{Nothing,Base.Process}
-    
+
     function SimulationProcess(simulation::Simulation; monad_id::Union{Missing,Int}=missing, do_full_setup::Bool=true, force_recompile::Bool=false)
         if ismissing(monad_id)
             monad = Monad(simulation)
             monad_id = monad.id
         end
-    
+
         cmd = prepareSimulationCommand(simulation, monad_id, do_full_setup, force_recompile)
         if isnothing(cmd)
             return new(simulation, monad_id, nothing)
         end
-    
+
         path_to_simulation_folder = trialFolder(simulation)
         DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);" )
         println("\tRunning simulation: $(simulation.id)...")
@@ -327,7 +327,7 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
     n_simulation_tasks = length(simulation_tasks)
     n_success = 0
 
-    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulations...")
+    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
 
     num_parallel_sims = pcmm_globals.run_on_hpc ? n_simulation_tasks : pcmm_globals.max_number_of_parallel_simulations
     queue_channel = Channel{Task}(n_simulation_tasks)

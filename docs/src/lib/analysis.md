@@ -11,13 +11,13 @@ Possibly with loader.jl.
 ## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["analysis.jl"]
+Pages = ["graphs.jl", "motility.jl", "pcf.jl", "population.jl", "preprocessing.jl", "substrate.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["analysis.jl"]
+Pages = ["graphs.jl", "motility.jl", "pcf.jl", "population.jl", "preprocessing.jl", "substrate.jl"]
 Public = false
 ```

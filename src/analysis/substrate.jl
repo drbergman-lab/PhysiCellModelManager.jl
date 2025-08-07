@@ -129,6 +129,8 @@ end
 
 AverageSubstrateTimeSeries(simulation::Simulation) = AverageSubstrateTimeSeries(simulation.id)
 
+AverageSubstrateTimeSeries(pcmm_output::PCMMOutput{Simulation}) = AverageSubstrateTimeSeries(pcmm_output.trial)
+
 function Base.getindex(asts::AverageSubstrateTimeSeries, name::String)
     if name in keys(asts.substrate_concentrations)
         return asts.substrate_concentrations[name]
@@ -307,6 +309,8 @@ function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::
 end
 
 ExtracellularSubstrateTimeSeries(simulation::Simulation; kwargs...) = ExtracellularSubstrateTimeSeries(simulation.id; kwargs...)
+
+ExtracellularSubstrateTimeSeries(pcmm_output::PCMMOutput{Simulation}; kwargs...) = ExtracellularSubstrateTimeSeries(pcmm_output.trial; kwargs...)
 
 function Base.getindex(ests::ExtracellularSubstrateTimeSeries, name::String)
     if name in keys(ests.data)

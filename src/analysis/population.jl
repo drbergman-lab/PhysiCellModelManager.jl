@@ -169,16 +169,14 @@ fpc = finalPopulationCount(simulation)
 final_default_count = fpc["default"]
 ```
 """
-function finalPopulationCount end
-
 function finalPopulationCount(simulation_id::Int; include_dead::Bool=false)
     final_snapshot = PhysiCellSnapshot(simulation_id, :final; include_cells=true)
     return populationCount(final_snapshot; include_dead=include_dead)
 end
 
-function finalPopulationCount(simulation::Simulation; include_dead::Bool=false)
-    return finalPopulationCount(simulation.id; include_dead=include_dead)
-end
+finalPopulationCount(simulation::Simulation; kwargs...) = finalPopulationCount(simulation.id; kwargs...)
+
+finalPopulationCount(pcmm_output::PCMMOutput{Simulation}; kwargs...) = finalPopulationCount(pcmm_output.trial; kwargs...)
 
 """
     MonadPopulationTimeSeries <: AbstractPopulationTimeSeries
@@ -242,7 +240,7 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
     return MonadPopulationTimeSeries(monad.id, monad_length, time, cell_count)
 end
 
-MonadPopulationTimeSeries(monad_id::Integer; include_dead::Bool=false) = MonadPopulationTimeSeries(Monad(monad_id); include_dead=include_dead)
+MonadPopulationTimeSeries(monad_id::Integer; kwargs...) = MonadPopulationTimeSeries(Monad(monad_id); kwargs...)
 
 function Base.getindex(mpts::MonadPopulationTimeSeries, cell_type::String)
     if cell_type in keys(mpts.cell_count)
@@ -277,6 +275,8 @@ function populationTimeSeries(M::AbstractMonad; include_dead::Bool=false)
         return MonadPopulationTimeSeries(M; include_dead=include_dead)
     end
 end
+
+populationTimeSeries(pcmm_output::PCMMOutput{<:AbstractMonad}; kwargs...) = populationTimeSeries(pcmm_output.trial; kwargs...)
 
 #! plot recipes
 """

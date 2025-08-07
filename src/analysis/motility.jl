@@ -55,6 +55,8 @@ end
 
 """
     motilityStatistics(simulation_id::Integer[; direction=:any])
+    motilityStatistics(simulation::Simulation[; direction=:any])
+    motilityStatistics(pcmm_output::PCMMOutput{Simulation}[; direction=:any])
 
 Return the mean speed, distance traveled, and time alive for each cell in the simulation, broken down by cell type in the case of cell type transitions.
 
@@ -64,6 +66,10 @@ Each cell type taken on by a given cell will be a key in the dictionary returned
 
 # Arguments
 - `simulation_id::Integer`: The ID of the PhysiCell simulation. A `Simulation` object can also be passed in.
+- `simulation::Simulation`: The simulation object.
+- `pcmm_output::PCMMOutput{Simulation}`: The output of a PCMM simulation run.
+
+# Keyword Arguments
 - `direction::Symbol`: The direction to compute the mean speed. Can be `:x`, `:y`, `:z`, or `:any` (default). If `:x`, for example, the mean speed is calculated using only the x component of the cell's movement.
 
 # Returns
@@ -87,4 +93,6 @@ function motilityStatistics(simulation_id::Integer; direction=:any)
     return [k => _motilityStatistics(p; direction=direction) for (k, p) in pairs(pos) if length(p.time) > 1] |> AgentDict
 end
 
-motilityStatistics(simulation::Simulation; direction=:any) = motilityStatistics(simulation.id; direction=direction)
+motilityStatistics(simulation::Simulation; kwargs...) = motilityStatistics(simulation.id; kwargs...)
+
+motilityStatistics(pcmm_output::PCMMOutput{Simulation}; kwargs...) = motilityStatistics(pcmm_output.trial, kwargs...)

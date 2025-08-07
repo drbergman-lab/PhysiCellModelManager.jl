@@ -3,9 +3,11 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-snapshot = PhysiCellSnapshot(1, :final)
+simulation_id = 1
+snapshot = PhysiCellSnapshot(simulation_id, :final)
+out = run(Simulation(simulation_id))
 c = connectedComponents(snapshot)
-c = connectedComponents(snapshot; include_cell_type_names=:all)
+c = connectedComponents(out, :final; include_cell_type_names=:all)
 cell_types = PhysiCellModelManager.cellTypeToNameDict(snapshot) |> values |> collect
 c = connectedComponents(snapshot; include_cell_type_names=[cell_types])
 c = connectedComponents(snapshot, "neighbors"; include_cell_type_names=[cell_types], exclude_cell_type_names=cell_types) #! for it to have empty keys after excluding

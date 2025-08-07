@@ -493,9 +493,7 @@ function addSimulationID(monad::Monad, simulation_id::Int)
     return
 end
 
-function Simulation(monad::Monad)
-    return Simulation(monad.inputs, monad.variation_id)
-end
+Simulation(monad::Monad) = Simulation(monad.inputs, monad.variation_id)
 
 function Base.show(io::IO, ::MIME"text/plain", monad::Monad)
     println(io, "Monad (ID=$(monad.id)):")

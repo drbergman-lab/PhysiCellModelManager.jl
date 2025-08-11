@@ -36,24 +36,23 @@ function createProject(project_dir::String="."; clone_physicell::Bool=true, temp
     setUpScripts(project_dir, physicell_dir, data_dir, template_as_default, terse)
     createDefaultGitIgnore(project_dir)
     msg = """
-    $(pcmmLogo())
-    PhysiCellModelManager.jl project created at $(abspath(project_dir))! A couple notes:
-    1. To get started:
+        PhysiCellModelManager.jl project created at $(abspath(project_dir))! A couple notes:
+        1. To get started:
 
-            shell> cd $(abspath(project_dir))
-            julia> initializeModelManager()
+                shell> cd $(abspath(project_dir))
+                julia> initializeModelManager()
 
-    2. Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
-    3. A .gitignore file has been created in the data directory.
-    4. If you want to track changes to this project, you can initialize a git repository:
+        2. Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
+        3. A .gitignore file has been created in the data directory.
+        4. If you want to track changes to this project, you can initialize a git repository:
 
-            cd $(abspath(project_dir))
-            git init
-            git submodule add https://github.com/drbergman/PhysiCell
+                cd $(abspath(project_dir))
+                git init
+                git submodule add https://github.com/drbergman/PhysiCell
 
-    5. Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
-    
-    Have fun!
+        5. Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
+
+        Happy modeling!
     """
     println(msg)
 end
@@ -87,16 +86,20 @@ function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
         return physicell_dir
     end
     is_git_repo = isdir(joinpath(project_dir, ".git"))
+    quiet_run(cmd) = run(pipeline(cmd; stdout=devnull, stderr=devnull))
     if clone_physicell
         latest_tag = latestReleaseTag("https://github.com/drbergman/PhysiCell")
         if is_git_repo
             println("Cloning PhysiCell repository as submodule")
-            run(`git submodule add https://github.com/drbergman/PhysiCell $(physicell_dir)`)
-            run(`git submodule update --init --recursive --depth 1`)
-            run(`git -C $physicell_dir checkout $latest_tag`)
+
+                    run(pipeline(cmd; stdout=joinpath(path_to_input_custom_codes, "compilation.log"), stderr=joinpath(path_to_input_custom_codes, "compilation.err")))
+
+            quiet_run(`git submodule add https://github.com/drbergman/PhysiCell $(physicell_dir)`)
+            quiet_run(`git submodule update --init --recursive --depth 1`)
+            quiet_run(`git -C $physicell_dir checkout $latest_tag`)
         else
             println("Cloning PhysiCell repository")
-            run(`git clone --branch $latest_tag --depth 1 https://github.com/drbergman/PhysiCell $(physicell_dir)`)
+            quiet_run(`git clone --branch $latest_tag --depth 1 https://github.com/drbergman/PhysiCell $(physicell_dir)`)
         end
     else
         #! download drbergman/PhysiCell main branch
@@ -109,7 +112,7 @@ function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
         zip_path = joinpath(project_dir, "PhysiCell.zip")
         Downloads.download(zipball_url, zip_path)
         extract_path = joinpath(project_dir, "PhysiCell_extract")
-        run(pipeline(`unzip $zip_path -d $extract_path`; stdout=devnull))
+        quiet_run(pipeline(`unzip $zip_path -d $extract_path`; stdout=devnull))
         rm(zip_path)
         @assert (readdir(extract_path) |> length) == 1
         path_to_extracted_physicell = readdir(extract_path; join=true)[1]

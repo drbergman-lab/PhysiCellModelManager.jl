@@ -1,7 +1,7 @@
 # Best practices
 
 ## Do NOT manually edit files inside `inputs`.
-If parameter values need to be changed, use variations as shown in `VCT/GenerateData.jl`.
+If parameter values need to be changed, use variations as shown in `scripts/GenerateData.jl`.
 Let PhysiCellModelManager.jl manage the databases that track simulation parameters.
 
 If you need to change the structure of an input file, e.g., adding a new rule or editing custom code, create an entire new subdirectory within the relevant `inputs` subdirectory.

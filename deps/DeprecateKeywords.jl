@@ -107,7 +107,6 @@ function _depkws(def, options)
             (kw.args[1], kw.args[2])
         end
 
-
         _get_symbol(new_kw) in deprecated_symbols && continue
         !(_get_symbol(new_kw) in new_symbols) && continue
 

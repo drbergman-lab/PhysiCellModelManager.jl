@@ -7,25 +7,30 @@ export connectedComponents
 
 """
     connectedComponents(snapshot::PhysiCellSnapshot, graph=:neighbors; include_cell_type_names=:all_in_one, exclude_cell_type_names::String[], include_dead::Bool=false)
+    connectedComponents(simulation::Simulation, index, graph; kwargs...)
+    connectedComponents(pcmm_output::PCMMOutput{Simulation}, args...; kwargs...)
 
 Find the connected components of a graph in a PhysiCell snapshot.
 
 The computation can be done on subsets of cells based on their cell types.
 
 # Arguments
-- `snapshot::PhysiCellSnapshot`: the snapshot to analyze
-- `graph`: the graph data to use (default is `:neighbors`); must be one of `:neighbors`, `:attachments`, or `:spring_attachments`; can also be a string
+- `snapshot::PhysiCellSnapshot`: The snapshot to analyze
+- `graph`: The graph data to use (default is `:neighbors`); must be one of `:neighbors`, `:attachments`, or `:spring_attachments`; can also be a string
+- `simulation::Simulation`: The simulation object to analyze
+- `index`: The index of the snapshot to analyze (can be an integer or a symbol)
+- `pcmm_output::PCMMOutput{Simulation}`: The output of a PCMM simulation run to analyze
 
 # Keyword Arguments
-- `include_cell_type_names`: the cell types to include in the analysis (default is `:all_in_one`). Full list of options:
+- `include_cell_type_names`: The cell types to include in the analysis (default is `:all_in_one`). Full list of options:
     - `:all` - compute connected components for all cell types individually
     - `:all_in_one` - compute connected components for all cell types together
     - `"cell_type_1"` - compute connected components only for the cells of type `cell_type_1`
     - `["cell_type_1", "cell_type_2"]` - compute connected components for the cells of type `cell_type_1` and `cell_type_2` separately
     - `[["cell_type_1", "cell_type_2"]]` - compute connected components for the cells of type `cell_type_1` and `cell_type_2` together
     - `[["cell_type_1", "cell_type_2"], "cell_type_3"]` - compute connected components for the cells of type `cell_type_1` and `cell_type_2` together, and for the cells of type `cell_type_3` separately
-- `exclude_cell_type_names`: the cell types to exclude from the analysis (default is `String[]`); can be a single string or a vector of strings
-- `include_dead`: whether to include dead cells in the analysis (default is `false`)
+- `exclude_cell_type_names`: The cell types to exclude from the analysis (default is `String[]`); can be a single string or a vector of strings
+- `include_dead`: Whether to include dead cells in the analysis (default is `false`)
 
 # Returns
 A dictionary in which each key is one of the following:
@@ -103,6 +108,13 @@ As of this writing, the vertex labels are the simple `AgentID` class that wraps 
 end
 
 connectedComponents(snapshot::PhysiCellSnapshot, graph::String; kwargs...) = connectedComponents(snapshot, Symbol(graph); kwargs...)
+
+function connectedComponents(simulation::Simulation, index::Union{Integer, Symbol}, graph::Union{Symbol,String}=:neighbors; kwargs...)
+    snapshot = PhysiCellSnapshot(simulation, index)
+    return connectedComponents(snapshot, graph; kwargs...)
+end
+
+connectedComponents(pcmm_output::PCMMOutput{Simulation}, args...; kwargs...) = connectedComponents(pcmm_output.trial, args...; kwargs...)
 
 """
     _connectedComponents(G::MetaGraph)

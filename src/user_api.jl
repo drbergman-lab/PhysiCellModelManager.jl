@@ -28,15 +28,22 @@ createTrial(reference::AbstractMonad, avs::Vector{<:AbstractVariation}=AbstractV
 ```
 createTrial(reference::AbstractMonad, av::AbstractVariation; n_replicates::Integer=1, use_previous::Bool=true)
 ```
+Using a `PCMMOutput` holding a simulation or monad:
+```
+createTrial(output_ref::PCMMOutput{<:AbstractMonad}, avs::Vector{<:AbstractVariation}=AbstractVariation[];
+            n_replicates::Integer=1, use_previous::Bool=true)
+```
 
 # Examples
 ```
 inputs = InputFolders(config_folder, custom_code_folder)
-dv_max_time = DiscreteVariation([\"overall\", \"max_time\"], 1440)
-dv_apoptosis = DiscreteVariation(PhysiCellModelManager.apoptosisPath(cell_type, "rate"), [1e-6, 1e-5])
+dv_max_time = DiscreteVariation(configPath("max_time"), 1440)
+dv_apoptosis = DiscreteVariation(configPath(cell_type, "apoptosis", "rate"), [1e-6, 1e-5])
 simulation = createTrial(inputs, dv_max_time)
 monad = createTrial(inputs, dv_max_time; n_replicates=2)
 sampling = createTrial(monad, dv_apoptosis; n_replicates=2) # uses the max time defined for monad
+out = run(simulation) # run the simulation and return type `PCMMOutput{Simulation}`
+new_sampling = createTrial(out, dv_apoptosis; n_replicates=2) # same as sampling above
 ```
 """
 function createTrial(method::AddVariationMethod, inputs::InputFolders, avs::Vector{<:AbstractVariation}=AbstractVariation[];
@@ -75,7 +82,6 @@ createTrial(method::AddVariationMethod, reference::AbstractMonad, avs::Vararg; k
 
 createTrial(reference::AbstractMonad, args...; kwargs...) = createTrial(GridVariation(), reference, args...; kwargs...)
 
-
 function convertToAbstractVariationVector(avs::Vector)
     try
         return Vector{AbstractVariation}(avs)
@@ -93,6 +99,8 @@ function convertToAbstractVariationVector(avs::Vector)
         throw(ArgumentError(msg))
     end
 end
+
+createTrial(output_ref::PCMMOutput{<:AbstractMonad}, args...; kwargs...) = createTrial(output_ref.trial, args...; kwargs...)
 
 """
     _createTrial(args...; kwargs...)
@@ -145,3 +153,5 @@ end
 run(inputs::InputFolders, args...; kwargs...) = run(GridVariation(), inputs, args...; kwargs...)
 
 run(reference::AbstractMonad, arg1, args...; kwargs...) = run(GridVariation(), reference, arg1, args...; kwargs...)
+
+run(output_ref::PCMMOutput{<:AbstractMonad}, args...; kwargs...) = run(output_ref.trial, args...; kwargs...)

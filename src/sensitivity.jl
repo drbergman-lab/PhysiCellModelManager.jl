@@ -56,7 +56,7 @@ Get the string representation of the method used in the sensitivity analysis.
 """
 function methodString(gsa_sampling::GSASampling)
     method = typeof(gsa_sampling) |> string |> lowercase
-    method = split(method, ".")[end] #! remove module name that comes with the type, e.g. main.vctmodule.moatsampling -> moatsampling
+    method = split(method, ".")[end] #! remove module name that comes with the type, e.g. Main.PhysiCellModelManager.MOATSampling -> MOATSampling
     return endswith(method, "sampling") ? method[1:end-8] : method
 end
 
@@ -503,6 +503,7 @@ function Base.show(io::IO, ::MIME"text/plain", rbd_sampling::RBDSampling)
     show(io, MIME"text/plain"(), rbd_sampling.sampling)
     println(io, "Number of harmonics: $(rbd_sampling.num_harmonics)")
     println(io, "Number of cycles (1/2 or 1): $(rbd_sampling.num_cycles)")
+    println(io, "GSA functions:")
     for f in keys(rbd_sampling.results)
         println(io, "  $f")
     end
@@ -575,13 +576,12 @@ function evaluateFunctionOnSampling(gsa_sampling::GSASampling, f::Function)
 end
 
 """
-    variationsToMonads(inputs::InputFolders, variation_ids::Dict{Symbol,Matrix{Int}}, use_previous::Bool)
+    variationsToMonads(inputs::InputFolders, variation_ids::Dict{Symbol,Matrix{Int}})
 
 Return a dictionary of monads and a matrix of monad IDs based on the given variation IDs.
 
-The five matrix inputs together define a single matrix of variation IDs.
+For each varied location, a matrix of variation IDs is provided.
 This information, together with the `inputs`, identifies the monads to be used.
-The `use_previous` flag determines whether to use previous simulations, if they exist.
 
 # Returns
 - `monad_dict::Dict{VariationID, Monad}`: a dictionary of the monads to be used without duplicates.

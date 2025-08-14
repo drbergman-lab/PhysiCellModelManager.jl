@@ -696,19 +696,21 @@ function appendVariations(location::Symbol, df::DataFrame)
 end
 
 """
-    simulationsTable(T; kwargs...)
+    simulationsTable(args...; kwargs...)
 
 Return a DataFrame with the simulation data calling [`simulationsTableFromQuery`](@ref) with those keyword arguments.
 
-There are three options for `T`:
-- `T` can be any `Simulation`, `Monad`, `Sampling`, `Trial`, or any array (or vector) of such.
-- `T` can also be a vector of simulation IDs.
+There are three options for `args...`:
+- `Simulation`, `Monad`, `Sampling`, `Trial`, any array (or vector) of such, or any number of such objects.
+- A vector of simulation IDs.
 - If omitted, creates a DataFrame for all the simulations.
 """
-function simulationsTable(T::Union{AbstractTrial,AbstractArray{<:AbstractTrial}}; kwargs...)
+function simulationsTable(T::AbstractArray{<:AbstractTrial}; kwargs...)
     query = constructSelectQuery("simulations", "WHERE simulation_id IN ($(join(simulationIDs(T),",")));")
     return simulationsTableFromQuery(query; kwargs...)
 end
+
+simulationsTable(T::AbstractTrial, Ts::Vararg{AbstractTrial}; kwargs...) = simulationsTable([T; Ts...]; kwargs...)
 
 function simulationsTable(simulation_ids::AbstractVector{<:Integer}; kwargs...)
     query = constructSelectQuery("simulations", "WHERE simulation_id IN ($(join(simulation_ids,",")));")
@@ -723,24 +725,34 @@ end
 ########### Printing Database Functions ###########
 
 """
-    printSimulationsTable()
+    printSimulationsTable(; sink=println, kwargs...)
+    printSimulationsTable(; sink=println, kwargs...)
 
-Print a table of simulations and their varied values. See keyword arguments below for more control of the output.
+Print a table of simulations and their varied values. See [`simulationsTable`](@ref) for details on the arguments and keyword arguments.
 
-There are many methods for this function. The simplest is `printSimulationsTable()`, which prints all simulations in the database.
-You can also pass in any number of simulations, monads, samplings, and trials to print a table of those simulations:
-```
-printSimulationsTable([simulation_1, monad_3, sampling_2, trial_1])
-```
-Finally, a vector of simulation IDs can be passed in:
-```
-printSimulationsTable([1, 2, 3])
-```
-Keyword arguments can be used with any of these methods to control the output:
+First, create a DataFrame by calling [`simulationsTable`](@ref) using `args...` and `kwargs...`.
+Then, pass the DataFrame to the `sink` function.
+
+# Arguments
+- ``
+
 # Keyword Arguments
 - `sink`: A function to print the table. Defaults to `println`. Note, the table is a DataFrame, so you can also use `CSV.write` to write the table to a CSV file.
 - `remove_constants::Bool`: If true, removes columns that have the same value for all simulations. Defaults to true.
 - `sort_by::Vector{String}`: A vector of column names to sort the table by. Defaults to all columns. To populate this argument, first print the table to see the column names.
 - `sort_ignore::Vector{String}`: A vector of column names to ignore when sorting. Defaults to the database IDs associated with the simulations.
+
+# Examples
+```julia
+printSimulationsTable([simulation_1, monad_3, sampling_2, trial_1])
+```
+```julia
+sim_ids = [1, 2, 3] # vector of simulation IDs
+printSimulationsTable(sim_ids; remove_constants=false) # include constant columns
+```
+```julia
+using CSV
+printSimulationsTable(; sink=CSV.write("temp.csv")) # write data for all simulations into temp.csv
+```
 """
 printSimulationsTable(args...; sink=println, kwargs...) = simulationsTable(args...; kwargs...) |> sink

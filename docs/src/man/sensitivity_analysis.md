@@ -90,7 +90,6 @@ If `n=2^k`, then PhysiCellModelManager.jl will choose the `n` odd multiples of `
 ### Simulation inputs
 Having chosen a sensitivity analysis method, you must now choose the same set of inputs as required for a sampling. You will need:
 - `inputs::InputFolders` containing the `data/inputs/` folder info defining your model
-- `n_replicates::Integer` for the number of replicates to run at each parameter vector to get average behavior
 - `evs::Vector{<:ElementaryVariation}` to define the parameters to conduct the sensitivity analysis on and their ranges/distributions
 
 Unlike for (most) trials, the `ElementaryVariation`'s you will want here are likely to be [`DistributedVariation`](@ref)'s to allow for a continuum of parameter values to be tested.
@@ -121,7 +120,7 @@ n_replicates = 3
 evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-3, 1e-4; lb=0),
        UniformDistributedVariation(configPath("cancer", "cycle", "duration", 0), 720, 2880)]
 method = MOAT(15)
-sensitivity_sampling = run(method, inputs, n_replicates, evs)
+sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates)
 ```
 
 ## Post-processing

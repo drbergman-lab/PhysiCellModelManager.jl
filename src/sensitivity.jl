@@ -503,6 +503,7 @@ function Base.show(io::IO, ::MIME"text/plain", rbd_sampling::RBDSampling)
     show(io, MIME"text/plain"(), rbd_sampling.sampling)
     println(io, "Number of harmonics: $(rbd_sampling.num_harmonics)")
     println(io, "Number of cycles (1/2 or 1): $(rbd_sampling.num_cycles)")
+    println(io, "GSA functions:")
     for f in keys(rbd_sampling.results)
         println(io, "  $f")
     end

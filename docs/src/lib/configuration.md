@@ -10,16 +10,16 @@ Provide functionality for accessing and modifying elements in any XML, including
 
 ## Config XML paths
 The [`configPath`](@ref) is the most user-friendly way to create the XML path to (most) any parameter in the configuration file.
-The following functions are called by `configPath` and are more foolproof but less robust:
+The following functions are called by `configPath` and are more explicit and rigid.
+Note, none of these are exported and so they must be called with the `PhysiCellModelManager.` prefix, e.g., `PhysiCellModelManager.domainPath("x_min")`.
 
 |                                      |                                  |                                                  |                                   |
 |--------------------------------------|----------------------------------|--------------------------------------------------|-----------------------------------|
-| [`PhysiCellModelManager.domainPath`](@ref)           | [`PhysiCellModelManager.timePath`](@ref)         | [`PhysiCellModelManager.fullSavePath`](@ref)                     | [`PhysiCellModelManager.svgSavePath`](@ref)       |
-| [`PhysiCellModelManager.domainPath`](@ref)           | [`PhysiCellModelManager.timePath`](@ref)         | [`PhysiCellModelManager.fullSavePath`](@ref)                     | [`PhysiCellModelManager.svgSavePath`](@ref)       |
-| [`PhysiCellModelManager.substratePath`](@ref)        | [`PhysiCellModelManager.cyclePath`](@ref)        | [`PhysiCellModelManager.apoptosisPath`](@ref)                    | [`PhysiCellModelManager.necrosisPath`](@ref)      |
-| [`PhysiCellModelManager.volumePath`](@ref)           | [`PhysiCellModelManager.mechanicsPath`](@ref)    | [`PhysiCellModelManager.motilityPath`](@ref)                     | [`PhysiCellModelManager.secretionPath`](@ref)     |
-| [`PhysiCellModelManager.cellInteractionsPath`](@ref) | [`PhysiCellModelManager.phagocytosisPath`](@ref) | [`PhysiCellModelManager.attackRatePath`](@ref)                   | [`PhysiCellModelManager.fusionPath`](@ref)        |
-| [`PhysiCellModelManager.integrityPath`](@ref)        | [`PhysiCellModelManager.customDataPath`](@ref)   | [`PhysiCellModelManager.initialParameterDistributionPath`](@ref) | [`PhysiCellModelManager.userParameterPath`](@ref) |
+| [`domainPath`](@ref PhysiCellModelManager.domainPath)           | [`timePath`](@ref PhysiCellModelManager.timePath)         | [`fullSavePath`](@ref PhysiCellModelManager.fullSavePath)                     | [`svgSavePath`](@ref PhysiCellModelManager.svgSavePath)       |
+| [`substratePath`](@ref PhysiCellModelManager.substratePath)        | [`cyclePath`](@ref PhysiCellModelManager.cyclePath)        | [`apoptosisPath`](@ref PhysiCellModelManager.apoptosisPath)                    | [`necrosisPath`](@ref PhysiCellModelManager.necrosisPath)      |
+| [`volumePath`](@ref PhysiCellModelManager.volumePath)           | [`mechanicsPath`](@ref PhysiCellModelManager.mechanicsPath)    | [`motilityPath`](@ref PhysiCellModelManager.motilityPath)                     | [`secretionPath`](@ref PhysiCellModelManager.secretionPath)     |
+| [`cellInteractionsPath`](@ref PhysiCellModelManager.cellInteractionsPath) | [`phagocytosisPath`](@ref PhysiCellModelManager.phagocytosisPath) | [`attackRatePath`](@ref PhysiCellModelManager.attackRatePath)                   | [`fusionPath`](@ref PhysiCellModelManager.fusionPath)        |
+| [`integrityPath`](@ref PhysiCellModelManager.integrityPath)        | [`customDataPath`](@ref PhysiCellModelManager.customDataPath)   | [`initialParameterDistributionPath`](@ref PhysiCellModelManager.initialParameterDistributionPath) | [`userParameterPath`](@ref PhysiCellModelManager.userParameterPath) |
 
 Here is a near-exhaustive list of the available tokens (the flexibiilty of `configPath` allows for some of these XML paths to be created in multiple ways):
 

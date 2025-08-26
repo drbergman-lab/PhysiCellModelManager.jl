@@ -5,7 +5,9 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-finalPopulationCount(Simulation(1))
+simulation = Simulation(1)
+out = run(simulation)
+finalPopulationCount(out)
 
 plot(Simulation(1))
 plot(Sampling(1))

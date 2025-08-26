@@ -16,7 +16,9 @@ open(path_to_file, "w") do f
     end
 end
 
+println("Testing that PCMM recognizes PhysiCell is dirty...")
 @test !PhysiCellModelManager.gitDirectoryIsClean(PhysiCellModelManager.physicellDir())
+println("PhysiCell should still be dirty on initialization...")
 @test initializeModelManager(PhysiCellModelManager.physicellDir(), PhysiCellModelManager.dataDir())
 PhysiCellModelManager.physicellVersion()
 

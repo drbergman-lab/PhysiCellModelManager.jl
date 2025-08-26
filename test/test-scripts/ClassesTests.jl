@@ -64,7 +64,6 @@ PhysiCellModelManager.setMarchFlag(new_march_flag)
 PhysiCellModelManager.setMarchFlag(old_march_flag)
 @test PhysiCellModelManager.pcmm_globals.march_flag == old_march_flag #! make sure it is reset
 
-
 #! you probably do not want to use integer variation IDs to initialize a Sampling object. this is just to test edge cases in the constructor
 location_variation_ids = Dict{Symbol,Union{Integer,AbstractArray{<:Integer}}}(:config => 0, :rulesets_collection => -1, :ic_cell => -1)
 sampling = Sampling(inputs, location_variation_ids)

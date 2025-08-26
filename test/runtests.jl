@@ -23,6 +23,7 @@ test_order = [
     "SubstrateTests.jl",
     "GraphsTests.jl",
     "PCFTests.jl",
+    "RuntimeTests.jl",
     "VariationsTests.jl",
     "HPCTests.jl",
     "ModuleTests.jl",

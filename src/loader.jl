@@ -1,4 +1,4 @@
-using DataFrames, MAT, Graphs, MetaGraphsNext
+using DataFrames, MAT, Graphs, MetaGraphsNext, Dates
 
 export cellDataSequence, getCellDataSequence, PhysiCellSnapshot, PhysiCellSequence,
        loadCells!, loadSubstrates!, loadMesh!, loadGraph!
@@ -25,6 +25,7 @@ The `cells`, `substrates`, `mesh`, and graphs (`attachments`, `spring_attachment
 - `simulation_id::Int`: The ID of the simulation.
 - `index::Union{Int,Symbol}`: The index of the snapshot. Can be an integer or a symbol (`:initial` or `:final`).
 - `time::Float64`: The time of the snapshot (in minutes).
+- `runtime::Nanosecond`: The runtime to reach this snapshot (in nanoseconds).
 - `cells::DataFrame`: A DataFrame containing cell data.
 - `substrates::DataFrame`: A DataFrame containing substrate data.
 - `mesh::Dict{String, Vector{Float64}}`: A dictionary containing mesh data.
@@ -63,6 +64,7 @@ struct PhysiCellSnapshot <: AbstractPhysiCellSequence
     simulation_id::Int
     index::Union{Int,Symbol}
     time::Float64
+    runtime::Nanosecond
     cells::DataFrame
     substrates::DataFrame
     mesh::Dict{String,Vector{Float64}}
@@ -90,6 +92,8 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
     end
     xml_doc = parse_file("$(filepath_base).xml")
     time = getContent(xml_doc, ["metadata","current_time"]) |> x->parse(Float64, x)
+    seconds_to_nanoseconds = x -> round(x * 1e9) |> Nanosecond
+    runtime = getContent(xml_doc, ["metadata", "current_runtime"]) |> x -> parse(Float64, x) |> seconds_to_nanoseconds
     cells = DataFrame()
     if include_cells
         if _loadCells!(cells, filepath_base, cell_type_to_name_dict, labels) |> ismissing
@@ -133,7 +137,7 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
         end
     end
     free(xml_doc)
-    return PhysiCellSnapshot(simulation_id, index, time, DataFrame(cells), substrates, mesh, attachments, spring_attachments, neighbors)
+    return PhysiCellSnapshot(simulation_id, index, time, runtime, DataFrame(cells), substrates, mesh, attachments, spring_attachments, neighbors)
 end
 
 PhysiCellSnapshot(simulation::Simulation, index::Union{Integer,Symbol}, args...; kwargs...) = PhysiCellSnapshot(simulation.id, index, args...; kwargs...)
@@ -141,6 +145,7 @@ PhysiCellSnapshot(simulation::Simulation, index::Union{Integer,Symbol}, args...;
 function Base.show(io::IO, ::MIME"text/plain", snapshot::PhysiCellSnapshot)
     println(io, "PhysiCellSnapshot (SimID=$(snapshot.simulation_id), Index=$(snapshot.index))")
     println(io, "  Time: $(snapshot.time)")
+    println(io, "  Current runtime: $(canonicalize(snapshot.runtime))")
     println(io, "  Cells: $(isempty(snapshot.cells) ? "NOT LOADED" : "($(nrow(snapshot.cells)) cells x $(ncol(snapshot.cells)) features) DataFrame")")
     println(io, "  Substrates: $(isempty(snapshot.substrates) ? "NOT LOADED" : "($(size(snapshot.substrates, 1)) voxels x [x, y, z, volume, $(size(snapshot.substrates, 2)-4) substrates]) DataFrame")")
     println(io, "  Mesh: $(isempty(snapshot.mesh) ? "NOT LOADED" : meshInfo(snapshot))")

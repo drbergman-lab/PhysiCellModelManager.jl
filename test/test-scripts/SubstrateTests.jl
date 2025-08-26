@@ -16,7 +16,7 @@ snapshot = PhysiCellSnapshot(pruned_simulation_id, :initial)
 @test ismissing(snapshot)
 @test ismissing(PhysiCellModelManager.ExtracellularSubstrateTimeSeries(pruned_simulation_id))
 
-# misc tests
+#! misc tests
 asts["time"]
 substrate_names = keys(asts.substrate_concentrations)
 asts[first(substrate_names)]

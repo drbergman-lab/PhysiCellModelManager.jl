@@ -4,6 +4,24 @@
 
 Always reference these instructions first and fallback to search or bash commands only when you encounter unexpected information that does not match the info here.
 
+## About PhysiCellModelManager.jl
+
+PhysiCellModelManager.jl is a Julia package for managing computational biology simulations using PhysiCell, a C++ framework for multicellular systems modeling. It provides:
+
+- **Project Management**: Automated setup of PhysiCell projects with proper directory structure
+- **Simulation Execution**: Running individual and batched PhysiCell simulations with parameter variations
+- **Database Tracking**: SQLite-based tracking to avoid re-running completed simulations
+- **HPC Integration**: Support for SLURM-based high-performance computing environments
+- **Parameter Studies**: Tools for sensitivity analysis and parameter sweeps
+- **Reproducibility**: Version control integration and simulation provenance tracking
+
+The package automates the complex process of:
+1. Downloading and compiling PhysiCell C++ code
+2. Managing simulation input files (XML configs, custom C++ code)
+3. Executing simulations with parameter variations
+4. Collecting and analyzing outputs
+5. Generating movies and visualizations
+
 ## Working Effectively
 
 ### Bootstrap, Build, and Test the Repository

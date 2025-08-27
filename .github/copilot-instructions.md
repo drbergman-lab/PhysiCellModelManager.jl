@@ -70,7 +70,7 @@ test/                         # Test suite (run in specific order)
 
 docs/                        # Documentation (Documenter.jl)
 ├── src/man/getting_started.md  # Primary user guide
-└── src/man/best_practices.md    # Development guidelines
+└── src/man/best_practices.md    # Suggested ways to use
 
 .github/workflows/CI.yml     # CI pipeline: Ubuntu/macOS, Julia LTS/1/pre
 Project.toml                 # Package dependencies and metadata
@@ -95,7 +95,7 @@ MyProject/
 ├── data/                    # Managed by PhysiCellModelManager.jl
 │   ├── inputs/              # Input files organized by type
 │   ├── outputs/             # Simulation results
-│   └── database.db          # SQLite tracking database
+│   └── pcmm.db              # SQLite tracking database
 └── scripts/
     └── GenerateData.jl      # Main simulation script template
 ```

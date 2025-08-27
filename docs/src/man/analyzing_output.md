@@ -11,12 +11,10 @@ pkg> add Plots
 
 ### `PhysiCellSnapshot`
 The base unit of PhysiCell output is the `PhysiCellSnapshot`.
-These are currently considered PhysiCellModelManager.jl internals and so the API may change.
 Each snapshot records the path to the PhysiCell output folder, its index in the sequence of outputs, the time of the snapshot in the simulation, and optionally the cell, substrate, and mesh data at that snapshot.
 
 ### `PhysiCellSequence`
 A `PhysiCellSequence` is the full sequence of snapshots corresponding to a single PhysiCell simulation.
-As with `PhysiCellSnapshot`'s, these are currently considered internals and their API may change.
 In addition to the path to the PhysiCell output folder and the vector of `PhysiCellSnapshot`'s, it holds metadata for the simulation.
 
 ### `cellDataSequence`
@@ -156,11 +154,11 @@ The `pcf_result` is of type `PairCorrelationFunction.PCFResult` and has two fiel
 The `radii` is the set of cutoffs used to compute the PCF and `g` is either a vector or a matrix of the PCF values of size `length(radii)-1` by `length(time)`.
 
 ### Plotting
-An API to make use of the `PairCorrelationFunction` package plotting interface is available through the `plot` function.
+An API to make use of the PairCorrelationFunction.jl package plotting interface is available through the `plot` function.
 Simply pass in the `PCMMPCFResult`!
 You can pass in as many such objects as you like or pass in a `Vector{PCMMPCFResult}`.
 In this case, these are interpreted as stochastic realizations of the same PCF and summary statistics are used to plot.
-See the `PairCorrelationFunction` documentation for more details.
+See the [PairCorrelationFunction.jl documentation](https://drbergman-lab.github.io/PairCorrelationFunction.jl/stable/) for more details.
 
 The PhysiCellModelManager.jl implementation supports two keyword arguments:
 - `time_unit::Symbol = :min`: the time unit to use for the time axis (only relevant if the `PCMMPCFResult` has more than one time point).
@@ -168,8 +166,8 @@ The PhysiCellModelManager.jl implementation supports two keyword arguments:
 - `distance_unit::Symbol = :um`: the distance unit to use for the distance axis.
   - The default is `:um` and the other options are `:mm` and `:cm`.
 
-Finally, a keyword argument supported by `PairCorrelationFunction` is `colorscheme` which can be used to change the colorscheme of the color map.
-PhysiCellModelManager.jl overrides the default from `PairCorrelationFunction` (`:tofino`) with `:cork` to use white to represent values near one.
+Finally, a keyword argument supported by PairCorrelationFunction.jl is `colorscheme` which can be used to change the colorscheme of the color map.
+PhysiCellModelManager.jl overrides the default from PairCorrelationFunction.jl (`:tofino`) with `:cork` to use white to represent values near one.
 
 ### Examples
 ```julia
@@ -191,7 +189,7 @@ plot(results) # heatmap of average PCF values with time on the x-axis and radius
 ## Graph analysis
 Every PhysiCell simulation produces three different directed graphs at each save time point.
 For each graph, the vertices are the cell agents and the edges are as follows:
-- `:neighbors`: the cells overlap based on their positions and radii
+- `:neighbors`: the cells overlap based on their positions and adhesion radii
 - `:attachments`: manually-defined attachments between cells
 - `:spring_attachments`: spring attachments formed automatically using attachment rates
 Each of these graphs is expected to be symmetric, i.e., if cell A is attached to cell B, then cell B is attached to cell A.
@@ -226,7 +224,7 @@ The value `connected_components[subset_1]` is a vector of vectors of the cell ID
 Similarly for `subset_2`.
 
 Including dead cells is possible though not recommended.
-This is because dead cells automatically clear their neighbors and attachments.
+This is because dead cells automatically clear their neighbors and (both kinds of) attachments.
 The optional keyword argument `include_dead` can be set to `true` to include dead cells in the graph.
 ```julia
 connected_components = connectedComponents(snapshot; include_dead=true)

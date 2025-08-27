@@ -30,17 +30,18 @@ seq_dict = cellDataSequence(sequence, "elapsed_time_in_phase"; include_dead=true
 @test_nowarn delete!(seq_dict, 78787878)
 @test_warn "`getCellDataSequence` is deprecated. Use `cellDataSequence` instead." getCellDataSequence(sequence, "elapsed_time_in_phase"; include_dead=true)
 
-simulation_population_time_series = PhysiCellModelManager.populationTimeSeries(out.trial; include_dead=true)
+simulation_population_time_series = PhysiCellModelManager.populationTimeSeries(out; include_dead=true)
 simulation_population_time_series["time"]
 cell_types = keys(simulation_population_time_series.cell_count)
 simulation_population_time_series[first(cell_types)]
 @test_throws ArgumentError simulation_population_time_series["not_a_cell_type"]
-simulation_population_time_series = PhysiCellModelManager.populationTimeSeries(out.trial; include_dead=false)
+simulation_population_time_series = PhysiCellModelManager.populationTimeSeries(out; include_dead=false)
 
 # brief pause for motility testing
 for direction in [:x, :y, :z, :any]
     local mean_speed_dicts = motilityStatistics(Simulation(PhysiCellModelManager.trialID(out)); direction=direction)
 end
+temp_mean_speed_dicts = motilityStatistics(out)
 @test ismissing(motilityStatistics(pruned_simulation_id))
 
 @test ismissing(PhysiCellSequence(pruned_simulation_id))
@@ -54,7 +55,7 @@ monad = createTrial(out.trial; n_replicates=0)
 monad = createTrial(monad; n_replicates=2)
 out = run(monad)
 monad = out.trial
-monad_population_time_series = PhysiCellModelManager.populationTimeSeries(monad; include_dead=false)
+monad_population_time_series = PhysiCellModelManager.populationTimeSeries(out; include_dead=false)
 monad_population_time_series["time"]
 @test_throws ArgumentError monad_population_time_series["not_a_cell_type"]
 

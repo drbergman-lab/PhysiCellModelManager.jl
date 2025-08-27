@@ -40,7 +40,7 @@ If your project does not use rules, you can skip this step.
 You may also place an XML file here. Use [PhysiCellXMLRules.jl](https://github.com/drbergman-lab/PhysiCellXMLRules.jl) to create one from a standard CSV version of the rules.
 
 **Important**: In either case, the variations you define *must* be on the XML version.
-After calling `initializeModelManager()`, any folder with `base_rulesets.csv` will now be populated with a `base_rulesets.xml` file that can be reference to set the XML paths.
+After calling `initializeModelManager()`, any folder with `base_rulesets.csv` will now be populated with a `base_rulesets.xml` file that can be referenced to set the XML paths.
 
 ## Intracellulars
 

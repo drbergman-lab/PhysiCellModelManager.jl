@@ -3,17 +3,20 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-asts = PhysiCellModelManager.AverageSubstrateTimeSeries(1)
-asts = PhysiCellModelManager.AverageSubstrateTimeSeries(Simulation(1))
-ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(1)
-ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(Simulation(1))
+simulation_id = 1
+simulation = Simulation(simulation_id)
+out = run(simulation)
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(simulation_id)
+asts = PhysiCellModelManager.AverageSubstrateTimeSeries(out)
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(simulation_id)
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(out)
 
 @test ismissing(PhysiCellModelManager.AverageSubstrateTimeSeries(pruned_simulation_id))
 snapshot = PhysiCellSnapshot(pruned_simulation_id, :initial)
 @test ismissing(snapshot)
 @test ismissing(PhysiCellModelManager.ExtracellularSubstrateTimeSeries(pruned_simulation_id))
 
-# misc tests
+#! misc tests
 asts["time"]
 substrate_names = keys(asts.substrate_concentrations)
 asts[first(substrate_names)]

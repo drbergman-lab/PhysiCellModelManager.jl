@@ -38,7 +38,7 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
     cp(joinpath(path_to_input_custom_codes, "Makefile"), joinpath(temp_physicell_dir, "Makefile"), force=true)
 
     if clean
-        cd(()->run(pipeline(`make clean`; stdout=devnull)), temp_physicell_dir)
+        cd(()->quietRun(`make clean`), temp_physicell_dir)
     end
 
     executable_name = baseToExecutable("project_ccid_$(S.inputs[:custom_code].id)")
@@ -231,7 +231,7 @@ end
 Check if any of the simulations in `S` have a configuration file with `ecm_setup` enabled.
 """
 function isPhysiECMInConfig(M::AbstractMonad)
-    path_to_xml = joinpath(locationPath(:config, M), "config_variations", "config_variation_$(M.variation_id[:config]).xml")
+    path_to_xml = joinpath(locationPath(:config, M), locationVariationsFolder(:config), "config_variation_$(M.variation_id[:config]).xml")
     xml_doc = parse_file(path_to_xml)
     xml_path = ["microenvironment_setup", "ecm_setup"]
     ecm_setup_element = retrieveElement(xml_doc, xml_path; required=false)
@@ -327,10 +327,8 @@ function prepareLibRoadRunner()
     librr_file = joinpath(librr_dir, "include", "rr", "C", "rrc_api.h")
     if !isfile(librr_file)
         python = Sys.iswindows() ? "python" : "python3"
-        cd(() -> run(pipeline(`$(python) $(joinpath(".", "beta", "setup_libroadrunner.py"))`;
-                stdout=devnull,
-                stderr=devnull)),
-            physicellDir())
+        cmd = `$(python) $(joinpath(".", "beta", "setup_libroadrunner.py"))`
+        cd(() -> quietRun(cmd), physicellDir())
         @assert isfile(librr_file) "libRoadrunner was not downloaded properly."
 
         #! remove the downloaded binary (I would think the script would handle this, but it does not)
@@ -356,9 +354,9 @@ function prepareLibRoadRunner()
     env_var = Sys.isapple() ? "DYLD_LIBRARY_PATH" : "LD_LIBRARY_PATH"
     env_file = (haskey(ENV, "SHELL") && contains(ENV["SHELL"], "zsh")) ? ".zshenv" : ".bashrc"
     path_to_env_file = "~/$(env_file)"
-    path_to_add = joinpath(librr_dir, "lib")
+    librr_lib_path = joinpath(librr_dir, "lib")
 
-    if !haskey(ENV, env_var) || !contains(ENV[env_var], path_to_add)
+    if !haskey(ENV, env_var) || !libRoadRunnerOnPath(ENV[env_var], librr_lib_path)
         println("""
         Warning: Shell environment variable $(env_var) either not found or does not include the path to an installation of libRoadrunner.
         For now, we will add this path to your ENV variable in this Julia session.
@@ -369,6 +367,29 @@ function prepareLibRoadRunner()
         """)
         ENV[env_var] = ":./addons/libRoadrunner/roadrunner/lib" #! at this point, we know this is not a Windows system
     end
+end
+
+"""
+    libRoadRunnerOnPath(env_var::String, librr_lib_path::String; working_dir::String=physicellDir())
+
+Check if the libRoadRunner library path is included in the environment variable.
+
+The `librr_lib_path` must be an absolute path, and the function will resolve relative paths based on the `working_dir`.
+Returns `true` if the path is found, otherwise `false`.
+"""
+function libRoadRunnerOnPath(env_var::String, librr_lib_path::String; working_dir::String=physicellDir())
+    normalized_librr_lib_path = normpath(librr_lib_path)
+    @assert isabspath(normalized_librr_lib_path) "The path to the libRoadRunner library must be absolute. Provided: $(normalized_librr_lib_path)"
+    os_variable_separator = Sys.iswindows() ? ";" : ":"
+    paths = split(env_var, os_variable_separator)
+    for path in paths
+        resolved_path = isabspath(path) ? path : joinpath(working_dir, path)
+        if normpath(resolved_path) == normalized_librr_lib_path
+            return true
+        end
+    end
+
+    return false
 end
 
 """

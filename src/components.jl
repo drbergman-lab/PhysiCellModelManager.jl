@@ -29,6 +29,7 @@ component = PhysiCellComponent("roadrunner", "test.xml")
 PhysiCellComponent(component, 78) # set the id to 78; users should not need to do this
 # output
 PhysiCellComponent("roadrunner", "test.xml", 78)
+```
 """
 @auto_hash_equals fields = (type, name) struct PhysiCellComponent #! only compare the name and type for equality
     type::String #! type of the file (currently going to be "roadrunner", "dfba", or "maboss")

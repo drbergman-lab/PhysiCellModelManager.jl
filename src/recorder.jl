@@ -18,7 +18,7 @@ recordConstituentIDs(T::AbstractTrial, ids::Array{Int}) = recordConstituentIDs(t
 
 """
     compressIDs(ids::AbstractArray{Int})
-    
+
 Compress a list of IDs into a more compact representation by grouping consecutive IDs together.
 """
 function compressIDs(ids::AbstractArray{Int})

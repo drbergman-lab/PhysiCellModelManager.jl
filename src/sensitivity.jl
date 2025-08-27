@@ -1,7 +1,7 @@
 using Distributions, DataFrames, CSV, Sobol, FFTW
 import GlobalSensitivity #! do not bring in their definition of Sobol as it conflicts with the Sobol module
 
-export MOAT, Sobolʼ, RBD
+export MOAT, Sobolʼ, SobolPCMM, RBD
 
 """
     GSAMethod
@@ -56,7 +56,7 @@ Get the string representation of the method used in the sensitivity analysis.
 """
 function methodString(gsa_sampling::GSASampling)
     method = typeof(gsa_sampling) |> string |> lowercase
-    method = split(method, ".")[end] #! remove module name that comes with the type, e.g. main.vctmodule.moatsampling -> moatsampling
+    method = split(method, ".")[end] #! remove module name that comes with the type, e.g. Main.PhysiCellModelManager.MOATSampling -> MOATSampling
     return endswith(method, "sampling") ? method[1:end-8] : method
 end
 
@@ -271,8 +271,8 @@ Get the value of the variation at the given variation ID for [`MOAT`](@ref) glob
 """
 function variationValue(ev::ElementaryVariation, variation_id::Int, folder::String)
     location = variationLocation(ev)
-    query = constructSelectQuery("$(location)_variations", "WHERE $(locationVariationIDName(location))=$variation_id"; selection="\"$(columnName(ev))\"")
-    variation_value_df = queryToDataFrame(query; db=variationsDatabase(location, folder), is_row=true)
+    query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$variation_id"; selection="\"$(columnName(ev))\"")
+    variation_value_df = queryToDataFrame(query; db=locationVariationsDatabase(location, folder), is_row=true)
     return variation_value_df[1,1]
 
 end
@@ -298,6 +298,8 @@ end
 Store the information necessary to run a Sobol' global sensitivity analysis as well as how to extract the first and total order indices.
 
 The rasp symbol is used to avoid conflict with the Sobol module. To type it in VS Code, use `\\rasp` and then press `tab`.
+Alternatively, the constructor [`SobolPCMM`](@ref) is provided as an alias for convenience.
+
 The methods available for the first order indices are `:Sobol1993`, `:Jansen1999`, and `:Saltelli2010`. Default is `:Jansen1999`.
 The methods available for the total order indices are `:Homma1996`, `:Jansen1999`, and `:Sobol2007`. Default is `:Jansen1999`.
 
@@ -324,6 +326,13 @@ end
 
 Sobolʼ(n::Int; sobol_index_methods::NamedTuple{(:first_order, :total_order), Tuple{Symbol, Symbol}}=(first_order=:Jansen1999, total_order=:Jansen1999), kwargs...) =
     Sobolʼ(SobolVariation(n; n_matrices=2, kwargs...), sobol_index_methods)
+
+"""
+    SobolPCMM
+
+Alias for [`Sobolʼ`](@ref) for convenience.
+"""
+SobolPCMM = Sobolʼ #! alias for convenience
 
 """
     SobolSampling
@@ -494,6 +503,7 @@ function Base.show(io::IO, ::MIME"text/plain", rbd_sampling::RBDSampling)
     show(io, MIME"text/plain"(), rbd_sampling.sampling)
     println(io, "Number of harmonics: $(rbd_sampling.num_harmonics)")
     println(io, "Number of cycles (1/2 or 1): $(rbd_sampling.num_cycles)")
+    println(io, "GSA functions:")
     for f in keys(rbd_sampling.results)
         println(io, "  $f")
     end
@@ -566,13 +576,12 @@ function evaluateFunctionOnSampling(gsa_sampling::GSASampling, f::Function)
 end
 
 """
-    variationsToMonads(inputs::InputFolders, variation_ids::Dict{Symbol,Matrix{Int}}, use_previous::Bool)
+    variationsToMonads(inputs::InputFolders, variation_ids::Dict{Symbol,Matrix{Int}})
 
 Return a dictionary of monads and a matrix of monad IDs based on the given variation IDs.
 
-The five matrix inputs together define a single matrix of variation IDs.
+For each varied location, a matrix of variation IDs is provided.
 This information, together with the `inputs`, identifies the monads to be used.
-The `use_previous` flag determines whether to use previous simulations, if they exist.
 
 # Returns
 - `monad_dict::Dict{VariationID, Monad}`: a dictionary of the monads to be used without duplicates.

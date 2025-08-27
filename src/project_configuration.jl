@@ -68,7 +68,7 @@ function parseProjectInputsConfigurationFile()
         @assert haskey(location_dict, "required") "inputs.toml: $(location): required must be defined."
         @assert haskey(location_dict, "varied") "inputs.toml: $(location): varied must be defined."
         if !("path_from_inputs" in keys(location_dict))
-            location_dict["path_from_inputs"] = locationTableName(location; validate=false)
+            location_dict["path_from_inputs"] = locationFolder(location)
         else
             location_dict["path_from_inputs"] = location_dict["path_from_inputs"] .|> sanitizePathElement |> joinpath
         end
@@ -86,38 +86,30 @@ function parseProjectInputsConfigurationFile()
 end
 
 """
-    locationIDName(location; validate::Bool=true)
+    locationIDName(location)
 
 Return the name of the ID column for the location (as either a String or Symbol).
-If `validate` is `true`, it checks if the location is valid and exists in the project configuration.
 
 # Examples
 ```jldoctest
-julia> PhysiCellModelManager.locationIDName(:config; validate=false)
+julia> PhysiCellModelManager.locationIDName(:config)
 "config_id"
 ```
 """
-function locationIDName(location::Union{String,Symbol}; validate::Bool=true)
-    validate && validateLocation(location)
-    return tableIDName(String(location); strip_s=false)
-end
+locationIDName(location::Union{String,Symbol}) = tableIDName(String(location); strip_s=false)
 
 """
-    locationVariationIDName(location; validate::Bool=true)
+    locationVariationIDName(location)
 
 Return the name of the variation ID column for the location (as either a String or Symbol).
-If `validate` is `true`, it checks if the location is valid and exists in the project configuration.
 
 # Examples
 ```jldoctest
-julia> PhysiCellModelManager.locationVariationIDName(:config; validate=false)
+julia> PhysiCellModelManager.locationVariationIDName(:config)
 "config_variation_id"
 ```
 """
-function locationVariationIDName(location::Union{String,Symbol}; validate::Bool=true)
-    validate && validateLocation(location)
-    return "$(location)_variation_id"
-end
+locationVariationIDName(location::Union{String,Symbol}) = "$(location)_variation_id"
 
 """
     locationIDNames()
@@ -134,49 +126,57 @@ Return the names of the variation ID columns for all varied locations.
 locationVariationIDNames() = (locationVariationIDName(loc) for loc in projectLocations().varied)
 
 """
-    locationTableName(location; validate::Bool=true)
+    locationTableName(location)
 
 Return the name of the table for the location (as either a String or Symbol).
-If `validate` is `true`, it checks if the location is valid and exists in the project configuration.
+This table stores the folder names and their IDs for the location.
+
 # Examples
 ```jldoctest
-julia> PhysiCellModelManager.locationTableName(:config; validate=false)
+julia> PhysiCellModelManager.locationTableName(:config)
 "configs"
 ```
 """
-function locationTableName(location::Union{String,Symbol}; validate::Bool=true)
-    validate && validateLocation(location)
-    return "$(location)s"
-end
+locationTableName(location::Union{String,Symbol}) = "$(location)s"
 
 """
-    variationsTableName(location)
+    locationFolder(location::Union{String,Symbol})
+
+Return the name of the folder for the location (as either a String or Symbol).
+This is the folder where the directories with the input files for the location are stored.
+"""
+locationFolder(location::Union{String,Symbol}) = locationTableName(location)
+
+"""
+    locationVariationsTableName(location)
 
 Return the name of the variations table for the location (as either a String or Symbol).
+This table stores the variations of the folder it is located in.
 """
-function variationsTableName(location::Union{String,Symbol})
-    validateLocation(location)
-    return "$(location)_variations"
-end
+locationVariationsTableName(location::Union{String,Symbol}) = "$(location)_variations"
 
 """
-    validateLocation(location)
+    locationVariationsFolder(location)
 
-Validate that the location is a valid symbol or string and exists in the project locations.
+Return the name of the variations folder for the location (as either a String or Symbol).
 """
-function validateLocation(location::Union{String,Symbol})
-    @assert Symbol(location) in projectLocations().all "Location $(location) is not defined in the project configuration."
-end
+locationVariationsFolder(location::Union{String,Symbol}) = locationVariationsTableName(location)
 
 """
-    locationPath(location::Symbol, folder=missing; validate::Bool=true)
+    locationVariationsDBName(location::Union{String,Symbol})
+
+Return the name of the variations database for the location (as either a String or Symbol).
+"""
+locationVariationsDBName(location::Union{String,Symbol}) = "$(locationVariationsTableName(location)).db"
+
+"""
+    locationPath(location::Symbol, folder=missing)
 
 Return the path to the location folder in the `inputs` directory.
 
 If `folder` is not specified, the path to the location folder is returned.
 """
-function locationPath(location::Symbol, folder=missing; validate::Bool=true)
-    validate && validateLocation(location)
+function locationPath(location::Symbol, folder=missing)
     location_dict = inputsDict()[Symbol(location)]
     path_to_locations = joinpath(dataDir(), "inputs", location_dict["path_from_inputs"])
     return ismissing(folder) ? path_to_locations : joinpath(path_to_locations, folder)

@@ -1,3 +1,5 @@
+@compat public setJobOptions
+
 """
     shellCommandExists(cmd::Union{String,Cmd})
 
@@ -5,7 +7,7 @@ Check if a shell command exists in the current environment.
 """
 function shellCommandExists(cmd::Union{String,Cmd})
     cmd_ = Sys.iswindows() ? `where $cmd` : `which $cmd`
-    p = run(pipeline(ignorestatus(cmd_); stdout=devnull, stderr=devnull))
+    p = quietRun(ignorestatus(cmd_))
     return p.exitcode == 0
 end
 
@@ -55,7 +57,7 @@ end
 
 Set the default job options for use with SLURM.
 
-For any key-value pair in `options`, the corresponding key in the global `sbatch_options` dictionary is set to the value.
+Add every key-value pair in `options` to the global `sbatch_options` dictionary, i.e., add and/or overwrite the current sbatch options.
 A flag is then added to the sbatch command for each key-value pair in `options`: `--key=value`.
 When running simulations, any values in this dictionary that are `Function`'s will be assumed to be functions of the simulation id.
 """

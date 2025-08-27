@@ -18,10 +18,13 @@ custom_code_src_folder =  joinpath(PhysiCellModelManager.dataDir(), "inputs", "c
 custom_code_dest_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "custom_codes_")
 mv(custom_code_src_folder, custom_code_dest_folder)
 
-@test PhysiCellModelManager.createSchema() == false
+@test_throws AssertionError PhysiCellModelManager.createSchema()
+@test initializeModelManager() == false
 
 mv(config_dest_folder, config_src_folder)
 mv(custom_code_dest_folder, custom_code_src_folder)
+
+@test initializeModelManager() == true
 
 # test bad table
 table_name_not_end_in_s = "test"
@@ -32,13 +35,13 @@ schema_without_primary_id = ""
 @test_throws ArgumentError PhysiCellModelManager.icFilename("ecm")
 
 # misc tests
-config_db = PhysiCellModelManager.variationsDatabase(:config, Simulation(1))
+config_db = PhysiCellModelManager.locationVariationsDatabase(:config, Simulation(1))
 @test config_db isa SQLite.DB
 
-ic_cell_db = PhysiCellModelManager.variationsDatabase(:ic_cell, Simulation(1))
+ic_cell_db = PhysiCellModelManager.locationVariationsDatabase(:ic_cell, Simulation(1))
 @test ic_cell_db isa Missing
 
-ic_ecm_db = PhysiCellModelManager.variationsDatabase(:ic_ecm, Simulation(1))
+ic_ecm_db = PhysiCellModelManager.locationVariationsDatabase(:ic_ecm, Simulation(1))
 @test ic_ecm_db isa Nothing
 
 PhysiCellModelManager.variationIDs(:config, Simulation(1))
@@ -50,10 +53,10 @@ PhysiCellModelManager.variationIDs(:ic_cell, Sampling(1))
 PhysiCellModelManager.variationIDs(:ic_ecm, Simulation(1))
 PhysiCellModelManager.variationIDs(:ic_ecm, Sampling(1))
 
-PhysiCellModelManager.variationsTable(:config, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:rulesets_collection, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:ic_cell, Sampling(1); remove_constants=true)
-PhysiCellModelManager.variationsTable(:ic_ecm, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:config, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:rulesets_collection, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:ic_cell, Sampling(1); remove_constants=true)
+PhysiCellModelManager.locationVariationsTable(:ic_ecm, Sampling(1); remove_constants=true)
 
 # test bad folder
 path_to_bad_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "configs", "bad_folder")
@@ -63,3 +66,8 @@ mkdir(path_to_bad_folder)
 
 rm(path_to_bad_folder; force=true, recursive=true)
 @test PhysiCellModelManager.initializeDatabase() == true
+
+# test stmtToDataFrame error
+stmt_str = "SELECT * FROM simulations WHERE simulation_id = :simulation_id;"
+bad_params = (; :simulation_id => -1)
+@test_throws AssertionError PhysiCellModelManager.stmtToDataFrame(stmt_str, bad_params; is_row=true)

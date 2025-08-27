@@ -60,9 +60,9 @@ function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_g
         throw(ErrorException("FFmpeg is not installed. Please install it to generate movies."))
     end
     cmd = Cmd(`make jpeg OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
-    run(pipeline(cmd; stdout=devnull, stderr=devnull))
+    quietRun(cmd)
     cmd = Cmd(`make movie OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
-    run(pipeline(cmd; stdout=devnull, stderr=devnull))
+    quietRun(cmd)
     movie_generated = true
     jpgs = readdir(joinpath(trialFolder(Simulation, simulation_id), "output"), sort=false)
     filter!(f -> endswith(f, ".jpg"), jpgs)

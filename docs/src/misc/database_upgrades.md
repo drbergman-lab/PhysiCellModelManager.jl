@@ -9,6 +9,8 @@ Rename the database file from `pcvct.db` to `pcmm.db` to reflect the name change
 
 ## to v0.0.30
 The `pcvct_version` table is renamed to `pcmm_version` due to the name change of the package.
+Also, check any environment variables you have set, e.g., in the `~/.zshrc` or `~/.bashrc` files, and update them to reflect the new package name.
+Any that were prefixed with `PCVCT_` should now be prefixed with `PCMM_`.
 
 ## to v0.0.29
 The `inputs.toml` file has been moved from `data/` to `data/inputs/`.

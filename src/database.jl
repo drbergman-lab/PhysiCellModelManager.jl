@@ -8,6 +8,7 @@ export printSimulationsTable, simulationsTable
 Initialize the central database. If the database does not exist, it will be created.
 """
 function initializeDatabase()
+    global pcmm_globals
     close(centralDB()) #! close the old database connection if it exists
     pcmm_globals.db = SQLite.DB(centralDB().file)
     SQLite.transaction(centralDB(), "EXCLUSIVE")
@@ -19,7 +20,6 @@ function initializeDatabase()
         return false
     else
         SQLite.commit(centralDB())
-        pcmm_globals.initialized = true
         return true
     end
 end
@@ -30,12 +30,14 @@ end
 Reinitialize the database by searching through the `data/inputs` directory to make sure all are present in the database.
 """
 function reinitializeDatabase()
+    global pcmm_globals
     if !isInitialized()
         println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
         return
     end
-    pcmm_globals.initialized = false
-    return initializeDatabase()
+    pcmm_globals.initialized = false #! reset the initialized flag until the database is reinitialized
+    pcmm_globals.initialized = initializeDatabase()
+    return isInitialized()
 end
 
 """
@@ -44,15 +46,8 @@ end
 Create the schema for the database. This includes creating the tables and populating them with data.
 """
 function createSchema()
-    if !parseProjectInputsConfigurationFile()
-        println("Project configuration file parsing failed.")
-        return false
-    end
-
     #! make sure necessary directories are present
-    if !necessaryInputsPresent()
-        return false
-    end
+    @assert necessaryInputsPresent() "Necessary input folders are not present. Please check the inputs directory."
 
     #! initialize and populate physicell_versions table
     createPCMMTable("physicell_versions", physicellVersionsSchema())
@@ -68,12 +63,9 @@ function createSchema()
         """
         createPCMMTable(table_name, table_schema)
 
-        location_path = locationPath(location; validate=false)
+        location_path = locationPath(location)
         folders = readdir(location_path; sort=false) |> filter(x -> isdir(joinpath(location_path, x)))
-        if location_dict["required"] && isempty(folders)
-            println("No folders in $location_path found. This is where to put the folders for $table_name.")
-            return false
-        end
+        @assert !location_dict["required"] || !isempty(folders) "No folders in $location_path found. This is where to put the folders for $table_name."
         for folder in folders
             insertFolder(location, folder)
         end
@@ -106,8 +98,6 @@ function createSchema()
     createPCMMTable("trials", trials_schema)
 
     createDefaultStatusCodesTable()
-
-    return true
 end
 
 """
@@ -124,7 +114,7 @@ function necessaryInputsPresent()
 
         location_path = locationPath(location)
         if !isdir(location_path)
-            println("No $location_path found. This is where to put the folders for $(locationTableName(location)).")
+            println("No $location_path found. This is where to put the folders for $(locationFolder(location)).")
             success = false
         end
     end
@@ -194,7 +184,7 @@ function abstractSamplingForeignReferenceSubSchema()
         REFERENCES physicell_versions (physicell_version_id),
     $(join(["""
     FOREIGN KEY ($(locationIDName(k)))
-        REFERENCES $(locationTableName(k; validate=false)) ($(locationIDName(k; validate=false)))\
+        REFERENCES $(locationTableName(k)) ($(locationIDName(k)))\
     """ for k in keys(inputsDict())], ",\n"))
     """
 end
@@ -295,15 +285,19 @@ function insertFolder(location::Symbol, folder::String, description::String="")
     path_to_folder = locationPath(location, folder)
     old_description = metadataDescription(path_to_folder)
     description = isempty(old_description) ? description : old_description
-    query = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES ('$folder', '$description') RETURNING $(locationIDName(location; validate=false));"
-    df = queryToDataFrame(query)
+
+    stmt_str = "INSERT OR IGNORE INTO $(locationTableName(location)) (folder_name, description) VALUES (:folder, :description);"
+    params = (; :folder => folder, :description => description)
+    stmt = SQLite.Stmt(centralDB(), stmt_str)
+    DBInterface.execute(stmt, params)
     if !folderIsVaried(location, folder)
         return
     end
-    db_variations = joinpath(path_to_folder, "$(location)_variations.db") |> SQLite.DB
-    location_variation_id_name = locationVariationIDName(location; validate=false)
-    createPCMMTable(variationsTableName(location), "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
-    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $(location)_variations ($location_variation_id_name) VALUES(0);")
+    db_variations = joinpath(path_to_folder, locationVariationsDBName(location)) |> SQLite.DB # create the variations database
+    location_variation_id_name = locationVariationIDName(location)
+    table_name = locationVariationsTableName(location)
+    createPCMMTable(table_name, "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
+    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $table_name ($location_variation_id_name) VALUES(0);")
     input_folder = InputFolder(location, folder)
     prepareBaseFile(input_folder)
 end
@@ -371,41 +365,34 @@ isStarted(simulation::Simulation; new_status_code::Union{Missing,String}=missing
 ################## DB Interface Functions ##################
 
 """
-    variationsDatabase(location::Symbol, folder::String)
+    locationVariationsDatabase(location::Symbol, folder::String)
 
-Return the database for the location and folder.
+Return the variations database for the location and folder.
 
 The second argument can alternatively be the ID of the folder or an AbstractSampling object (simulation, monad, or sampling) using that folder.
 """
-function variationsDatabase(location::Symbol, folder::String)
+function locationVariationsDatabase(location::Symbol, folder::String)
     if folder == ""
         return nothing
     end
-    path_to_db = joinpath(locationPath(location, folder), "$(location)_variations.db")
+    path_to_db = joinpath(locationPath(location, folder), locationVariationsDBName(location))
     if !isfile(path_to_db)
         return missing
     end
     return path_to_db |> SQLite.DB
 end
 
-function variationsDatabase(location::Symbol, id::Int)
+function locationVariationsDatabase(location::Symbol, id::Int)
     folder = inputFolderName(location, id)
-    return variationsDatabase(location, folder)
+    return locationVariationsDatabase(location, folder)
 end
 
-function variationsDatabase(location::Symbol, S::AbstractSampling)
+function locationVariationsDatabase(location::Symbol, S::AbstractSampling)
     folder = S.inputs[location].folder
-    return variationsDatabase(location, folder)
+    return locationVariationsDatabase(location, folder)
 end
 
 ########### Retrieving Database Information Functions ###########
-
-"""
-    vctDBQuery(query::String; db::SQLite.DB=centralDB())
-    
-Execute a query against the database and return the result.
-"""
-vctDBQuery(query::String; db::SQLite.DB=centralDB()) = DBInterface.execute(db, query)
 
 """
     queryToDataFrame(query::String; db::SQLite.DB=centralDB(), is_row::Bool=false)
@@ -415,7 +402,7 @@ Execute a query against the database and return the result as a DataFrame.
 If `is_row` is true, the function will assert that the result has exactly one row, i.e., a unique result.
 """
 function queryToDataFrame(query::String; db::SQLite.DB=centralDB(), is_row::Bool=false)
-    df = vctDBQuery(query; db=db) |> DataFrame
+    df = DBInterface.execute(db, query) |> DataFrame
     if is_row
         @assert size(df,1)==1 "Did not find exactly one row matching the query:\n\tDatabase file: $(db)\n\tQuery: $(query)\nResult: $(df)"
     end
@@ -424,6 +411,7 @@ end
 
 """
     stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
+    stmtToDataFrame(stmt_str::AbstractString, params; db::SQLite.DB=centralDB(), is_row::Bool=false)
 
 Execute a prepared statement with the given parameters and return the result as a DataFrame.
 Compare with [`queryToDataFrame`](@ref).
@@ -432,6 +420,17 @@ The `params` argument must be a type that can be used with `DBInterface.execute(
 See the [SQLite.jl documentation](https://juliadatabases.org/SQLite.jl/stable/) for details.
 
 If `is_row` is true, the function will assert that the result has exactly one row, i.e., a unique result.
+
+# Arguments
+- `stmt::SQLite.Stmt`: A prepared statement object. This includes the database connection and the SQL statement.
+- `stmt_str::AbstractString`: A string containing the SQL statement to prepare.
+- `params`: The parameters to bind to the prepared statement. Must be either 
+  - `Vector` or `Tuple` and match the order of the placeholders in the SQL statement.
+  - `NamedTuple` or `Dict` with keys matching the named placeholders in the SQL statement.
+
+# Keyword Arguments
+- `db::SQLite.DB`: The database connection to use. Defaults to the central database. Unnecessary if using a prepared statement.
+- `is_row::Bool`: If true, asserts that the result has exactly one row. Defaults to false.
 """
 function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
     df = DBInterface.execute(stmt, params) |> DataFrame
@@ -439,6 +438,23 @@ function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
         @assert size(df,1)==1 "Did not find exactly one row matching the statement."
     end
     return df
+end
+
+function stmtToDataFrame(stmt_str::AbstractString, params; db::SQLite.DB=centralDB(), is_row::Bool=false)
+    stmt = SQLite.Stmt(db, stmt_str)
+    try
+        return stmtToDataFrame(stmt, params; is_row=is_row)
+    catch e
+        msg = """
+        Error executing SQLite statement:
+            Statement: $stmt_str
+            Parameters: $params
+            Database: $(db.file)
+            Is row: $is_row
+        """
+        println(msg)
+        rethrow(e)
+    end
 end
 
 """
@@ -450,7 +466,7 @@ constructSelectQuery(table_name::String, condition_stmt::String=""; selection::S
 
 """
     inputFolderName(location::Symbol, id::Int)
-    
+
 Retrieve the folder name associated with the given location and ID.
 """
 function inputFolderName(location::Symbol, id::Int)
@@ -458,25 +474,24 @@ function inputFolderName(location::Symbol, id::Int)
         return ""
     end
 
-    query = constructSelectQuery(locationTableName(location), "WHERE $(locationIDName(location; validate=false))=$(id)"; selection="folder_name")
+    query = constructSelectQuery(locationTableName(location), "WHERE $(locationIDName(location))=$(id)"; selection="folder_name")
     return queryToDataFrame(query; is_row=true) |> x -> x.folder_name[1]
 end
 
 """
-    inputFolderID(location::Symbol, folder_name::String)
+    inputFolderID(location::Symbol, folder::String)
 
 Retrieve the ID of the folder associated with the given location and folder name.
 """
-function inputFolderID(location::Symbol, folder_name::String)
-    if folder_name == ""
+function inputFolderID(location::Symbol, folder::String)
+    if folder == ""
         return -1
     end
     primary_key_string = locationIDName(location)
 
-    stmt_str = constructSelectQuery(locationTableName(location; validate=false), "WHERE folder_name=(:folder_name)"; selection=primary_key_string)
-    stmt = SQLite.Stmt(centralDB(), stmt_str)
-    params = (; :folder_name => folder_name)
-    df = stmtToDataFrame(stmt, params; is_row=true)
+    stmt_str = constructSelectQuery(locationTableName(location), "WHERE folder_name=(:folder)"; selection=primary_key_string)
+    params = (; :folder => folder)
+    df = stmtToDataFrame(stmt_str, params; is_row=true)
     return df[1, primary_key_string]
 end
 
@@ -491,14 +506,31 @@ function tableExists(table_name::String; db::SQLite.DB=centralDB())
 end
 
 """
-    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
+    columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
+    columnsExist(column_names::AbstractVector{<:AbstractString}, valid_column_names::AbstractVector{<:AbstractString})
 
 Check if all columns in `column_names` exist in the specified table in the database.
+
+Alternatively, if the `valid_column_names` needs to be reused in the caller, it can be passed directly.
+Keyword arguments (such as `db`) are forwarded to [`tableColumns`](@ref).
 """
-function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; db::SQLite.DB=centralDB())
-    @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in the database."
-    valid_column_names = DBInterface.execute(db, "PRAGMA table_info($(table_name));") |> DataFrame |> x -> x.name
+function columnsExist(column_names::AbstractVector{<:AbstractString}, table_name::String; kwargs...)
+    valid_column_names = tableColumns(table_name; kwargs...)
+    return columnsExist(column_names, valid_column_names)
+end
+
+function columnsExist(column_names::AbstractVector{<:AbstractString}, valid_column_names::AbstractVector{<:AbstractString})
     return all(c -> c in valid_column_names, column_names)
+end
+
+"""
+    tableColumns(table_name::String; db::SQLite.DB=centralDB())
+
+Return the names of the columns in the specified table in the database.
+"""
+function tableColumns(table_name::String; db::SQLite.DB=centralDB())
+    @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in the database."
+    return queryToDataFrame("PRAGMA table_info($(table_name));", db=db) |> x -> x.name
 end
 
 ########### Summarizing Database Functions ###########
@@ -512,13 +544,13 @@ variationIDs(location::Symbol, M::AbstractMonad) = [M.variation_id[location]]
 variationIDs(location::Symbol, sampling::Sampling) = [monad.variation_id[location] for monad in sampling.monads]
 
 """
-    variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
+    locationVariationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given query and database.
 
 Remove constant columns if `remove_constants` is true and the DataFrame has more than one row.
 """
-function variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
+function locationVariationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
     df = queryToDataFrame(query, db=db)
     if remove_constants && size(df, 1) > 1
         col_names = names(df)
@@ -529,44 +561,44 @@ function variationsTable(query::String, db::SQLite.DB; remove_constants::Bool=fa
 end
 
 """
-    variationsTableName(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
+    locationVariationsTableName(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given location, variations database, and variation IDs.
 """
-function variationsTable(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
+function locationVariationsTable(location::Symbol, variations_database::SQLite.DB, variation_ids::AbstractVector{<:Integer}; remove_constants::Bool=false)
     used_variation_ids = filter(x -> x != -1, variation_ids) #! variation_id = -1 means this input is not even being used
-    query = constructSelectQuery(variationsTableName(location), "WHERE $(locationVariationIDName(location)) IN ($(join(used_variation_ids,",")))")
-    df = variationsTable(query, variations_database; remove_constants=remove_constants)
+    query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location)) IN ($(join(used_variation_ids,",")))")
+    df = locationVariationsTable(query, variations_database; remove_constants=remove_constants)
     rename!(name -> shortVariationName(location, name), df)
     return df
 end
 
 """
-    variationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
+    locationVariationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
 
 Return a DataFrame containing the variations table for the given location and sampling.
 """
-function variationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
-    return variationsTable(location, variationsDatabase(location, S), variationIDs(location, S); remove_constants=remove_constants)
+function locationVariationsTable(location::Symbol, S::AbstractSampling; remove_constants::Bool=false)
+    return locationVariationsTable(location, locationVariationsDatabase(location, S), variationIDs(location, S); remove_constants=remove_constants)
 end
 
 """
-    variationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    locationVariationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
 
 If the location is not being used, return a DataFrame with all variation IDs set to -1.
 """
-function variationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+function locationVariationsTable(location::Symbol, ::Nothing, variation_ids::AbstractVector{<:Integer}; kwargs...)
     @assert all(x -> x == -1, variation_ids) "If the $(location) is not being used, then all $(locationVariationIDName(location))s must be -1."
     return DataFrame(shortLocationVariationID(location)=>variation_ids)
 end
 
 """
-    variationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    locationVariationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
 
 If the location folder does not contain a variations database, return a DataFrame with all variation IDs set to 0.
 """
-function variationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
-    @assert all(x -> x == 0, variation_ids) "If the $(location)_folder does not contain a $(location)_variations.db, then all $(locationVariationIDName(location))s must be 0."
+function locationVariationsTable(location::Symbol, ::Missing, variation_ids::AbstractVector{<:Integer}; kwargs...)
+    @assert all(x -> x == 0, variation_ids) "If the $(location)_folder does not contain a $(locationVariationsDBName(location)), then all $(locationVariationIDName(location))s must be 0."
     return DataFrame(shortLocationVariationID(location)=>variation_ids)
 end
 
@@ -654,7 +686,7 @@ function appendVariations(location::Symbol, df::DataFrame)
     var_df = DataFrame(short_var_name => Int[], :folder_name => String[])
     unique_tuples = [(row["$(location)_folder"], row[locationVariationIDName(location)]) for row in eachrow(df)] |> unique
     for unique_tuple in unique_tuples
-        temp_df = variationsTable(location, variationsDatabase(location, unique_tuple[1]), [unique_tuple[2]]; remove_constants=false)
+        temp_df = locationVariationsTable(location, locationVariationsDatabase(location, unique_tuple[1]), [unique_tuple[2]]; remove_constants=false)
         temp_df[!,:folder_name] .= unique_tuple[1]
         append!(var_df, temp_df, cols=:union)
     end
@@ -664,19 +696,21 @@ function appendVariations(location::Symbol, df::DataFrame)
 end
 
 """
-    simulationsTable(T; kwargs...)
+    simulationsTable(args...; kwargs...)
 
 Return a DataFrame with the simulation data calling [`simulationsTableFromQuery`](@ref) with those keyword arguments.
 
-There are three options for `T`:
-- `T` can be any `Simulation`, `Monad`, `Sampling`, `Trial`, or any array (or vector) of such.
-- `T` can also be a vector of simulation IDs.
+There are three options for `args...`:
+- `Simulation`, `Monad`, `Sampling`, `Trial`, any array (or vector) of such, or any number of such objects.
+- A vector of simulation IDs.
 - If omitted, creates a DataFrame for all the simulations.
 """
-function simulationsTable(T::Union{AbstractTrial,AbstractArray{<:AbstractTrial}}; kwargs...)
+function simulationsTable(T::AbstractArray{<:AbstractTrial}; kwargs...)
     query = constructSelectQuery("simulations", "WHERE simulation_id IN ($(join(simulationIDs(T),",")));")
     return simulationsTableFromQuery(query; kwargs...)
 end
+
+simulationsTable(T::AbstractTrial, Ts::Vararg{AbstractTrial}; kwargs...) = simulationsTable([T; Ts...]; kwargs...)
 
 function simulationsTable(simulation_ids::AbstractVector{<:Integer}; kwargs...)
     query = constructSelectQuery("simulations", "WHERE simulation_id IN ($(join(simulation_ids,",")));")
@@ -691,24 +725,34 @@ end
 ########### Printing Database Functions ###########
 
 """
-    printSimulationsTable()
+    printSimulationsTable(; sink=println, kwargs...)
+    printSimulationsTable(; sink=println, kwargs...)
 
-Print a table of simulations and their varied values. See keyword arguments below for more control of the output.
+Print a table of simulations and their varied values. See [`simulationsTable`](@ref) for details on the arguments and keyword arguments.
 
-There are many methods for this function. The simplest is `printSimulationsTable()`, which prints all simulations in the database.
-You can also pass in any number of simulations, monads, samplings, and trials to print a table of those simulations:
-```
-printSimulationsTable([simulation_1, monad_3, sampling_2, trial_1])
-```
-Finally, a vector of simulation IDs can be passed in:
-```
-printSimulationsTable([1, 2, 3])
-```
-Keyword arguments can be used with any of these methods to control the output:
+First, create a DataFrame by calling [`simulationsTable`](@ref) using `args...` and `kwargs...`.
+Then, pass the DataFrame to the `sink` function.
+
+# Arguments
+- ``
+
 # Keyword Arguments
 - `sink`: A function to print the table. Defaults to `println`. Note, the table is a DataFrame, so you can also use `CSV.write` to write the table to a CSV file.
 - `remove_constants::Bool`: If true, removes columns that have the same value for all simulations. Defaults to true.
 - `sort_by::Vector{String}`: A vector of column names to sort the table by. Defaults to all columns. To populate this argument, first print the table to see the column names.
 - `sort_ignore::Vector{String}`: A vector of column names to ignore when sorting. Defaults to the database IDs associated with the simulations.
+
+# Examples
+```julia
+printSimulationsTable([simulation_1, monad_3, sampling_2, trial_1])
+```
+```julia
+sim_ids = [1, 2, 3] # vector of simulation IDs
+printSimulationsTable(sim_ids; remove_constants=false) # include constant columns
+```
+```julia
+using CSV
+printSimulationsTable(; sink=CSV.write("temp.csv")) # write data for all simulations into temp.csv
+```
 """
 printSimulationsTable(args...; sink=println, kwargs...) = simulationsTable(args...; kwargs...) |> sink

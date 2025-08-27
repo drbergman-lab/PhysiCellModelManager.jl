@@ -23,7 +23,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
     end
 
     executable_str = joinpath(locationPath(:custom_code, simulation), baseToExecutable("project")) #! path to executable
-    config_str = joinpath(locationPath(:config, simulation), "config_variations", "config_variation_$(simulation.variation_id[:config]).xml")
+    config_str = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
     flags = ["-o", path_to_simulation_output]
     if simulation.inputs[:ic_cell].id != -1
         try
@@ -50,11 +50,11 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
         append!(flags, ["-d", joinpath(locationPath(:ic_dc, simulation), "dcs.csv")]) #! if ic file included (id != -1), then include this in the command
     end
     if simulation.variation_id[:rulesets_collection] != -1
-        path_to_rules_file = joinpath(locationPath(:rulesets_collection, simulation), "rulesets_collection_variations", "rulesets_collection_variation_$(simulation.variation_id[:rulesets_collection]).xml")
+        path_to_rules_file = joinpath(locationPath(:rulesets_collection, simulation), locationVariationsFolder(:rulesets_collection), "rulesets_collection_variation_$(simulation.variation_id[:rulesets_collection]).xml")
         append!(flags, ["-r", path_to_rules_file])
     end
     if simulation.variation_id[:intracellular] != -1
-        path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), "intracellular_variations", "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
+        path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), locationVariationsFolder(:intracellular), "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
         append!(flags, ["-n", path_to_intracellular_file])
     end
     return Cmd(`$executable_str $config_str $flags`; env=ENV, dir=physicellDir())
@@ -85,18 +85,18 @@ struct SimulationProcess
     simulation::Simulation
     monad_id::Int
     process::Union{Nothing,Base.Process}
-    
+
     function SimulationProcess(simulation::Simulation; monad_id::Union{Missing,Int}=missing, do_full_setup::Bool=true, force_recompile::Bool=false)
         if ismissing(monad_id)
             monad = Monad(simulation)
             monad_id = monad.id
         end
-    
+
         cmd = prepareSimulationCommand(simulation, monad_id, do_full_setup, force_recompile)
         if isnothing(cmd)
             return new(simulation, monad_id, nothing)
         end
-    
+
         path_to_simulation_folder = trialFolder(simulation)
         DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);" )
         println("\tRunning simulation: $(simulation.id)...")
@@ -137,10 +137,7 @@ function prepareHPCCommand(cmd::Cmd, simulation_id::Int)
              "--chdir=$(physicellDir())"
             ]
     for (k, v) in pcmm_globals.sbatch_options
-        if k in ["wrap", "output", "error", "wait", "chdir"]
-            println("WARNING: The key $k is reserved for PhysiCellModelManager.jl to set in the sbatch command. Skipping this key.")
-            continue
-        end
+        @assert !(k in ["wrap", "output", "error", "wait", "chdir"]) "The key $k is reserved for PhysiCellModelManager.jl to set in the sbatch command."
         if typeof(v) <: Function
             v = v(simulation_id)
         end
@@ -327,16 +324,15 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
     n_simulation_tasks = length(simulation_tasks)
     n_success = 0
 
-    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulations...")
+    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
 
-    num_parallel_sims = pcmm_globals.run_on_hpc ? n_simulation_tasks : pcmm_globals.max_number_of_parallel_simulations
     queue_channel = Channel{Task}(n_simulation_tasks)
     result_channel = Channel{Bool}(n_simulation_tasks)
     @async for simulation_task in simulation_tasks
         put!(queue_channel, simulation_task) #! if the queue_channel is full, this will block until there is space
     end
 
-    for _ in 1:num_parallel_sims #! start one task per allowed num of parallel sims
+    for _ in 1:pcmm_globals.max_number_of_parallel_simulations #! start one task per allowed num of parallel sims
         @async for simulation_task in queue_channel #! do not let the creation of this task block the creation of the other tasks
             #! once the simulation_task is processed, put it in the result_channel and move on to the next simulation_task in the queue_channel
             put!(result_channel, processSimulationTask(simulation_task, prune_options))

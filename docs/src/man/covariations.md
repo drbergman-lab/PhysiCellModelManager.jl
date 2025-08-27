@@ -36,7 +36,7 @@ covariation = Covariation((phase_0_xml_path, phase_0_durations), (phase_1_xml_pa
 ## `CoVariation{DistributedVariation}`
 For a `CoVariation{DistributedVariation}`, the conversion of a CDF value, $x \in [0, 1]$, is done independently for each distribution.
 That is, in the joint probability space, a `CoVariation{DistributedVariation}` restricts us to the one-dimensional line connecting $\mathbf{0}$ to $\mathbf{1}$.
-To allow for the parameters to vary inversely with one another, the `DistributedVariation` type accepts an optional `flip::Bool` argument (not a keyword argument!).
+To allow for the parameters to vary inversely with one another, the `DistributedVariation` type accepts an optional keyword argument: `flip::Bool`.
 For a distribution `dv` with `dv.flip=true`, when a value is requested with a CDF $x$, PhysiCellModelManager.jl will "flip" the CDF to give the value with CDF $1 - x$.
 
 ```jldoctest

@@ -220,6 +220,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
     end
     save_file(xml_doc, path_to_xml)
     free(xml_doc)
+    postVariationXMLProcessing(location, path_to_xml)
     return
 end
 
@@ -248,6 +249,19 @@ function prepareBaseRulesetsCollectionFile(input_folder::InputFolder)
         writeXMLRules(path_to_base_xml, joinpath(path_to_rulesets_collection_folder, "base_rulesets.csv"))
     end
     return path_to_base_xml
+end
+
+"""
+    postVariationXMLProcessing(location::Symbol, path_to_xml::String)
+
+Perform any post-processing needed after creating the XML file for the given location.
+"""
+function postVariationXMLProcessing(location::Symbol, path_to_xml::String)
+    if location == :intracellular
+        #! split back out the intracellular SBMLs to avoid PhysiCell doing it concurrently across multiple runs
+        disassembleIntracellular(path_to_xml)
+    end
+    return
 end
 
 """

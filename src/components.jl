@@ -292,3 +292,47 @@ function findComponentID(assembly_manifest::Dict, component::PhysiCellComponent)
     end
     @assert false "Component not found in assembly manifest: $component"
 end
+
+"""
+    disassembleIntracellular(path_to_xml::String)
+
+Disassemble the intracellular XML file into separate files for each intracellular component.
+
+The files will be saved next to the varied XML file with the following naming convention:
+`<basename>_<cell>_ID<id>_<type>.xml`
+where `<basename>` is the base name of the input XML file, `<cell>` is the cell type that uses the component, `<id>` is the ID of the component, and `<type>` is the type of the component (e.g., "roadrunner").
+"""
+function disassembleIntracellular(path_to_xml::String)
+    folder, base_filename = splitdir(path_to_xml)
+    basename = splitext(base_filename)[1]
+    filename_fn = (cell, id, type) -> joinpath(folder, "$(basename)_$(cell)_ID$(id)_$(type).xml")
+    xml_doc = parse_file(path_to_xml)
+    cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
+    intracellular_to_id_map = Dict{Int,Vector{String}}()
+    for cell_definition_element in get_elements_by_tagname(cell_definitions_element, "cell_definition")
+        name = attribute(cell_definition_element, "name")
+        intracellular_ids_element = find_element(cell_definition_element, "intracellular_ids")
+        for id_element in get_elements_by_tagname(intracellular_ids_element, "ID")
+            id = parse(Int, content(id_element))
+            if !haskey(intracellular_to_id_map, id)
+                intracellular_to_id_map[id] = String[]
+            end
+            push!(intracellular_to_id_map[id], name)
+        end
+    end
+
+    intracellulars_element = retrieveElement(xml_doc, ["intracellulars"])
+    for intracellular_element in get_elements_by_tagname(intracellulars_element, "intracellular")
+        id = parse(Int, attribute(intracellular_element, "ID"))
+        type = attribute(intracellular_element, "type")
+        sbml_root = find_element(intracellular_element, "sbml")
+        intracellular_xml_doc = XMLDocument()
+        set_root(intracellular_xml_doc, sbml_root)
+        for cell in intracellular_to_id_map[id]
+            filename = filename_fn(cell, id, type)
+            save_file(intracellular_xml_doc, filename)
+        end
+        free(intracellular_xml_doc)
+    end
+    free(xml_doc)
+end

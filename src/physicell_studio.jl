@@ -18,6 +18,7 @@ If the paths are not set in the environment, they can be passed as the keyword a
 In this case, the paths will be set as global variables for the duration of the Julia session and do not need to be passed again.
 """
 function runStudio(simulation_id::Int; python_path::Union{Missing,String}=pcmm_globals.path_to_python, studio_path::Union{Missing,String}=pcmm_globals.path_to_studio)
+    assertInitialized()
     resolveStudioGlobals(python_path, studio_path)
     path_to_temp_xml, path_to_input_rules = setUpStudioInputs(simulation_id)
     out = executeStudio(path_to_temp_xml)

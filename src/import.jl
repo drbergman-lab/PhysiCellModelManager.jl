@@ -37,6 +37,7 @@ importProject(path_to_project::AbstractString, src::Dict, dest::Dict)
 ```
 """
 function importProject(path_to_project::AbstractString; src=Dict(), dest=Dict())
+    assertInitialized()
     project_sources = ImportSources(src, path_to_project)
     import_dest_folders = ImportDestFolders(path_to_project, dest)
     success = resolveProjectSources!(project_sources, path_to_project)

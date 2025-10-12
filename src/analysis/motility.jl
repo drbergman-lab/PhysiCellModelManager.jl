@@ -85,6 +85,7 @@ ms[1]["mesenchymal"].speed # mean speed as a `mesenchymal` cell for the cell wit
 ```
 """
 function motilityStatistics(simulation_id::Integer; direction=:any)
+    assertInitialized()
     sequence = PhysiCellSequence(simulation_id; include_cells=true)
     if ismissing(sequence)
         return missing

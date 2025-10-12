@@ -186,6 +186,7 @@ function createSimpleInputFolders()
     ret_val = "[$(join([":$(location) => $(location)" for location in projectLocations().all], ", "))] |> InputFolders"
     """
     function InputFolders($(fn_args); $(fn_kwargs))
+        assertInitialized()
         return $(ret_val)
     end
     """ |> Meta.parse |> eval
@@ -344,6 +345,7 @@ function Simulation(inputs::InputFolders, variation_id::VariationID=VariationID(
 end
 
 function Simulation(simulation_id::Int)
+    assertInitialized()
     df = constructSelectQuery("simulations", "WHERE simulation_id=$(simulation_id);") |> queryToDataFrame
     if isempty(df)
         error("Simulation $(simulation_id) not in the database.")
@@ -459,6 +461,7 @@ struct Monad <: AbstractMonad
 end
 
 function Monad(monad_id::Integer; n_replicates::Integer=0, use_previous::Bool=true)
+    assertInitialized()
     df = constructSelectQuery("monads", "WHERE monad_id=$(monad_id);") |> queryToDataFrame
     if isempty(df)
         error("Monad $(monad_id) not in the database.")
@@ -655,6 +658,7 @@ end
 Sampling(M::AbstractMonad; kwargs...) = Sampling([M]; kwargs...)
 
 function Sampling(sampling_id::Int; n_replicates::Integer=0, use_previous::Bool=true)
+    assertInitialized()
     df = constructSelectQuery("samplings", "WHERE sampling_id=$(sampling_id);") |> queryToDataFrame
     if isempty(df)
         error("Sampling $(sampling_id) not in the database.")
@@ -731,6 +735,7 @@ function Trial(Ss::AbstractArray{<:AbstractSampling}; n_replicates::Integer=0, u
 end
 
 function Trial(trial_id::Int; n_replicates::Integer=0, use_previous::Bool=true)
+    assertInitialized()
     df = constructSelectQuery("trials", "WHERE trial_id=$(trial_id);") |> queryToDataFrame
     @assert !isempty(df) "Trial $(trial_id) not in the database."
     samplings = Sampling.(readConstituentIDs(Trial, trial_id); n_replicates=n_replicates, use_previous=use_previous)

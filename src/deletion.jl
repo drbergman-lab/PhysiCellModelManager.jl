@@ -21,6 +21,7 @@ deleteSimulations(1:100; filters=Dict("config_id" => 1)) # delete simulations wi
 ```
 """
 function deleteSimulations(simulation_ids::AbstractVector{<:Union{Integer,Missing}}; delete_supers::Bool=true, filters::Dict{<:AbstractString, <:Any}=Dict{AbstractString, Any}())
+    assertInitialized()
     simulation_ids = Vector(simulation_ids) #! filter! does not work on AbstractRange, such as `simulation_ids = 1:3`
     filter!(x -> !ismissing(x), simulation_ids)
     where_stmt, params = buildWhereClause("simulations", simulation_ids, filters)
@@ -278,6 +279,7 @@ If the user aborts the reset, the user will then be asked if they want to contin
 - `force_continue::Bool`: If `true`, skips the user confirmation prompt for continuing with the script after aborting the reset. Default is `false`.
 """
 function resetDatabase(; force_reset::Bool=false, force_continue::Bool=false)
+    assertInitialized()
     if !force_reset
         #! prompt user to confirm
         println("Are you sure you want to reset the database? (y/n)")
@@ -372,6 +374,7 @@ The list of possible status codes is: "Not Started", "Queued", "Running", "Compl
 - `user_check::Bool`: If `true`, prompts the user for confirmation before deleting simulations. Default is `true`.
 """
 function deleteSimulationsByStatus(status_codes_to_delete::Vector{String}=["Failed"]; user_check::Bool=true)
+    assertInitialized()
     df = """
         SELECT simulations.simulation_id, simulations.status_code_id, status_codes.status_code
         FROM simulations

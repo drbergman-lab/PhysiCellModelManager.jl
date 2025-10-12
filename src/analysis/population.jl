@@ -170,6 +170,7 @@ final_default_count = fpc["default"]
 ```
 """
 function finalPopulationCount(simulation_id::Int; include_dead::Bool=false)
+    assertInitialized()
     final_snapshot = PhysiCellSnapshot(simulation_id, :final; include_cells=true)
     return populationCount(final_snapshot; include_dead=include_dead)
 end

@@ -35,24 +35,27 @@ function createProject(project_dir::String="."; clone_physicell::Bool=true, temp
     setUpComponents(data_dir, physicell_dir)
     setUpScripts(project_dir, physicell_dir, data_dir, template_as_default, terse)
     createDefaultGitIgnore(project_dir)
+    initializeModelManager(physicell_dir, data_dir)
+    project_dir_norm = normpath(abspath(project_dir))
     msg = """
-        PhysiCellModelManager.jl project created at $(abspath(project_dir))! A couple notes:
-        1. To get started:
 
-                shell> cd $(abspath(project_dir))
-                julia> initializeModelManager()
+    PhysiCellModelManager.jl project created at $(project_dir_norm)! A couple notes:
+    1. We got you started this time (see output above). Next time, just do:
 
-        2. Check out the sample script in `$(joinpath(project_dir, "scripts"))` to get started with running simulations.
-        3. A .gitignore file has been created in the data directory.
-        4. If you want to track changes to this project, you can initialize a git repository:
+            shell> cd $project_dir_norm
+            julia> using PhysiCellModelManager
 
-                cd $(abspath(project_dir))
-                git init
-                git submodule add https://github.com/drbergman/PhysiCell
+    2. Check out the sample script in `$(joinpath(project_dir_norm, "scripts"))` to get started with running simulations.
+    3. A .gitignore file has been created in the data directory.
+    4. If you want to track changes to this project, you can initialize a git repository:
 
-        5. Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
+            cd $project_dir_norm
+            git init
+            git submodule add https://github.com/drbergman/PhysiCell
 
-        Happy modeling!
+    5. Take a look at the best practices for PCMM: https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/man/best_practices/
+
+    Happy modeling!
     """
     println(msg)
 end
@@ -262,8 +265,9 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     tersify(s::String) = (terse ? "" : s)
     generate_data_lines = """
     using PhysiCellModelManager
-    initializeModelManager() # this works if launching from the project directory, i.e. the directory containing the data and PhysiCell folders
-    # initializeModelManager(\"$(abspath(physicell_dir))\", \"$(abspath(data_dir))\") # use this if not calling this from the project directory
+
+    # if you launch the script from the project directory, you don't need this next line explicitly calling initializeModelManager
+    # initializeModelManager(\"$(normpath(abspath(project_dir)))\") 
 
     ############ set up ############
 

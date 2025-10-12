@@ -66,6 +66,7 @@ mkdir(path_to_bad_folder)
 
 rm(path_to_bad_folder; force=true, recursive=true)
 @test PhysiCellModelManager.initializeDatabase() == true
+PhysiCellModelManager.assertInitialized()
 
 # test stmtToDataFrame error
 stmt_str = "SELECT * FROM simulations WHERE simulation_id = :simulation_id;"

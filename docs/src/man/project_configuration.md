@@ -14,7 +14,7 @@ varied = true
 basename = "PhysiCell_settings.xml"
 ```
 
-Upon initialization of the model manager, i.e., calling `initializeModelManager()`, the `inputs.toml` file is parsed and each entry (`config` is shown above) has four features stored:
+Upon initialization of the model manager, i.e., calling `using PhysiCellModelManager` (or `initializeModelManager()`), the `inputs.toml` file is parsed and each entry (`config` is shown above) has four features stored:
 - `required`: A boolean indicating if the location is required for the model to run.
 - `basename`: The base name of the file to be used for the location.
 - `varied`: A boolean indicating if the location can vary between different model runs.

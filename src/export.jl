@@ -17,6 +17,7 @@ Warning: not all features in drbergman/PhysiCell/latest/release are not supporte
 - `export_folder::AbstractString`: the folder where the simulation was exported to
 """
 function exportSimulation(simulation_id::Integer, export_folder::AbstractString="$(joinpath(trialFolder(Simulation, simulation_id), "UserProjectExport"))")
+    assertInitialized()
     simulation = Simulation(simulation_id)
     return exportSimulation(simulation, export_folder)
 end

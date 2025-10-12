@@ -29,7 +29,10 @@ println(canonicalize(mean_runtime)) # e.g. 2 minutes, 53 seconds, 748 millisecon
 
 simulationRuntime(snapshot::PhysiCellSnapshot) = snapshot.runtime
 simulationRuntime(simulation::Simulation) = PhysiCellSnapshot(simulation, :final) |> simulationRuntime
-simulationRuntime(simulation_id::Integer) = PhysiCellSnapshot(simulation_id, :final) |> simulationRuntime
+function simulationRuntime(simulation_id::Integer)
+    assertInitialized()
+    PhysiCellSnapshot(simulation_id, :final) |> simulationRuntime
+end
 simulationRuntime(pcmm_output::PCMMOutput{Simulation}) = pcmm_output.trial |> simulationRuntime
 
 """
@@ -64,4 +67,7 @@ function simulationRuntimeIntervals(simulation::Simulation)
 end
 
 simulationRuntimeIntervals(pcmm_output::PCMMOutput{Simulation}) = simulationRuntimeIntervals(pcmm_output.trial)
-simulationRuntimeIntervals(simulation_id::Integer) = PhysiCellSequence(simulation_id) |> simulationRuntimeIntervals
+function simulationRuntimeIntervals(simulation_id::Integer)
+    assertInitialized()
+    PhysiCellSequence(simulation_id) |> simulationRuntimeIntervals
+end

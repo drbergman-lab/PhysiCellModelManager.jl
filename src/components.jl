@@ -79,6 +79,7 @@ If not, create a new folder and save the components there as a single file along
 - `folder::String`: The name of the folder where the components were assembled.
 """
 function assembleIntracellular!(cell_to_components_dict::Dict{String,Vector{PhysiCellComponent}}; name::String="assembled", skip_db_insert::Bool=false)
+    assertInitialized()
     #! get all components to assign IDs
     unique_components = PhysiCellComponent[]
     for components in values(cell_to_components_dict)

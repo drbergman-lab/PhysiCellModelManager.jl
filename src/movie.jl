@@ -39,6 +39,7 @@ makeMovie(out) # make movies for all simulations in the output
 ```
 """
 function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg)
+    assertInitialized()
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
     if isfile("$(path_to_output_folder)/out.mp4")
         movie_generated = false

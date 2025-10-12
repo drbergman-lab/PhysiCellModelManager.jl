@@ -32,12 +32,11 @@ julia> createProject()
 ```
 6. Import a project:
 ```julia-repl
-julia> initializeModelManager()
 julia> importProject("path/to/project_folder") # replace with the path to your project folder
 ```
-7. Check the output of Step 5 and record your input folders:
+7. Check the output of Step 6 and record your input folders:
 ```julia-repl
-julia> config_folder = "my_project" # replace these with the name from the output of Step 5
+julia> config_folder = "my_project" # replace these with the name from the output of Step 6
 julia> custom_code_folder = "my_project"
 julia> rules_folder = "my_project" 
 julia> inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection = rules_folder) # also add ic_cell and ic_substrate if used

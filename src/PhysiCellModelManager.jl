@@ -53,6 +53,18 @@ else
     baseToExecutable(s::String) = s
 end
 
+"""
+    PCMMMissingProject
+
+An exception type for when a PhysiCellModelManager.jl project cannot be found during initialization.
+
+# Fields
+- `msg::String`: The error message.
+"""
+struct PCMMMissingProject <: Exception
+    msg::String
+end
+
 function __init__()
     pcmm_globals.physicell_compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
 
@@ -63,6 +75,18 @@ function __init__()
     pcmm_globals.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
     pcmm_globals.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
 
+    try
+        initializeModelManager()
+    catch e
+        if !(e isa PCMMMissingProject)
+            rethrow(e)
+        end
+        @info """
+        PhysiCellModelManager: Could not find a project to initialize in $(pwd()). Do the following to begin:
+        1) (Optional) Create a new project with `createProject()` or `createProject("path/to/project")`.
+        2) Run `initializeModelManager("path/to/project")` or `initializeModelManager("path/to/physicell", "path/to/data")`.
+        """
+    end
 end
 
 ################## Initialization Functions ##################
@@ -107,6 +131,10 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     global pcmm_globals
     path_to_physicell, path_to_data = (path_to_physicell, path_to_data) .|> abspath .|> normpath
 
+    if !isdir(path_to_physicell) || !isdir(path_to_data)
+        throw(PCMMMissingProject("Could not find PhysiCell and/or data directories. Looked for them in: $path_to_physicell, $path_to_data"))
+    end
+
     #! print big logo of PhysiCellModelManager.jl here
     println(pcmmLogo())
     pcmm_globals.physicell_dir = path_to_physicell
@@ -128,7 +156,7 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         println("Project configuration file parsing failed.")
         return false
     end
-    pcmm_globals.initialized = initializeDatabase()
+    initializeDatabase()
     if !isInitialized()
         pcmm_globals.db = SQLite.DB()
         println("Database initialization failed.")

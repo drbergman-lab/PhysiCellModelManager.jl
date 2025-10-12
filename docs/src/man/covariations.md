@@ -12,7 +12,7 @@ Thus, there are, for now, two types of `CoVariation`'s: `CoVariation{DiscreteVar
 For a `CoVariation{DiscreteVariation}`, each of the `DiscreteVariation`'s must have the same number of values.
 This may be relaxed in future versions, but the primary use case anticipated is a [`GridVariation`](@ref) which requires the variations to inform the size of the grid.
 No restrictions are imposed on how the values of the various variations are linked.
-PhysiCellModelManager.jl will use values that share an index their respective vectors together.
+PhysiCellModelManager.jl will use values that share an index in their respective vectors together.
 
 ```julia
 base_xml_path = configPath("default", "custom:sample")
@@ -24,13 +24,13 @@ covariation = CoVariation(ev1, ev2) # CoVariation([ev1, ev2]) also works
 
 It is also not necessary to create the `ElementaryVariation`'s separately and then pass them to the `CoVariation` constructor.
 ```julia
-# have the phase durations vary by and compensate for each other
+# have the phase durations vary and compensate for each other
 phase_0_xml_path = configPath("default", "cycle", "duration", 0)
-phase_0_xml_path = configPath("default", "cycle", "duration", 1)
+phase_1_xml_path = configPath("default", "cycle", "duration", 1)
 phase_0_durations = [300.0, 400.0] 
 phase_1_durations = [200.0, 100.0] # the (mean) duration through these two phases is 500 min
 # input any number of tuples (xml_path, values)
-covariation = Covariation((phase_0_xml_path, phase_0_durations), (phase_1_xml_path, phase_1_durations))
+covariation = CoVariation((phase_0_xml_path, phase_0_durations), (phase_1_xml_path, phase_1_durations))
 ```
 
 ## `CoVariation{DistributedVariation}`

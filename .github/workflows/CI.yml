@@ -64,6 +64,13 @@ jobs:
         brew install imagemagick
         brew install ffmpeg
 
+    
+    - name: Set fake paths for non-macOS
+      if: matrix.os != 'macOS-latest'
+      run: |
+        echo "PCMM_IMAGEMAGICK_PATH=not/the/real/path/just/for/testing" >> $GITHUB_ENV
+        echo "PCMM_FFMPEG_PATH=another/not/real/path/just/for/testing" >> $GITHUB_ENV
+
     - name: Install MSYS2 on Windows
       if: matrix.os == 'windows-latest'
       uses: msys2/setup-msys2@v2
@@ -104,8 +111,6 @@ jobs:
       uses: julia-actions/julia-runtest@v1
       env:
         PCMM_NUM_PARALLEL_SIMS: 8
-        PCMM_IMAGEMAGICK_PATH: not/the/real/path/just/for/testing
-        PCMM_FFMPEG_PATH: another/not/real/path/just/for/testing
         PHYSICELL_CPP: ${{ matrix.compiler }}
         PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
         JULIA_DEBUG: PhysiCellModelManager

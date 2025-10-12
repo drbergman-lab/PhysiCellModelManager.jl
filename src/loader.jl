@@ -84,6 +84,7 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
     include_spring_attachments::Bool=false,
     include_neighbors::Bool=false)
 
+    assertInitialized()
     filepath_base = pathToOutputFileBase(simulation_id, index)
     path_to_xml = joinpath("$(filepath_base).xml")
     if !isfile(path_to_xml)
@@ -308,6 +309,7 @@ function PhysiCellSequence(simulation_id::Integer;
     include_spring_attachments::Bool=false,
     include_neighbors::Bool=false)
 
+    assertInitialized()
     path_to_xml = pathToOutputXML(simulation_id, :initial)
     cell_type_to_name_dict = cellTypeToNameDict(path_to_xml)
     if isempty(cell_type_to_name_dict)
@@ -766,6 +768,7 @@ data[1].cell_type_name # an Nx1 array of the cell type name of the first cell ov
 ```
 """
 function cellDataSequence(simulation_id::Integer, labels::Vector{String}; kwargs...)
+    assertInitialized()
     sequence = PhysiCellSequence(simulation_id)
     return cellDataSequence(sequence, labels; kwargs...)
 end

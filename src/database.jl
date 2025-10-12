@@ -17,10 +17,10 @@ function initializeDatabase()
     catch e
         SQLite.rollback(centralDB())
         println("Error initializing database: $e")
-        return false
+        pcmm_globals.initialized = false
     else
         SQLite.commit(centralDB())
-        return true
+        pcmm_globals.initialized = true
     end
 end
 
@@ -36,7 +36,7 @@ function reinitializeDatabase()
         return
     end
     pcmm_globals.initialized = false #! reset the initialized flag until the database is reinitialized
-    pcmm_globals.initialized = initializeDatabase()
+    initializeDatabase()
     return isInitialized()
 end
 
@@ -713,11 +713,13 @@ end
 simulationsTable(T::AbstractTrial, Ts::Vararg{AbstractTrial}; kwargs...) = simulationsTable([T; Ts...]; kwargs...)
 
 function simulationsTable(simulation_ids::AbstractVector{<:Integer}; kwargs...)
+    assertInitialized()
     query = constructSelectQuery("simulations", "WHERE simulation_id IN ($(join(simulation_ids,",")));")
     return simulationsTableFromQuery(query; kwargs...)
 end
 
 function simulationsTable(; kwargs...)
+    assertInitialized()
     query = constructSelectQuery("simulations")
     return simulationsTableFromQuery(query; kwargs...)
 end
@@ -755,4 +757,7 @@ using CSV
 printSimulationsTable(; sink=CSV.write("temp.csv")) # write data for all simulations into temp.csv
 ```
 """
-printSimulationsTable(args...; sink=println, kwargs...) = simulationsTable(args...; kwargs...) |> sink
+function printSimulationsTable(args...; sink=println, kwargs...)
+    assertInitialized()
+    simulationsTable(args...; kwargs...) |> sink
+end

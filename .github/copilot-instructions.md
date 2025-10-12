@@ -125,7 +125,7 @@ MyProject/
 
 1. **Setup**: Add BergmanLabRegistry, activate project, instantiate packages
 2. **Create Test Project**: `julia -e 'using PhysiCellModelManager; createProject("test_project")'`
-3. **Initialize**: `julia -e 'using PhysiCellModelManager; initializeModelManager()'`
+3. **Initialize**: `julia -e 'using PhysiCellModelManager'`
 4. **Run Tests**: Export required environment variables and run test suite
 5. **Validate Changes**: Ensure no regressions in C++ compilation or database operations
 

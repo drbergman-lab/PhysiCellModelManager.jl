@@ -40,24 +40,25 @@ Load the PhysiCellModelManager.jl module by running:
 ```julia-repl
 julia> using PhysiCellModelManager
 ```
-Then, create a new project by running:
+Then, create a new PCMM project by running:
 ```julia-repl
 julia> createProject(path_to_project_folder) # createProject() will use the current directory as the project folder
 ```
 This creates three folders inside the `path_to_project_folder` folder: `data/`, `PhysiCell/`, and `scripts/`.
 See [Data directory structure](@ref) for information about the `data/` folder.
+> Note: A PCMM project is distinct from PhysiCell's `sample_projects` and `user_projects`.
 
 ## (Optional) Import from `user_projects`
 ### Inputs
-If you have a project in the `PhysiCell/user_projects/` folder that you would like to import, you can do so by running [`importProject`](@ref):
+If you have a project in the `PhysiCell/user_projects/` (or `PhysiCell/sample_projects`) folder that you would like to import, you can do so by running [`importProject`](@ref):
 ```julia-repl
 julia> importProject(path_to_project_folder)
 ```
 The `path_to_project_folder` string can be either the absolute path (recommended) or the relative path (from the directory julia was launched) to the project folder.
 
-Note: This function assumes your project files are in the standard `PhysiCell/user_projects/` format.
+This function assumes your project files are in the standard `PhysiCell/user_projects/` format.
 See the table below for the standard locations of the files.
-Note the `Default directory` column shows the path relative to `path_to_project_folder`.
+The `Default directory` column shows the path relative to `path_to_project_folder`.
 
 | Input | Default directory | Default name | Key | Optional |
 | --- | --- | --- | --- | :---: |

@@ -9,8 +9,9 @@ If you anticipate doing a lot of this, consider using PhysiCell Studio for your 
 
 # Suggested practices
 
-## Use `createProject` to create a new project.
-This will create a new project directory with the necessary structure and files.
+## Use [`createProject`](@ref) to create a new PCMM project.
+[`createProject`](@ref) will create a new PCMM project directory with the necessary structure and files.
+*Note: This is a distinct folder from a PhysiCell sample project or user project.*
 If you do not want the template PhysiCell project copied over, use the keyword argument `template_as_default=false`, i.e.,
 ```julia-repl
 createProject("MyNewProject"; template_as_default=false)

@@ -1,4 +1,4 @@
-using Distributions, LazyGrids
+using Distributions
 import Distributions: cdf
 
 export ElementaryVariation, DiscreteVariation, DistributedVariation, CoVariation
@@ -972,29 +972,31 @@ function gridToDB(evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_va
 end
 
 function gridToDB(location::Symbol, evs::Vector{<:DiscreteVariation}, folder_id::Int, reference_variation_id::Int, ev_dims::AbstractVector{Int})
-
     all_varied_values = []
     for ev_dim in unique(ev_dims)
+        #! each entry in all_varied_values corresponds to a dimension being varied
+        #! all_varied_values[1], e.g., is a matrix where each column corresponds to a parameter varied in dimension 1
+        #! each column in that matrix is the values that parameter can take on
         dim_indices = findall(ev_dim .== ev_dims)
-        push!(all_varied_values, zip(variationValues.(evs[dim_indices])...))
+        push!(all_varied_values, reduce(hcat, variationValues.(evs[dim_indices])))
     end
 
-    NDG = ndgrid(collect.(all_varied_values)...)
-    sz_variations = size(NDG[1])
+    #! record the size of each dimension being varied
+    sz_variations = size.(all_varied_values, 1)
 
-    #! each ndg in NDG is an ND-array corresponding to one of the parameter dimensions varied.
-    #! Each entry is a tuple of values for each parameter that corresponds to that dimension.
-    #! By construction, the order in which the parameters appear matches the order of the dimensions.
-    #! In other words, all parameters in dimension 1 are first in evs, then dimension 2, etc.
-    #! So this line loops over all these tuples in ndg (`for x in ndg`) and puts them each into a vector (`[x...]`).
-    #! These are then turned into columns of a matrix (`reduce(hcat, ...)`) which has the same number of rows as there are parameters in that dimension...
-    #! ...and the number of columns is the total number of samples.
-    #! These matrices, one per dimension, are then concatenated into a single matrix (`reduce(vcat, ...)`)...
-    #! ...which has the same number of rows as there are parameters in total in this location.
-    #! Each column of this matrix is a single parameter vector that corresponds to a sample.
-    all_varied_values = reduce(vcat, [reduce(hcat, ([x...] for x in ndg)) for ndg in NDG]) |> eachcol
+    #! initialize the matrix to hold parameter vectors in columns
+    values_mat = zeros(Float64, length(evs), prod(sz_variations))
 
-    return reshape(addVariationRows(location, folder_id, evs, reference_variation_id, all_varied_values), sz_variations)
+    for (i, I) in enumerate(CartesianIndices(Dims(sz_variations)))
+        #! each column corresponds to one parameter vector
+        #! I is a CartesianIndex, meaning it tracks the row of each matrix in all_varied_values
+        #! for each dimension being varied (d), get the row I.I[d] from the matrix (all_varied_values[d][I.I[d], :])
+        #! and concatenate (vcat) these rows to form the ith parameter vector
+        values_mat[:, i] = reduce(vcat, (all_varied_values[d][I.I[d], :] for d in eachindex(I.I)))
+    end
+    values_iterator = eachcol(values_mat) #! each column is a parameter vector
+
+    return reshape(addVariationRows(location, folder_id, evs, reference_variation_id, values_iterator), sz_variations...)
 end
 
 ################## Latin Hypercube Sampling Functions ##################

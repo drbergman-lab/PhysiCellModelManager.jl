@@ -38,6 +38,9 @@ project_dir = "./test-project-download"
 createProject(project_dir; clone_physicell=false)
 data_dir = joinpath(project_dir, "data")
 physicell_dir = joinpath(project_dir, "PhysiCell")
+@test PhysiCellModelManager.isInitialized()
+@test PhysiCellModelManager.dataDir() == normpath(abspath(data_dir))
+@test PhysiCellModelManager.physicellDir() == normpath(abspath(physicell_dir))
 @test initializeModelManager(physicell_dir, data_dir)
 PhysiCellModelManager.resolvePhysiCellVersionID()
 

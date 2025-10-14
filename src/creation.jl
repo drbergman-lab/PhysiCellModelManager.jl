@@ -23,10 +23,12 @@ project_dir
 - `terse::Bool=false`: Whether to generate a terse `GenerateData.jl` file. If `true`, the file will be generated without comments and explanations.
 
 # Note
-The names of the `data` and `PhysiCell` directories are fixed and cannot be changed. Their relative locations should not be changed without updating the `GenerateData.jl` file.
+The names of the `data` and `PhysiCell` directories are fixed and cannot be changed. Their relative locations should not be changed without updating the `GenerateData.jl` file and other scripts accordingly.
 The name of the `scripts` folder and the `GenerateData.jl` are just by convention and can be changed.
 """
 function createProject(project_dir::String="."; clone_physicell::Bool=true, template_as_default::Bool=true, terse::Bool=false)
+    global pcmm_globals
+    pcmm_globals.initialized = false #! in case the user is creating a project in an already-initialized directory
     mkpath(project_dir)
     physicell_dir = setUpPhysiCell(project_dir, clone_physicell)
     data_dir = joinpath(project_dir, "data")

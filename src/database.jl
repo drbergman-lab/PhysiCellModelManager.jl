@@ -32,7 +32,7 @@ Reinitialize the database by searching through the `data/inputs` directory to ma
 function reinitializeDatabase()
     global pcmm_globals
     if !isInitialized()
-        println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager()` will do this.")
+        println("Database not initialized. Initialize the database first before re-initializing. `initializeModelManager` will do this.")
         return
     end
     pcmm_globals.initialized = false #! reset the initialized flag until the database is reinitialized
@@ -64,8 +64,8 @@ function createSchema()
         createPCMMTable(table_name, table_schema)
 
         location_path = locationPath(location)
+        @assert !location_dict["required"] || isdir(location_path) "$location_path is required but not found. This is where to put the folders for $table_name."
         folders = readdir(location_path; sort=false) |> filter(x -> isdir(joinpath(location_path, x)))
-        @assert !location_dict["required"] || !isempty(folders) "No folders in $location_path found. This is where to put the folders for $table_name."
         for folder in folders
             insertFolder(location, folder)
         end

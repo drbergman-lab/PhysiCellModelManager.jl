@@ -115,7 +115,7 @@ isInitialized() = pcmm_globals.initialized
     assertInitialized()
 
 Assert that the model manager has been initialized for a project.
-If not, throw an error with a message indicating that the user should run `initializeModelManager` first.
+If not, throw an error with a message indicating that the user should run [`initializeModelManager`](@ref) first.
 """
 function assertInitialized()
     @assert isInitialized() "The model manager has not been initialized for a project. Please run `initializeModelManager` first."

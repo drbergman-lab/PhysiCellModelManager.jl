@@ -25,14 +25,15 @@ pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
 ```julia-repl
 pkg> add PhysiCellModelManager
 ```
-5. Create a new project:
+5. Create a new PCMM project:
 ```julia-repl
 julia> using PhysiCellModelManager
-julia> createProject()
+julia> createProject() # uses the current directory as the PCMM project folder
 ```
-6. Import a project:
+> Note: A PCMM project is distinct from PhysiCell's `sample_projects` and `user_projects`.
+6. Import a sample project or a user project from PhysiCell:
 ```julia-repl
-julia> importProject("path/to/project_folder") # replace with the path to your project folder
+julia> importProject("path/to/PhysiCell/user_projects/my_project") # replace with the path to your project folder
 ```
 7. Check the output of Step 6 and record your input folders:
 ```julia-repl

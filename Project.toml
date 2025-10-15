@@ -1,6 +1,6 @@
 name = "PhysiCellModelManager"
 uuid = "7582d1aa-5e58-4d65-a123-4418a61a2644"
-version = "0.1.6"
+version = "0.1.7"
 authors = ["Daniel Bergman <danielrbergman@gmail.com> and contributors"]
 
 [deps]
@@ -56,7 +56,7 @@ MetaGraphsNext = "0.7.2"
 PairCorrelationFunction = "0.0.11"
 Parameters = "0.12"
 PhysiCellCellCreator = "0.0.6"
-PhysiCellECMCreator = "0.0.8"
+PhysiCellECMCreator = "0.0.9"
 PhysiCellXMLRules = "0.0.8"
 Pkg = "1.10.0"
 QuasiMonteCarlo = "0.3"

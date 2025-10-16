@@ -1,0 +1,10 @@
+cff-version: 1.1.0
+message: "If you use this software, please cite it as below."
+authors:
+- family-names: "Bergman"
+  given-names: "Daniel R"
+orcid: "https://orcid.org/0000-0002-2166-6616"
+title: "PhysiCellModelManager.jl: A database-backed manager of PhysiCell simulation campaign inputs and outputs."
+version: 0.1.7
+date-released: 2025-10-15
+url: "https://github.com/drbergman-lab/PhysiCellModelManager.jl"

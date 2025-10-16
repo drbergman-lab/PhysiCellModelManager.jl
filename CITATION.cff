@@ -1,10 +1,43 @@
-cff-version: 1.1.0
-message: "If you use this software, please cite it as below."
+cff-version: 1.2.0
+title: >-
+  PhysiCellModelManager.jl: A database-backed manager of
+  PhysiCell simulation campaign inputs and outputs.
+message: 'If you use this software, please cite it as below.'
+type: software
 authors:
-- family-names: "Bergman"
-  given-names: "Daniel R"
-orcid: "https://orcid.org/0000-0002-2166-6616"
-title: "PhysiCellModelManager.jl: A database-backed manager of PhysiCell simulation campaign inputs and outputs."
+  - family-names: Bergman
+    given-names: Daniel R
+    orcid: 'https://orcid.org/0000-0002-2166-6616'
+repository-code: 'https://github.com/drbergman-lab/PhysiCellModelManager.jl'
+url: >-
+  https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/
+abstract: >-
+  PhysiCellModelManager.jl (PCMM) is a Julia package for
+  managing PhysiCell simulation workflows—from input
+  preparation to output analysis. Using a database-driven
+  approach, PCMM organizes simulation inputs, tracks
+  parameter values, and manages outputs in a structured
+  hierarchy, allowing users to focus on modeling rather than
+  bookkeeping. This system supports efficient reuse of
+  previously run simulations and simplifies the process of
+  extending simulation scripts and campaigns. PCMM enables
+  both scripted analysis in Julia and interactive
+  visualization in PhysiCell Studio, made simple by its
+  structured database design. PCMM also facilitates
+  reproducibility by capturing simulation inputs and outputs
+  in a centralized database that supports tracking, reuse,
+  and extension. Altogether, PCMM reduces the cognitive and
+  logistical overhead of agent-based modeling workflows,
+  enabling faster iteration, easier collaboration, and a
+  clearer path from model development to insight.
+keywords:
+  - agent-based model
+  - ABM
+  - simulation campaign
+  - simulation campaigns
+  - PhysiCell
+  - database
+  - reproducibility
+license: BSD-3-Clause
 version: 0.1.7
-date-released: 2025-10-15
-url: "https://github.com/drbergman-lab/PhysiCellModelManager.jl"
+date-released: '2025-10-15'

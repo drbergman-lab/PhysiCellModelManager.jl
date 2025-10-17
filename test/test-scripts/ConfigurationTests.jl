@@ -220,5 +220,5 @@ simulation = createTrial(inputs, dv)
 PhysiCellModelManager.prepareVariedInputFolder(:rulesets_collection, simulation)
 
 # test that a bad path throws an error
-xml_path = PhysiCellModelManager.cyclePath("default", "phase_transition_rates")
+xml_path = PhysiCellModelManager.cyclePath("default", "phase_durations")
 @test_throws ErrorException createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))

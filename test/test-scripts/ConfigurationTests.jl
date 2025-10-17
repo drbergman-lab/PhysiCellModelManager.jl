@@ -1,4 +1,4 @@
-using LightXML
+using PhysiCellModelManager.PCMMXML, XML
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -89,7 +89,7 @@ paths_to_skip = [
     [configPath(cell_type, "advanced_chemotaxis", tag) for tag in ["enabled", "normalize_each_gradient"]]...
 ]
 
-xml_doc = parse_file(path_to_xml)
+xml_doc = read(path_to_xml, LazyNode)
 indices_to_pop = []
 for (i, ep) in enumerate(element_paths)
     ce = PhysiCellModelManager.retrieveElement(xml_doc, ep; required=false)
@@ -106,7 +106,6 @@ for (i, ep) in enumerate(element_paths)
         println("Element $(ep) was not retrieved as expected. Expected to get $(test_fn)")
     end
 end
-free(xml_doc)
 for i in reverse(indices_to_pop)
     popat!(element_paths, i)
 end
@@ -206,7 +205,7 @@ out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 @test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
 @test_throws ArgumentError PhysiCellModelManager.shortVariationName(:not_a_location, "not_a_var")
 
-xml_doc = parse_file(path_to_xml)
+xml_doc = read(path_to_xml, LazyNode)
 xml_path = ["not", "a", "path"]
 @test_throws ArgumentError PhysiCellModelManager.retrieveElement(xml_doc, xml_path)
 
@@ -219,3 +218,14 @@ config_folder = rules_folder = custom_code_folder = ic_cell_folder = "template_x
 inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rules_folder, ic_cell=ic_cell_folder)
 simulation = createTrial(inputs, dv)
 PhysiCellModelManager.prepareVariedInputFolder(:rulesets_collection, simulation)
+
+# test that a bad path throws an error
+cell_definition = "increasing_partial_hill"
+xml_path = PhysiCellModelManager.cyclePath(cell_definition, "phase_transition_rates")
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))
+
+xml_path = PhysiCellModelManager.phenotypePath(cell_definition, "volume")
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))
+
+xml_path = ["save", "SVG", "plot_substrate", "min_conc"]
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))

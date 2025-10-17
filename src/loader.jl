@@ -91,7 +91,7 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
         println("Could not find file $path_to_xml. Returning missing.")
         return missing
     end
-    xml_doc = parse_file("$(filepath_base).xml")
+    xml_doc = read("$(filepath_base).xml", LazyNode)
     time = getContent(xml_doc, ["metadata","current_time"]) |> x->parse(Float64, x)
     seconds_to_nanoseconds = x -> round(x * 1e9) |> Nanosecond
     runtime = getContent(xml_doc, ["metadata", "current_runtime"]) |> x -> parse(Float64, x) |> seconds_to_nanoseconds
@@ -137,7 +137,6 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
             return missing
         end
     end
-    free(xml_doc)
     return PhysiCellSnapshot(simulation_id, index, time, runtime, DataFrame(cells), substrates, mesh, attachments, spring_attachments, neighbors)
 end
 
@@ -397,20 +396,20 @@ function cellLabels(path_to_file::String)
     if !isfile(path_to_file)
         return String[]
     end
-    xml_doc = parse_file(path_to_file)
+    xml_doc = read(path_to_file, LazyNode)
     labels = cellLabels(xml_doc)
-    free(xml_doc)
     return labels
 end
 
-function cellLabels(xml_doc::XMLDocument)
+function cellLabels(xml_doc::XML.AbstractXMLNode)
+    @assert nodetype(xml_doc) == XML.Document "The input XML node to cellLabels must be a Document."
     labels = String[]
     xml_path = ["cellular_information", "cell_populations", "cell_population", "custom", "simplified_data", "labels"]
     labels_element = retrieveElement(xml_doc, xml_path; required=true)
 
-    for label in child_elements(labels_element)
-        label_name = content(label)
-        label_ind_width = attribute(label, "size"; required=true) |> x -> parse(Int, x)
+    for label in children(labels_element)
+        label_name = simple_content(label)
+        label_ind_width = attributes(label)["size"] |> x -> parse(Int, x)
         if label_ind_width > 1
             label_name = [label_name * "_$i" for i in 1:label_ind_width]
             append!(labels, label_name)
@@ -441,20 +440,20 @@ function cellTypeToNameDict(path_to_file::String)
     if !isfile(path_to_file)
         return Dict{Int,String}()
     end
-    xml_doc = parse_file(path_to_file)
+    xml_doc = read(path_to_file, LazyNode)
     cell_type_to_name_dict = cellTypeToNameDict(xml_doc)
-    free(xml_doc)
     return cell_type_to_name_dict
 end
 
-function cellTypeToNameDict(xml_doc::XMLDocument)
+function cellTypeToNameDict(xml_doc::XML.AbstractXMLNode)
+    @assert nodetype(xml_doc) == XML.Document "The input XML node to cellTypeToNameDict must be a Document."
     cell_type_to_name_dict = Dict{Int, String}()
     xml_path = ["cellular_information", "cell_populations", "cell_population", "custom", "simplified_data", "cell_types"]
     cell_types_element = retrieveElement(xml_doc, xml_path; required=true)
 
-    for cell_type_element in child_elements(cell_types_element)
-        cell_type_id = attribute(cell_type_element, "ID"; required=true) |> x -> parse(Int, x)
-        cell_type_name = content(cell_type_element)
+    for cell_type_element in children(cell_types_element)
+        cell_type_id = attributes(cell_type_element)["ID"] |> x -> parse(Int, x)
+        cell_type_name = simple_content(cell_type_element)
         cell_type_to_name_dict[cell_type_id] = cell_type_name
     end
     return cell_type_to_name_dict
@@ -477,22 +476,22 @@ function substrateNames(path_to_file::String)
     if !isfile(path_to_file)
         return String[]
     end
-    xml_doc = parse_file(path_to_file)
+    xml_doc = read(path_to_file, LazyNode)
     substrate_names = substrateNames(xml_doc)
-    free(xml_doc)
     return substrate_names
 end
 
-function substrateNames(xml_doc::XMLDocument)
+function substrateNames(xml_doc::XML.AbstractXMLNode)
+    @assert nodetype(xml_doc) == XML.Document "The input XML node to substrateNames must be a Document."
     xml_path = ["microenvironment", "domain", "variables"]
     variables_element = retrieveElement(xml_doc, xml_path; required=true)
     substrate_dict = Dict{Int, String}()
-    for element in child_elements(variables_element)
-        if name(element) != "variable"
+    for element in children(variables_element)
+        if tag(element) != "variable"
             continue
         end
-        variable_id = attribute(element, "ID"; required=true) |> x -> parse(Int, x)
-        substrate_name = attribute(element, "name"; required=true)
+        variable_id = attributes(element)["ID"] |> x -> parse(Int, x)
+        substrate_name = attributes(element)["name"]
         substrate_dict[variable_id] = substrate_name
     end
     substrate_names = String[]
@@ -518,14 +517,13 @@ function _loadCells!(cells::DataFrame, filepath_base::String, cell_type_to_name_
     end
 
     if isempty(labels) || isempty(cell_type_to_name_dict)
-        xml_doc = parse_file("$(filepath_base).xml")
+        xml_doc = read("$(filepath_base).xml", LazyNode)
         if isempty(labels)
             labels = cellLabels(xml_doc)
         end
         if isempty(cell_type_to_name_dict)
             cell_type_to_name_dict = cellTypeToNameDict(xml_doc)
         end
-        free(xml_doc)
 
         #! confirm that these were both found
         @assert !isempty(labels) && !isempty(cell_type_to_name_dict) "Could not find cell type information and/or labels in $(filepath_base).xml"
@@ -635,16 +633,17 @@ end
 
 Internal function to load mesh data into a dictionary associated with an [`AbstractPhysiCellSequence`](@ref) object.
 """
-function _loadMesh!(mesh::Dict{String, Vector{Float64}}, xml_doc::XMLDocument)
+function _loadMesh!(mesh::Dict{String, Vector{Float64}}, xml_doc::XML.AbstractXMLNode)
+    @assert nodetype(xml_doc) == XML.Document "The input XML node to _loadMesh! must be a Document."
     if !isempty(mesh)
         return
     end
     xml_path = ["microenvironment", "domain", "mesh"]
     mesh_element = retrieveElement(xml_doc, xml_path; required=true)
-    mesh["bounding_box"] = parse.(Float64, split(content(find_element(mesh_element, "bounding_box")), " "))
+    mesh["bounding_box"] = parse.(Float64, split(simple_content(find_element(mesh_element, "bounding_box")), " "))
     for tag in ["x_coordinates", "y_coordinates", "z_coordinates"]
         coord_element = find_element(mesh_element, tag)
-        mesh[string(tag[1])] = parse.(Float64, split(content(coord_element), attribute(coord_element, "delimiter"; required=true)))
+        mesh[string(tag[1])] = parse.(Float64, split(simple_content(coord_element), attributes(coord_element)["delimiter"]))
     end
 end
 
@@ -659,9 +658,8 @@ Load the mesh data for a PhysiCell simulation into an [`AbstractPhysiCellSequenc
 function loadMesh!(snapshot::PhysiCellSnapshot)
     path_to_file = pathToOutputXML(snapshot)
     @assert isfile(path_to_file) "Could not find file $path_to_file. However, snapshot required this file to be created."
-    xml_doc = parse_file(path_to_file)
+    xml_doc = read(path_to_file, LazyNode)
     _loadMesh!(snapshot.mesh, xml_doc)
-    free(xml_doc)
     return
 end
 

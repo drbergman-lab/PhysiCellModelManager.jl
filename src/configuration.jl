@@ -1,4 +1,4 @@
-using PhysiCellXMLRules, PhysiCellCellCreator, PhysiCellECMCreator, LightXML
+using PhysiCellXMLRules, PhysiCellCellCreator, PhysiCellECMCreator, XML, .PCMMXML
 
 export configPath, rulePath, icCellsPath, icECMPath
 
@@ -13,15 +13,15 @@ export configPath, rulePath, icCellsPath, icECMPath
 ################## XML Functions ##################
 
 """
-    getChildByAttribute(parent_element::XMLElement, path_element_split::Vector{<:AbstractString})
+    getChildByAttribute(parent_element::XML.AbstractXMLNode, path_element_split::Vector{<:AbstractString})
 
 Get the child element of `parent_element` that matches the given tag and attribute.
 """
-function getChildByAttribute(parent_element::XMLElement, path_element_split::Vector{<:AbstractString})
+function getChildByAttribute(parent_element::XML.AbstractXMLNode, path_element_split::Vector{<:AbstractString})
     path_element_name, attribute_name, attribute_value = path_element_split
     candidate_elements = get_elements_by_tagname(parent_element, path_element_name)
     for ce in candidate_elements
-        if attribute(ce, attribute_name) == attribute_value
+        if attributes(ce)[attribute_name] == attribute_value
             return ce
         end
     end
@@ -29,11 +29,11 @@ function getChildByAttribute(parent_element::XMLElement, path_element_split::Vec
 end
 
 """
-    getChildByChildContent(current_element::XMLElement, path_element::AbstractString)
+    getChildByChildContent(current_element::XML.AbstractXMLNode, path_element::AbstractString)
 
 Get the child element of `current_element` that matches the given tag and child content.
 """
-function getChildByChildContent(current_element::XMLElement, path_element::AbstractString)
+function getChildByChildContent(current_element::XML.AbstractXMLNode, path_element::AbstractString)
     tag, child_scheme = split(path_element, "::")
     tokens = split(child_scheme, ":")
     @assert length(tokens) == 2 "Invalid child scheme for $(path_element). Expected format: <tag>::<child_tag>:<child_content>"
@@ -41,7 +41,7 @@ function getChildByChildContent(current_element::XMLElement, path_element::Abstr
     candidate_elements = get_elements_by_tagname(current_element, tag)
     for ce in candidate_elements
         child_element = find_element(ce, child_tag)
-        if !isnothing(child_element) && content(child_element) == child_content
+        if !isnothing(child_element) && simple_content(child_element) == child_content
             return ce, true
         end
     end
@@ -49,15 +49,17 @@ function getChildByChildContent(current_element::XMLElement, path_element::Abstr
 end
 
 """
-    retrieveElement(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    retrieveElement(current_element::XML.AbstractXMLNode, xml_path::Vector{<:AbstractString}; required::Bool=true)
 
 Retrieve the element in the XML document that matches the given path.
 
 If `required` is `true`, an error is thrown if the element is not found.
 Otherwise, `nothing` is returned if the element is not found.
 """
-function retrieveElement(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    current_element = root(xml_doc)
+function retrieveElement(current_element::XML.AbstractXMLNode, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    if nodetype(current_element) == XML.Document
+        current_element = root(current_element)
+    end
     for path_element in xml_path
         if contains(path_element, "::")
             current_element, success = getChildByChildContent(current_element, path_element)
@@ -89,22 +91,22 @@ function retrieveElementError(xml_path::Vector{<:AbstractString}, path_element::
 end
 
 """
-    getContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    getContent(current_element::XML.AbstractXMLNode, xml_path::Vector{<:AbstractString}; required::Bool=true)
 
 Get the content of the element in the XML document that matches the given path. See [`retrieveElement`](@ref).
 """
-function getContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    return retrieveElement(xml_doc, xml_path; required=required) |> content
+function getContent(current_element::XML.AbstractXMLNode, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    return retrieveElement(current_element, xml_path; required=required) |> simple_content
 end
 
 """
-    updateField(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
+    updateField(current_element::Node, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
 
 Update the content of the element in the XML document that matches the given path with the new value. See [`retrieveElement`](@ref).
 """
-function updateField(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
-    current_element = retrieveElement(xml_doc, xml_path; required=true)
-    set_content(current_element, string(new_value))
+function updateField(current_element::Node, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
+    current_element = retrieveElement(current_element, xml_path; required=true)
+    set_simple_content(Node(current_element), string(new_value))
     return nothing
 end
 
@@ -128,29 +130,31 @@ Inverse of [`columnName`](@ref).
 columnNameToXMLPath(column_name::String) = split(column_name, "/")
 
 """
-    makeXMLPath(current_element::XMLElement, xml_path::AbstractVector{<:AbstractString})
+    makeXMLPath(current_element::XML.AbstractXMLNode, xml_path::AbstractVector{<:AbstractString})
 
 Create (if it does not exist) and return the XML element relative to the given XML element.
 
 Similar functionality to the shell command `mkdir -p`, but for XML elements.
 
 # Arguments
-- `current_element::XMLElement`: The current XML element to start from.
+- `current_element::XML.AbstractXMLNode`: The current XML element to start from.
 - `xml_path::AbstractVector{<:AbstractString}`: The path to the XML element to create or retrieve. Can be a string representing a child of the current element.
 """
-function makeXMLPath(current_element::XMLElement, xml_path::AbstractVector{<:AbstractString})
+function makeXMLPath(current_element::XML.AbstractXMLNode, xml_path::AbstractVector{<:AbstractString})
+    if nodetype(current_element) == XML.Document
+        current_element = root(current_element)
+    end
     for path_element in xml_path
         if contains(path_element, "::")
             current_element, success = getChildByChildContent(current_element, path_element)
             if !success
-                current_element = new_child(current_element, tag)
-                child_element = new_child(current_element, child_tag)
-                set_content(child_element, child_content)
+                current_element = add_child_element(current_element, tag)
+                child_element = add_child_element(current_element, child_tag, child_content)
             end
         elseif !contains(path_element, ":")
             child_element = find_element(current_element, path_element)
             if isnothing(child_element)
-                current_element = new_child(current_element, path_element)
+                current_element = add_child_element(current_element, path_element)
             else
                 current_element = child_element
             end
@@ -160,27 +164,13 @@ function makeXMLPath(current_element::XMLElement, xml_path::AbstractVector{<:Abs
             child_element = getChildByAttribute(current_element, path_element_split)
             if isnothing(child_element)
                 path_element_name, attribute_name, attribute_value = path_element_split
-                child_element = new_child(current_element, path_element_name)
-                set_attribute(child_element, attribute_name, attribute_value)
+                child_element = add_child_element(current_element, String(path_element_name))
+                child_element[attribute_name] = attribute_value
             end
             current_element = child_element
         end
     end
     return current_element
-end
-
-"""
-    makeXMLPath(xml_doc::XMLDocument, xml_path::AbstractVector{<:AbstractString})
-
-Create (if it does not exist) and return the XML element relative to the root of the given XML document.
-
-# Arguments
-- `xml_doc::XMLDocument`: The XML document to start from.
-- `xml_path::AbstractVector{<:AbstractString}`: The path to the XML element to create or retrieve. Can be a string representing a child of the root element.
-"""
-function makeXMLPath(xml_doc::XMLDocument, xml_path::AbstractVector{<:AbstractString})
-    current_element = root(xml_doc)
-    return makeXMLPath(current_element, xml_path)
 end
 
 makeXMLPath(x, xml_path::AbstractString) = makeXMLPath(x, [xml_path])
@@ -206,7 +196,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
     @assert endswith(path_to_base_xml, ".xml") "Base XML file for $(location) must end with .xml. Got $(path_to_base_xml)"
     @assert isfile(path_to_base_xml) "Base XML file not found: $(path_to_base_xml)"
 
-    xml_doc = parse_file(path_to_base_xml)
+    xml_doc = read(path_to_base_xml, Node)
     if M.variation_id[location] != 0 #! only update if not using the base variation for the location
         query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])")
         variation_row = queryToDataFrame(query; db=locationVariationsDatabase(location, M), is_row=true)
@@ -218,8 +208,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
             updateField(xml_doc, xml_path, variation_row[1, column_name])
         end
     end
-    save_file(xml_doc, path_to_xml)
-    free(xml_doc)
+    XML.write(path_to_xml, xml_doc)
     postVariationXMLProcessing(location, path_to_xml)
     return
 end
@@ -302,7 +291,7 @@ function pathToICCell(simulation::Simulation)
         return joinpath(path_to_ic_cell_folder, "cells.csv")
     end
     path_to_config_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
-    xml_doc = parse_file(path_to_config_xml)
+    xml_doc = read(path_to_config_xml, LazyNode)
     domain_dict = Dict{String,Float64}()
     for d in ["x", "y", "z"]
         for side in ["min", "max"]
@@ -311,7 +300,6 @@ function pathToICCell(simulation::Simulation)
             domain_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
         end
     end
-    free(xml_doc)
     path_to_ic_cell_variations = joinpath(path_to_ic_cell_folder, locationVariationsFolder(:ic_cell))
     path_to_ic_cell_xml = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell]).xml")
     path_to_ic_cell_file = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell])_s$(simulation.id).csv")
@@ -331,7 +319,7 @@ function pathToICECM(simulation::Simulation)
         return joinpath(path_to_ic_ecm_folder, "ecm.csv")
     end
     path_to_config_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
-    xml_doc = parse_file(path_to_config_xml)
+    xml_doc = read(path_to_config_xml, LazyNode)
     config_dict = Dict{String,Float64}()
     for d in ["x", "y"] #! does not (yet?) support 3D
         for side in ["min", "max"]
@@ -343,7 +331,6 @@ function pathToICECM(simulation::Simulation)
         xml_path = ["domain"; key]
         config_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
     end
-    free(xml_doc)
     path_to_ic_ecm_variations = joinpath(path_to_ic_ecm_folder, locationVariationsFolder(:ic_ecm))
     path_to_ic_ecm_xml = joinpath(path_to_ic_ecm_variations, "ic_ecm_variation_$(simulation.variation_id[:ic_ecm]).xml")
     path_to_ic_ecm_file = joinpath(path_to_ic_ecm_variations, "ic_ecm_variation_$(simulation.variation_id[:ic_ecm])_s$(simulation.id).csv")

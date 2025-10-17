@@ -90,14 +90,13 @@ function upgradeToV0_0_1(::Bool)
             if !isfile(path_to_xml)
                 writeXMLRules(path_to_xml, joinpath(path_to_rulesets_collection_folder, "base_rulesets.csv"))
             end
-            xml_doc = parse_file(path_to_xml)
+            xml_doc = read(path_to_xml, LazyNode)
             for column_name in column_names
                 xml_path = columnNameToXMLPath(column_name)
                 base_value = getContent(xml_doc, xml_path)
                 stmt = SQLite.Stmt(db_rulesets_variations, "UPDATE rulesets_variations SET '$(column_name)'=(:base_value) WHERE rulesets_collection_variation_id=0;")
                 DBInterface.execute(stmt, (base_value,))
             end
-            free(xml_doc)
         end
     end
     return true

@@ -1,4 +1,4 @@
-using LightXML
+using XML, .PCMMXML
 
 export importProject
 
@@ -106,20 +106,20 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
     if !isfile(path_to_xml) #! if the config file is not found, then we cannot proceed with grabbing the intracellular data, just return the default
         return ImportSource(src, "intracellular", "config", "intracellular.xml", "file", false)
     end
-    xml_doc = parse_file(path_to_xml)
+    xml_doc = read(path_to_xml, LazyNode)
     cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
     cell_type_to_components_dict = Dict{String,PhysiCellComponent}()
-    for cell_definition_element in child_elements(cell_definitions_element)
-        @assert name(cell_definition_element) == "cell_definition" "The child elements of <cell_definitions> should all be <cell_definition> elements."
-        cell_type = attribute(cell_definition_element, "name")
+    for cell_definition_element in children(cell_definitions_element)
+        @assert tag(cell_definition_element) == "cell_definition" "The child elements of <cell_definitions> should all be <cell_definition> elements."
+        cell_type = attributes(cell_definition_element)["name"]
         phenotype_element = find_element(cell_definition_element, "phenotype")
         intracellular_element = find_element(phenotype_element, "intracellular")
         if isnothing(intracellular_element)
             continue
         end
-        type = attribute(intracellular_element, "type")
+        type = attributes(intracellular_element)["type"]
         @assert type ∈ ["roadrunner"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner."
-        path_to_file = find_element(intracellular_element, "sbml_filename") |> content
+        path_to_file = find_element(intracellular_element, "sbml_filename") |> simple_content
         temp_component = PhysiCellComponent(type, basename(path_to_file))
         #! now we have to rely on the path to the file is correct relative to the parent directory of the config file (that should usually be the case)
         path_to_src = joinpath(path_to_project, path_to_file)
@@ -140,7 +140,6 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
     mv(joinpath(locationPath(:intracellular, intracellular_folder), "intracellular.xml"), joinpath(path_to_project, "config", "assembled_intracellular_for_import.xml"); force=true)
     rm(locationPath(:intracellular, intracellular_folder); force=true, recursive=true)
 
-    free(xml_doc)
     return ImportSource(src, "intracellular", "config", "assembled_intracellular_for_import.xml", "file", true; pcmm_name="intracellular.xml", copy_or_move=_move_)
 end
 
@@ -253,12 +252,10 @@ end
 Write the description to the metadata file.
 """
 function writeDescriptionToMetadata(path_to_metadata::AbstractString, description::AbstractString)
-    xml_doc = XMLDocument()
-    xml_root = create_root(xml_doc, "metadata")
-    description_element = new_child(xml_root, "description")
-    set_content(description_element, description)
-    save_file(xml_doc, path_to_metadata)
-    free(xml_doc)
+    xml_root = XML.h.metadata()
+    add_child_element(xml_root, "description", description)
+    xml_doc = create_xml_document(xml_root)
+    XML.write(path_to_metadata, xml_doc)
     return
 end
 

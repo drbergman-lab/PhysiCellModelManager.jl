@@ -1,4 +1,4 @@
-using LightXML
+using PhysiCellModelManager.PCMMXML, XML
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -67,11 +67,11 @@ simulation_id = pcmm_output_intracellular |> simulationIDs |> first
 path_to_exported_folder = exportSimulation(simulation_id, "IntracellularTestExport")
 path_to_xml = joinpath(path_to_exported_folder, "config", "PhysiCell_settings.xml")
 @test isfile(path_to_xml)
-xml_doc = parse_file(path_to_xml)
+xml_doc = read(path_to_xml, LazyNode)
 path_to_intracellular = ["cell_definitions", "cell_definition:name:default", "phenotype", "intracellular"]
 intracellular_element = PhysiCellModelManager.retrieveElement(xml_doc, path_to_intracellular)
-@test attribute(intracellular_element, "type") == "roadrunner"
+@test attributes(intracellular_element)["type"] == "roadrunner"
 sbml_filename_element = find_element(intracellular_element, "sbml_filename")
 @test !isnothing(sbml_filename_element)
-filename = content(sbml_filename_element)
+filename = simple_content(sbml_filename_element)
 @test isfile(joinpath(path_to_exported_folder, filename))

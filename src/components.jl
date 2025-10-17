@@ -1,4 +1,4 @@
-using LightXML, TOML, AutoHashEquals
+using XML, .PCMMXML, TOML, AutoHashEquals
 
 export assembleIntracellular!, PhysiCellComponent
 
@@ -140,37 +140,31 @@ function assembleIntracellular!(cell_to_components_dict::Dict{String,Vector{Phys
         cell_to_components_dict[cell_type] = updated_components
     end
 
-    xml_doc = XMLDocument()
-    xml_root = create_root(xml_doc, "PhysiCell_intracellular_mappings")
+    xml_root = XML.h("PhysiCell_intracellular_mappings")
 
     #! create cell definitions element
-    e_cell_definitions = new_child(xml_root, "cell_definitions")
+    e_cell_definitions = add_child_element(xml_root, "cell_definitions")
     for (cell_type, components) in cell_to_components_dict
-        e_cell_definition = new_child(e_cell_definitions, "cell_definition")
-        set_attribute(e_cell_definition, "name", cell_type)
-        e_intracellular_ids = new_child(e_cell_definition, "intracellular_ids")
+        e_cell_definition = add_child_element(e_cell_definitions, "cell_definition"; name=cell_type)
+        e_intracellular_ids = add_child_element(e_cell_definition, "intracellular_ids")
         for component in components
-            e_intracellular_id = new_child(e_intracellular_ids, "ID")
-            set_content(e_intracellular_id, string(component.id))
+            add_child_element(e_intracellular_ids, "ID", string(component.id))
         end
     end
 
     #! create intracellulars element
-    e_intracellulars = new_child(xml_root, "intracellulars")
+    e_intracellulars = add_child_element(xml_root, "intracellulars")
     for (component, i) in temp_ids
-        e_intracellular = new_child(e_intracellulars, "intracellular")
-        set_attribute(e_intracellular, "ID", string(i))
-        set_attribute(e_intracellular, "type", component.type)
+        e_intracellular = add_child_element(e_intracellulars, "intracellular"; ID=string(i), type=component.type)
 
         path_to_component_xml = joinpath(dataDir(), "components", pathFromComponents(component))
-        component_xml_doc = parse_file(path_to_component_xml)
+        component_xml_doc = read(path_to_component_xml, LazyNode)
         component_xml_root = root(component_xml_doc)
-        add_child(e_intracellular, component_xml_root)
-        free(component_xml_doc)
+        push!(e_intracellular, Node(component_xml_root))
     end
 
-    save_file(xml_doc, joinpath(path_to_folder, "intracellular.xml"))
-    free(xml_doc)
+    xml_doc = create_xml_document(xml_root)
+    XML.write(joinpath(path_to_folder, "intracellular.xml"), xml_doc)
 
     #! record the assembly of the document
     open(joinpath(path_to_folder, "assembly.toml"), "w") do io
@@ -307,14 +301,15 @@ function disassembleIntracellular(path_to_xml::String)
     folder, base_filename = splitdir(path_to_xml)
     basename = splitext(base_filename)[1]
     filename_fn = (cell, id, type) -> joinpath(folder, "$(basename)_$(cell)_ID$(id)_$(type).xml")
-    xml_doc = parse_file(path_to_xml)
-    cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
+    xml_doc = read(path_to_xml, LazyNode)
+    xml_root = root(xml_doc)
+    cell_definitions_element = retrieveElement(xml_root, ["cell_definitions"])
     intracellular_to_id_map = Dict{Int,Vector{String}}()
     for cell_definition_element in get_elements_by_tagname(cell_definitions_element, "cell_definition")
-        name = attribute(cell_definition_element, "name")
+        name = attributes(cell_definition_element)["name"]
         intracellular_ids_element = find_element(cell_definition_element, "intracellular_ids")
         for id_element in get_elements_by_tagname(intracellular_ids_element, "ID")
-            id = parse(Int, content(id_element))
+            id = parse(Int, simple_content(id_element))
             if !haskey(intracellular_to_id_map, id)
                 intracellular_to_id_map[id] = String[]
             end
@@ -322,18 +317,14 @@ function disassembleIntracellular(path_to_xml::String)
         end
     end
 
-    intracellulars_element = retrieveElement(xml_doc, ["intracellulars"])
+    intracellulars_element = retrieveElement(xml_root, ["intracellulars"])
     for intracellular_element in get_elements_by_tagname(intracellulars_element, "intracellular")
-        id = parse(Int, attribute(intracellular_element, "ID"))
-        type = attribute(intracellular_element, "type")
+        id = parse(Int, attributes(intracellular_element)["ID"])
+        type = attributes(intracellular_element)["type"]
         sbml_root = find_element(intracellular_element, "sbml")
-        intracellular_xml_doc = XMLDocument()
-        set_root(intracellular_xml_doc, sbml_root)
+        new_xml_doc = create_xml_document(sbml_root)
         for cell in intracellular_to_id_map[id]
-            filename = filename_fn(cell, id, type)
-            save_file(intracellular_xml_doc, filename)
+            XML.write(filename_fn(cell, id, type), new_xml_doc)
         end
-        free(intracellular_xml_doc)
     end
-    free(xml_doc)
 end

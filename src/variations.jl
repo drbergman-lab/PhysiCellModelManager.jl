@@ -559,7 +559,7 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
         new_column_names = varied_column_names[is_new_column]
         new_column_data_types = evs[is_new_column] .|> sqliteDataType
         xml_doc = parse_file(path_to_xml)
-        default_values_for_new = [getContent(xml_doc, xp.xml_path) for xp in xps[is_new_column]]
+        default_values_for_new = [getSimpleContent(xml_doc, xp.xml_path) for xp in xps[is_new_column]]
         free(xml_doc)
         for (new_column_name, data_type) in zip(new_column_names, new_column_data_types)
             DBInterface.execute(db_columns, "ALTER TABLE $(table_name) ADD COLUMN '$(new_column_name)' $(data_type);")

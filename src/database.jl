@@ -212,13 +212,12 @@ function metadataDescription(path_to_folder::AbstractString)
     path_to_metadata = joinpath(path_to_folder, "metadata.xml")
     description = ""
     if isfile(path_to_metadata)
-        xml_doc = parse_file(path_to_metadata)
+        xml_doc = read(path_to_metadata, LazyNode)
         metadata = root(xml_doc)
         description_element = find_element(metadata, "description")
         if !isnothing(description_element)
             description = content(find_element(metadata, "description"))
         end
-        free(xml_doc)
     end
     return description
 end

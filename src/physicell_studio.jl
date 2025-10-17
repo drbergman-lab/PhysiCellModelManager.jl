@@ -74,7 +74,7 @@ function setUpStudioInputs(simulation_id::Int)
 
     path_to_xml = joinpath(path_to_output, "PhysiCell_settings.xml")
     @assert isfile(path_to_xml) "The file $path_to_xml does not exist. Please check the simulation ID and try again."
-    xml_doc = parse_file(path_to_xml)
+    xml_doc = read(path_to_xml, Node)
     save_folder_element = makeXMLPath(xml_doc, ["save", "folder"])
     set_content(save_folder_element, path_to_output)
     if isfile(joinpath(path_to_output, output_rules_file))
@@ -98,8 +98,7 @@ function setUpStudioInputs(simulation_id::Int)
     end
 
     path_to_temp_xml = joinpath(path_to_output, "PhysiCell_settings_temp.xml")
-    save_file(xml_doc, path_to_temp_xml)
-    free(xml_doc)
+    XML.write(path_to_temp_xml, xml_doc)
 
     return path_to_temp_xml, path_to_input_rules
 end

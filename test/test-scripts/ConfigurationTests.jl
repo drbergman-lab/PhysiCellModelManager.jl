@@ -1,4 +1,4 @@
-using LightXML
+using PhysiCellModelManager.PCMMXML, XML
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -89,7 +89,7 @@ paths_to_skip = [
     [configPath(cell_type, "advanced_chemotaxis", tag) for tag in ["enabled", "normalize_each_gradient"]]...
 ]
 
-xml_doc = parse_file(path_to_xml)
+xml_doc = read(path_to_xml, LazyNode)
 indices_to_pop = []
 for (i, ep) in enumerate(element_paths)
     ce = PhysiCellModelManager.retrieveElement(xml_doc, ep; required=false)
@@ -106,7 +106,6 @@ for (i, ep) in enumerate(element_paths)
         println("Element $(ep) was not retrieved as expected. Expected to get $(test_fn)")
     end
 end
-free(xml_doc)
 for i in reverse(indices_to_pop)
     popat!(element_paths, i)
 end
@@ -206,7 +205,7 @@ out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 @test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
 @test_throws ArgumentError PhysiCellModelManager.shortVariationName(:not_a_location, "not_a_var")
 
-xml_doc = parse_file(path_to_xml)
+xml_doc = read(path_to_xml, LazyNode)
 xml_path = ["not", "a", "path"]
 @test_throws ArgumentError PhysiCellModelManager.retrieveElement(xml_doc, xml_path)
 

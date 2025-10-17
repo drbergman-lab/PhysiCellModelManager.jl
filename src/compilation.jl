@@ -1,6 +1,6 @@
 #! This file will likely end up being part of PhysiCellModelManager.jl
 
-using LightXML
+using XML, .PCMMXML
 
 """
     loadCustomCode(S::AbstractSampling[; force_recompile::Bool=false])
@@ -232,11 +232,10 @@ Check if any of the simulations in `S` have a configuration file with `ecm_setup
 """
 function isPhysiECMInConfig(M::AbstractMonad)
     path_to_xml = joinpath(locationPath(:config, M), locationVariationsFolder(:config), "config_variation_$(M.variation_id[:config]).xml")
-    xml_doc = parse_file(path_to_xml)
+    xml_doc = read(path_to_xml, LazyNode)
     xml_path = ["microenvironment_setup", "ecm_setup"]
     ecm_setup_element = retrieveElement(xml_doc, xml_path; required=false)
-    physi_ecm_in_config = !isnothing(ecm_setup_element) && attribute(ecm_setup_element, "enabled") == "true" #! note: attribute returns nothing if the attribute does not exist
-    free(xml_doc)
+    physi_ecm_in_config = !isnothing(ecm_setup_element) && attributes(ecm_setup_element)["enabled"] == "true" #! note: attribute returns nothing if the attribute does not exist
     return physi_ecm_in_config
 end
 
@@ -283,9 +282,8 @@ function isRoadRunnerInInputs(S::AbstractSampling)
         return false
     end
     path_to_xml = joinpath(locationPath(:intracellular, S), S.inputs[:intracellular].basename)
-    xml_doc = parse_file(path_to_xml)
+    xml_doc = read(path_to_xml, LazyNode)
     is_nothing = retrieveElement(xml_doc, ["intracellulars"; "intracellular:type:roadrunner"]) |> isnothing
-    free(xml_doc)
     return !is_nothing
 end
 
@@ -296,21 +294,20 @@ Check if any of the simulations in `S` have a configuration file with `roadrunne
 """
 function isRoadRunnerInConfig(S::AbstractSampling)
     path_to_xml = joinpath(locationPath(:config, S), "PhysiCell_settings.xml")
-    xml_doc = parse_file(path_to_xml)
+    xml_doc = read(path_to_xml, LazyNode)
     cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
     ret_val = false
-    for child in child_elements(cell_definitions_element)
+    for child in children(cell_definitions_element)
         phenotype_element = find_element(child, "phenotype")
         intracellular_element = find_element(phenotype_element, "intracellular")
         if isnothing(intracellular_element)
             continue
         end
-        if attribute(intracellular_element, "type") == "roadrunner"
+        if attributes(intracellular_element)["type"] == "roadrunner"
             ret_val = true
             break
         end
     end
-    free(xml_doc)
     return ret_val
 end
 

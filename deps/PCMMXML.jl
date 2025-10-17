@@ -36,14 +36,14 @@ function simple_content(e::XML.AbstractXMLNode)
     c = children(e)
     l = length(c)
     if l == 0
-        throw(ErrorException("""
+        throw(AssertionError("""
         PCMMXML: Asked for simple_content of $(tag(e)), but it has no children.
         - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
         - This is your element:
         $(XML.write(e))
         """))
     elseif l > 1
-        throw(ErrorException("""
+        throw(AssertionError("""
         PCMMXML: Asked for simple_content of $(tag(e)), but it has multiple children.
         - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
         - This is your element:
@@ -66,7 +66,7 @@ function set_simple_content(e::Node, new_content::String)
     if l == 0
         push!(e, Node(new_content))
     elseif l > 1
-        throw(ErrorException("""
+        throw(AssertionError("""
         PCMMXML: Asked to set_simple_content of $(tag(e)), but it has multiple children.
         - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
         - This is your element:

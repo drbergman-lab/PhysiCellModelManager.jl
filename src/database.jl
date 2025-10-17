@@ -216,7 +216,7 @@ function metadataDescription(path_to_folder::AbstractString)
         metadata = root(xml_doc)
         description_element = find_element(metadata, "description")
         if !isnothing(description_element)
-            description = content(find_element(metadata, "description"))
+            description = simple_content(find_element(metadata, "description"))
         end
     end
     return description

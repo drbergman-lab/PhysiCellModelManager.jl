@@ -73,5 +73,5 @@ intracellular_element = PhysiCellModelManager.retrieveElement(xml_doc, path_to_i
 @test attributes(intracellular_element)["type"] == "roadrunner"
 sbml_filename_element = find_element(intracellular_element, "sbml_filename")
 @test !isnothing(sbml_filename_element)
-filename = content(sbml_filename_element)
+filename = simple_content(sbml_filename_element)
 @test isfile(joinpath(path_to_exported_folder, filename))

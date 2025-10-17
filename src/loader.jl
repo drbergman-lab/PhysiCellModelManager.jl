@@ -408,7 +408,7 @@ function cellLabels(xml_doc::XML.AbstractXMLNode)
     labels_element = retrieveElement(xml_doc, xml_path; required=true)
 
     for label in children(labels_element)
-        label_name = content(label)
+        label_name = simple_content(label)
         label_ind_width = attributes(label)["size"] |> x -> parse(Int, x)
         if label_ind_width > 1
             label_name = [label_name * "_$i" for i in 1:label_ind_width]
@@ -453,7 +453,7 @@ function cellTypeToNameDict(xml_doc::XML.AbstractXMLNode)
 
     for cell_type_element in children(cell_types_element)
         cell_type_id = attributes(cell_type_element)["ID"] |> x -> parse(Int, x)
-        cell_type_name = content(cell_type_element)
+        cell_type_name = simple_content(cell_type_element)
         cell_type_to_name_dict[cell_type_id] = cell_type_name
     end
     return cell_type_to_name_dict
@@ -640,10 +640,10 @@ function _loadMesh!(mesh::Dict{String, Vector{Float64}}, xml_doc::XML.AbstractXM
     end
     xml_path = ["microenvironment", "domain", "mesh"]
     mesh_element = retrieveElement(xml_doc, xml_path; required=true)
-    mesh["bounding_box"] = parse.(Float64, split(content(find_element(mesh_element, "bounding_box")), " "))
+    mesh["bounding_box"] = parse.(Float64, split(simple_content(find_element(mesh_element, "bounding_box")), " "))
     for tag in ["x_coordinates", "y_coordinates", "z_coordinates"]
         coord_element = find_element(mesh_element, tag)
-        mesh[string(tag[1])] = parse.(Float64, split(content(coord_element), attributes(coord_element)["delimiter"]))
+        mesh[string(tag[1])] = parse.(Float64, split(simple_content(coord_element), attributes(coord_element)["delimiter"]))
     end
 end
 

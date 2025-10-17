@@ -76,7 +76,7 @@ function setUpStudioInputs(simulation_id::Int)
     @assert isfile(path_to_xml) "The file $path_to_xml does not exist. Please check the simulation ID and try again."
     xml_doc = read(path_to_xml, Node)
     save_folder_element = makeXMLPath(xml_doc, ["save", "folder"])
-    set_content(save_folder_element, path_to_output)
+    set_simple_content(save_folder_element, path_to_output)
     if isfile(joinpath(path_to_output, output_rules_file))
         rules_df = CSV.read(joinpath(path_to_output, output_rules_file), DataFrame; header=rules_header, silencewarnings=true)
         if "base_response" in rules_header
@@ -91,8 +91,8 @@ function setUpStudioInputs(simulation_id::Int)
         folder_element = makeXMLPath(enabled_ruleset_element, "folder")
         filename_element = makeXMLPath(enabled_ruleset_element, "filename")
 
-        set_content(folder_element, path_to_output)
-        set_content(filename_element, input_rules_file)
+        set_simple_content(folder_element, path_to_output)
+        set_simple_content(filename_element, input_rules_file)
     else
         path_to_input_rules = nothing
     end

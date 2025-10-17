@@ -315,7 +315,7 @@ function disassembleIntracellular(path_to_xml::String)
         name = attributes(cell_definition_element)["name"]
         intracellular_ids_element = find_element(cell_definition_element, "intracellular_ids")
         for id_element in get_elements_by_tagname(intracellular_ids_element, "ID")
-            id = parse(Int, content(id_element))
+            id = parse(Int, simple_content(id_element))
             if !haskey(intracellular_to_id_map, id)
                 intracellular_to_id_map[id] = String[]
             end

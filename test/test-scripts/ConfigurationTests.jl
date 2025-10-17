@@ -218,3 +218,7 @@ config_folder = rules_folder = custom_code_folder = ic_cell_folder = "template_x
 inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rules_folder, ic_cell=ic_cell_folder)
 simulation = createTrial(inputs, dv)
 PhysiCellModelManager.prepareVariedInputFolder(:rulesets_collection, simulation)
+
+# test that a bad path throws an error
+xml_path = PhysiCellModelManager.cyclePath("default", "phase_transition_rates")
+@test_throws ErrorException createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))

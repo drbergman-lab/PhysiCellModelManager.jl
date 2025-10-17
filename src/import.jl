@@ -119,7 +119,7 @@ function prepareIntracellularImport(src::Dict, config::ImportSource, path_to_pro
         end
         type = attributes(intracellular_element)["type"]
         @assert type ∈ ["roadrunner"] "PhysiCellModelManager.jl does not yet support intracellular type $type. It only supports roadrunner."
-        path_to_file = find_element(intracellular_element, "sbml_filename") |> content
+        path_to_file = find_element(intracellular_element, "sbml_filename") |> simple_content
         temp_component = PhysiCellComponent(type, basename(path_to_file))
         #! now we have to rely on the path to the file is correct relative to the parent directory of the config file (that should usually be the case)
         path_to_src = joinpath(path_to_project, path_to_file)

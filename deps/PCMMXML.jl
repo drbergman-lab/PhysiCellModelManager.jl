@@ -2,7 +2,7 @@ module PCMMXML
 
 using XML
 
-export get_elements_by_tagname, find_element, content, set_content, root
+export get_elements_by_tagname, find_element, simple_content, set_simple_content, root, create_xml_document
 
 """
     get_elements_by_tagname(e::XML.AbstractXMLNode, tagname::AbstractString)
@@ -28,31 +28,54 @@ function find_element(e::XML.AbstractXMLNode, tagname::AbstractString)
 end
 
 """
-    has_content(e::XML.AbstractXMLNode)
+    simple_content(e::XML.AbstractXMLNode)
 
-Check if the XML element `e` has text content.
+Get the text content of the XML element `e` of the form `<tag attrbs...>content</tag>`.
 """
-has_content(e::XML.AbstractXMLNode) = nodetype(e) == XML.Element && nodetype(only(e)) in (XML.Text, XML.CData)
+function simple_content(e::XML.AbstractXMLNode)
+    c = children(e)
+    l = length(c)
+    if l == 0
+        throw(ErrorException("""
+        PCMMXML: Asked for simple_content of $(tag(e)), but it has no children.
+        - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
+        - This is your element:
+        $(XML.write(e))
+        """))
+    elseif l > 1
+        throw(ErrorException("""
+        PCMMXML: Asked for simple_content of $(tag(e)), but it has multiple children.
+        - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
+        - This is your element:
+        $(XML.write(e))
+        """))
+    else
+        @assert nodetype(first(c)) in (XML.Text, XML.CData) "Element $(tag(e)) does not have text or CDATA content. Cannot get simple_content."
+        return value(first(c))
+    end
+end
 
 """
-    content(e::XML.AbstractXMLNode)
-
-Get the text content of the XML element `e`. Throws an error if `e` has no content.
-"""
-content(e::XML.AbstractXMLNode) = has_content(e) ? value(only(e)) : error("PCMMXML: Asked for content of $(tag(e)), but it has none.")
-
-"""
-    set_content(e::XML.AbstractXMLNode, new_content::String)
+    set_simple_content(e::XML.AbstractXMLNode, new_content::String)
 
 Set the text content of the XML element `e` to `new_content`. If `e` has no content, a new text node is added.
 """
-function set_content(e::Node, new_content::String)
-    if isempty(children(e))
+function set_simple_content(e::Node, new_content::String)
+    c = children(e)
+    l = length(c)
+    if l == 0
         push!(e, Node(new_content))
-        return
+    elseif l > 1
+        throw(ErrorException("""
+        PCMMXML: Asked to set_simple_content of $(tag(e)), but it has multiple children.
+        - <tag>1.0</tag> is a Node with one child: the Text node "1.0".
+        - This is your element:
+        $(XML.write(e))
+        """))
+    else
+        @assert nodetype(first(c)) in (XML.Text, XML.CData) "Element $(tag(e)) does not have text or CDATA content. Cannot set content."
+        e[1] = new_content
     end
-    @assert nodetype(only(e)) in (XML.Text, XML.CData) "Element ($e) has no content, cannot set content"
-    e[1] = new_content
 end
 
 """

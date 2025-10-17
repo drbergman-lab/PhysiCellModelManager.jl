@@ -41,7 +41,7 @@ function getChildByChildContent(current_element::XML.AbstractXMLNode, path_eleme
     candidate_elements = get_elements_by_tagname(current_element, tag)
     for ce in candidate_elements
         child_element = find_element(ce, child_tag)
-        if !isnothing(child_element) && content(child_element) == child_content
+        if !isnothing(child_element) && simple_content(child_element) == child_content
             return ce, true
         end
     end
@@ -96,7 +96,7 @@ end
 Get the content of the element in the XML document that matches the given path. See [`retrieveElement`](@ref).
 """
 function getContent(current_element::XML.AbstractXMLNode, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    return retrieveElement(current_element, xml_path; required=required) |> content
+    return retrieveElement(current_element, xml_path; required=required) |> simple_content
 end
 
 """
@@ -106,7 +106,7 @@ Update the content of the element in the XML document that matches the given pat
 """
 function updateField(current_element::Node, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
     current_element = retrieveElement(current_element, xml_path; required=true)
-    set_content(Node(current_element), string(new_value))
+    set_simple_content(Node(current_element), string(new_value))
     return nothing
 end
 

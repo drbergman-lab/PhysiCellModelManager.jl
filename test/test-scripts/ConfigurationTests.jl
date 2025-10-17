@@ -219,3 +219,14 @@ config_folder = rules_folder = custom_code_folder = ic_cell_folder = "template_x
 inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rules_folder, ic_cell=ic_cell_folder)
 simulation = createTrial(inputs, dv)
 PhysiCellModelManager.prepareVariedInputFolder(:rulesets_collection, simulation)
+
+# test that a bad path throws an error
+cell_definition = "increasing_partial_hill"
+xml_path = PhysiCellModelManager.cyclePath(cell_definition, "phase_transition_rates")
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))
+
+xml_path = PhysiCellModelManager.phenotypePath(cell_definition, "volume")
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))
+
+xml_path = ["save", "SVG", "plot_substrate", "min_conc"]
+@test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))

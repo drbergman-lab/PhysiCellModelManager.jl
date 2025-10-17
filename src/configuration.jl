@@ -89,22 +89,36 @@ function retrieveElementError(xml_path::Vector{<:AbstractString}, path_element::
 end
 
 """
-    getContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
 
 Get the content of the element in the XML document that matches the given path. See [`retrieveElement`](@ref).
 """
-function getContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    return retrieveElement(xml_doc, xml_path; required=required) |> content
+function getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
+    e = retrieveElement(xml_doc, xml_path; required=required)
+    @assert elementIsTerminal(e) "Element at path $(join(xml_path, " -> ")) is not a terminal element and has child elements. Cannot get content."
+    ret_val = content(e)
+    @assert !isempty(ret_val) "Element at path $(join(xml_path, " -> ")) has empty content. Cannot get simple content."
+    return ret_val
+end
+
+function elementIsTerminal(e::XMLElement)
+    is_terminal = true
+    for _ in child_elements(e)
+        is_terminal = false
+        break
+    end
+    return is_terminal
 end
 
 """
-    updateField(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
+    updateSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
 
 Update the content of the element in the XML document that matches the given path with the new value. See [`retrieveElement`](@ref).
 """
-function updateField(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
-    current_element = retrieveElement(xml_doc, xml_path; required=true)
-    set_content(current_element, string(new_value))
+function updateSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
+    e = retrieveElement(xml_doc, xml_path; required=true)
+    @assert elementIsTerminal(e) "Element at path $(join(xml_path, " -> ")) is not a terminal element and has child elements. Cannot set content."
+    set_content(e, string(new_value))
     return nothing
 end
 
@@ -215,7 +229,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
                 continue
             end
             xml_path = columnNameToXMLPath(column_name)
-            updateField(xml_doc, xml_path, variation_row[1, column_name])
+            updateSimpleContent(xml_doc, xml_path, variation_row[1, column_name])
         end
     end
     save_file(xml_doc, path_to_xml)
@@ -308,7 +322,7 @@ function pathToICCell(simulation::Simulation)
         for side in ["min", "max"]
             key = "$(d)_$(side)"
             xml_path = ["domain"; key]
-            domain_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
+            domain_dict[key] = getSimpleContent(xml_doc, xml_path) |> x -> parse(Float64, x)
         end
     end
     free(xml_doc)
@@ -337,11 +351,11 @@ function pathToICECM(simulation::Simulation)
         for side in ["min", "max"]
             key = "$(d)_$(side)"
             xml_path = ["domain"; key]
-            config_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
+            config_dict[key] = getSimpleContent(xml_doc, xml_path) |> x -> parse(Float64, x)
         end
         key = "d$(d)" #! d$(d) looks funny but it's just dx and dy
         xml_path = ["domain"; key]
-        config_dict[key] = getContent(xml_doc, xml_path) |> x -> parse(Float64, x)
+        config_dict[key] = getSimpleContent(xml_doc, xml_path) |> x -> parse(Float64, x)
     end
     free(xml_doc)
     path_to_ic_ecm_variations = joinpath(path_to_ic_ecm_folder, locationVariationsFolder(:ic_ecm))

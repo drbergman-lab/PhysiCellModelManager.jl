@@ -2,7 +2,7 @@ module PCMMXML
 
 using XML
 
-export get_elements_by_tagname, find_element, simple_content, set_simple_content, root, create_xml_document
+export get_elements_by_tagname, find_element, simple_content, set_simple_content, root, create_xml_document, add_child_element
 
 """
     get_elements_by_tagname(e::XML.AbstractXMLNode, tagname::AbstractString)
@@ -97,6 +97,17 @@ Add the XML declaration with version "1.0".
 function create_xml_document(root::XML.AbstractXMLNode)
     @assert XML.nodetype(root) == XML.Element "Root must be an XML Element."
     return Node(XML.Document, nothing, nothing, nothing, [Node(XML.Declaration, nothing, Dict("version" => "1.0"), nothing, nothing), root])
+end
+
+function add_child_element(parent::XML.AbstractXMLNode, tagname::AbstractString, content::Union{Nothing,AbstractString}=nothing; kwargs...)
+    @assert !isnothing(children(parent)) "Cannot add child to a node that has no children."
+    if isnothing(content)
+        new_element = XML.h(tagname; kwargs...)
+    else
+        new_element = XML.h(tagname, content; kwargs...)
+    end
+    push!(parent, new_element)
+    return new_element
 end
 
 end

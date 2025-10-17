@@ -434,7 +434,12 @@ If `is_row` is true, the function will assert that the result has exactly one ro
 function stmtToDataFrame(stmt::SQLite.Stmt, params; is_row::Bool=false)
     df = DBInterface.execute(stmt, params) |> DataFrame
     if is_row
-        @assert size(df,1)==1 "Did not find exactly one row matching the statement."
+        @assert size(df,1)==1 """Did not find exactly one row matching the statement.
+        db: $(stmt.db)
+        Statement: $(stmt.stmt_wrapper)
+        params: $(params)
+        Result: $(df)
+        """
     end
     return df
 end

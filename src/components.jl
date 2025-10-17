@@ -143,25 +143,19 @@ function assembleIntracellular!(cell_to_components_dict::Dict{String,Vector{Phys
     xml_root = XML.h("PhysiCell_intracellular_mappings")
 
     #! create cell definitions element
-    e_cell_definitions = XML.h.cell_definitions()
-    push!(xml_root, e_cell_definitions)
+    e_cell_definitions = add_child_element(xml_root, "cell_definitions")
     for (cell_type, components) in cell_to_components_dict
-        e_cell_definition = XML.h.cell_definition(; name=cell_type)
-        push!(e_cell_definitions, e_cell_definition)
-        e_intracellular_ids = XML.h.intracellular_ids()
-        push!(e_cell_definition, e_intracellular_ids)
+        e_cell_definition = add_child_element(e_cell_definitions, "cell_definition"; name=cell_type)
+        e_intracellular_ids = add_child_element(e_cell_definition, "intracellular_ids")
         for component in components
-            e_intracellular_id = XML.h.ID(string(component.id))
-            push!(e_intracellular_ids, e_intracellular_id)
+            add_child_element(e_intracellular_ids, "ID", string(component.id))
         end
     end
 
     #! create intracellulars element
-    e_intracellulars = XML.h.intracellulars()
-    push!(xml_root, e_intracellulars)
+    e_intracellulars = add_child_element(xml_root, "intracellulars")
     for (component, i) in temp_ids
-        e_intracellular = XML.h.intracellular(; ID=string(i), type=component.type)
-        push!(e_intracellulars, e_intracellular)
+        e_intracellular = add_child_element(e_intracellulars, "intracellular"; ID=string(i), type=component.type)
 
         path_to_component_xml = joinpath(dataDir(), "components", pathFromComponents(component))
         component_xml_doc = read(path_to_component_xml, LazyNode)

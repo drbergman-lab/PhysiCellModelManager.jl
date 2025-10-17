@@ -253,8 +253,7 @@ Write the description to the metadata file.
 """
 function writeDescriptionToMetadata(path_to_metadata::AbstractString, description::AbstractString)
     xml_root = XML.h.metadata()
-    description_element = XML.h.description(description)
-    push!(xml_root, description_element)
+    add_child_element(xml_root, "description", description)
     xml_doc = create_xml_document(xml_root)
     XML.write(path_to_metadata, xml_doc)
     return

@@ -141,7 +141,6 @@ Export the intracellular model for a simulation to the export folder.
 function exportIntracellular(simulation::Simulation, export_folder::AbstractString)
     path_to_intracellular = joinpath(locationPath(:intracellular, simulation), "intracellular.xml")
     xml_doc = read(path_to_intracellular, LazyNode)
-    dec_node = length(xml_doc) > 1 ? xml_doc[1] : Node(XML.Declaration, nothing, Dict("version" => "1.0"), nothing, nothing)
     intracellulars_element = retrieveElement(xml_doc, ["intracellulars"])
     intracellular_mapping = Dict{String,Tuple{String,String}}()
     for intracellular_element in children(intracellulars_element)

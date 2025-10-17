@@ -148,18 +148,13 @@ function makeXMLPath(current_element::XML.AbstractXMLNode, xml_path::AbstractVec
         if contains(path_element, "::")
             current_element, success = getChildByChildContent(current_element, path_element)
             if !success
-                next_element = XML.h(tag)
-                push!(current_element, next_element)
-                child_element = XML.h(child_tag, child_content)
-                push!(next_element, child_element)
-                current_element = next_element
+                current_element = add_child_element(current_element, tag)
+                child_element = add_child_element(current_element, child_tag, child_content)
             end
         elseif !contains(path_element, ":")
             child_element = find_element(current_element, path_element)
             if isnothing(child_element)
-                next_element = XML.h(path_element)
-                push!(current_element, next_element)
-                current_element = next_element
+                current_element = add_child_element(current_element, path_element)
             else
                 current_element = child_element
             end
@@ -169,7 +164,7 @@ function makeXMLPath(current_element::XML.AbstractXMLNode, xml_path::AbstractVec
             child_element = getChildByAttribute(current_element, path_element_split)
             if isnothing(child_element)
                 path_element_name, attribute_name, attribute_value = path_element_split
-                child_element = XML.h(String(path_element_name))
+                child_element = add_child_element(current_element, String(path_element_name))
                 child_element[attribute_name] = attribute_value
             end
             current_element = child_element

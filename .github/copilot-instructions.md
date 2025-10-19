@@ -7,7 +7,7 @@
 **Repository Size**: ~30 Julia source files, comprehensive test suite (30+ test files), extensive documentation
 **Languages**: Julia (primary) with C++ compilation components
 **Target Runtime**: Julia ≥1.6.7, requires g++ compiler for PhysiCell builds
-**Key Dependencies**: SQLite, DataFrames, LightXML, PhysiCell C++ framework
+**Key Dependencies**: SQLite, DataFrames, XML, PhysiCell C++ framework
 
 ## Build and Validation Process
 

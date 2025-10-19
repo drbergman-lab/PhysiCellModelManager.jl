@@ -1,4 +1,4 @@
-using LightXML, PhysiCellXMLRules
+using XML, .PCMMXML, PhysiCellXMLRules
 
 export exportSimulation
 
@@ -140,46 +140,42 @@ Export the intracellular model for a simulation to the export folder.
 """
 function exportIntracellular(simulation::Simulation, export_folder::AbstractString)
     path_to_intracellular = joinpath(locationPath(:intracellular, simulation), "intracellular.xml")
-    xml_doc = parse_file(path_to_intracellular)
+    xml_doc = read(path_to_intracellular, LazyNode)
     intracellulars_element = retrieveElement(xml_doc, ["intracellulars"])
     intracellular_mapping = Dict{String,Tuple{String,String}}()
-    for intracellular_element in child_elements(intracellulars_element)
-        intracellular_id = attribute(intracellular_element, "ID")
-        intracellular_type = attribute(intracellular_element, "type")
-        new_root = child_elements(intracellular_element) |> first
-        new_xml_doc = XMLDocument()
-        set_root(new_xml_doc, new_root)
+    for intracellular_element in children(intracellulars_element)
+        intracellular_id = attributes(intracellular_element)["ID"]
+        intracellular_type = attributes(intracellular_element)["type"]
+        new_root = children(intracellular_element) |> first
+        new_xml_doc = create_xml_document(new_root)
         path_end = joinpath("config", "intracellular_$(intracellular_type)_$(intracellular_id).xml")
         new_path = joinpath(export_folder, path_end)
-        save_file(new_xml_doc, new_path)
-        free(new_xml_doc)
+        XML.write(new_path, new_xml_doc)
         intracellular_mapping[intracellular_id] = (intracellular_type, path_end)
     end
 
     path_to_exported_config = joinpath(export_folder, "config", "PhysiCell_settings.xml")
-    config_xml = parse_file(path_to_exported_config)
+    config_xml = read(path_to_exported_config, Node)
 
     cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
-    for cell_definition_element in child_elements(cell_definitions_element)
-        if name(cell_definition_element) != "cell_definition"
+    for cell_definition_element in children(cell_definitions_element)
+        if tag(cell_definition_element) != "cell_definition"
             continue
         end
-        cell_type = attribute(cell_definition_element, "name")
+        cell_type = attributes(cell_definition_element)["name"]
         intracellular_ids_element = find_element(cell_definition_element, "intracellular_ids")
         ID_elements = get_elements_by_tagname(intracellular_ids_element, "ID")
         @assert length(ID_elements) <= 1 "Do not (yet?) support multiple intracellular models for a single cell type."
-        intracellular_id = ID_elements |> first |> content
+        intracellular_id = ID_elements |> first |> simple_content
         config_cell_def_intracellular_element = retrieveElement(config_xml, ["cell_definitions", "cell_definition:name:$(cell_type)", "phenotype", "intracellular"])
-        set_attribute(config_cell_def_intracellular_element, "type", intracellular_mapping[intracellular_id][1])
+        config_cell_def_intracellular_element["type"] = intracellular_mapping[intracellular_id][1]
 
         #! get (or create) the sbml_filename element
         sbml_filename_element = makeXMLPath(config_cell_def_intracellular_element, "sbml_filename")
-        set_content(sbml_filename_element, intracellular_mapping[intracellular_id][2])
+        set_simple_content(sbml_filename_element, intracellular_mapping[intracellular_id][2])
     end
 
-    save_file(config_xml, path_to_exported_config)
-    free(config_xml)
-    free(xml_doc)
+    XML.write(path_to_exported_config, config_xml)
     return
 end
 
@@ -289,27 +285,29 @@ Revert the config folder in the export folder to the given PhysiCell version.
 function revertConfig(export_folder::AbstractString, physicell_version::AbstractString)
     path_to_config_folder = joinpath(export_folder, "config")
     path_to_config = joinpath(path_to_config_folder, "PhysiCell_settings.xml")
-    xml_doc = parse_file(path_to_config)
+    xml_doc = read(path_to_config, Node)
 
     #! output folder
     folder_element = makeXMLPath(xml_doc, ["save", "folder"])
-    set_content(folder_element, "output")
+    set_simple_content(folder_element, "output")
 
     #! ic substrate
     substrate_ic_element = makeXMLPath(xml_doc, ["microenvironment_setup", "options", "initial_condition"])
     using_substrate_ics = isfile(joinpath(path_to_config_folder, "substrates.csv"))
-    set_attributes(substrate_ic_element; type="csv", enabled=string(using_substrate_ics))
+    substrate_ic_element["type"] = "csv"
+    substrate_ic_element["enabled"] = string(using_substrate_ics)
     filename_element = makeXMLPath(substrate_ic_element, "filename")
-    set_content(filename_element, joinpath(".", "config", "substrates.csv"))
+    set_simple_content(filename_element, joinpath(".", "config", "substrates.csv"))
 
     #! ic cells
     cell_ic_element = makeXMLPath(xml_doc, ["initial_conditions", "cell_positions"])
     using_cell_ics = isfile(joinpath(path_to_config_folder, "cells.csv"))
-    set_attributes(cell_ic_element; type="csv", enabled=string(using_cell_ics))
+    cell_ic_element["type"] = "csv"
+    cell_ic_element["enabled"] = string(using_cell_ics)
     folder_element = makeXMLPath(cell_ic_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
+    set_simple_content(folder_element, joinpath(".", "config"))
     filename_element = makeXMLPath(cell_ic_element, "filename")
-    set_content(filename_element, "cells.csv")
+    set_simple_content(filename_element, "cells.csv")
 
     #! ic ecm
     using_ecm_ics = isfile(joinpath(path_to_config_folder, "ecm.csv"))
@@ -320,24 +318,27 @@ function revertConfig(export_folder::AbstractString, physicell_version::Abstract
     #! ic dcs
     dc_ic_element = makeXMLPath(xml_doc, ["microenvironment_setup", "options", "dirichlet_nodes"])
     using_dc_ics = isfile(joinpath(path_to_config_folder, "dcs.csv"))
-    set_attributes(dc_ic_element; type="csv", enabled=string(using_dc_ics))
+    dc_ic_element["type"] = "csv"
+    dc_ic_element["enabled"] = string(using_dc_ics)
     filename_element = makeXMLPath(dc_ic_element, "filename")
-    set_content(filename_element, joinpath("config", "dcs.csv"))
+    set_simple_content(filename_element, joinpath("config", "dcs.csv"))
 
     #! rulesets
     rules_element = makeXMLPath(xml_doc, ["cell_rules", "rulesets", "ruleset"])
     using_rules = isfile(joinpath(path_to_config_folder, "cell_rules.csv"))
-    set_attributes(rules_element; protocol="CBHG", version="3.0", format="csv", enabled=string(using_rules))
+    rules_element["protocol"] = "CBHG"
+    rules_element["version"] = "3.0"
+    rules_element["format"] = "csv"
+    rules_element["enabled"] = string(using_rules)
     folder_element = makeXMLPath(rules_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
+    set_simple_content(folder_element, joinpath(".", "config"))
     filename_element = makeXMLPath(rules_element, "filename")
-    set_content(filename_element, "cell_rules.csv")
+    set_simple_content(filename_element, "cell_rules.csv")
 
     #! intracellulars
     #! handled in exportIntracellular
 
-    save_file(xml_doc, path_to_config)
-    free(xml_doc)
+    XML.write(path_to_config, xml_doc)
     return true
 end
 
@@ -346,13 +347,15 @@ end
 
 Set up the ECM element in the XML document to support the ECM module.
 """
-function setECMSetupElement(xml_doc::XMLDocument)
+function setECMSetupElement(xml_doc::Node)
+    @assert nodetype(xml_doc) == XML.Document "The input XML node to setECMSetupElement must be a Document."
     ecm_setup_element = makeXMLPath(xml_doc, ["microenvironment_setup", "ecm_setup"])
-    set_attributes(ecm_setup_element; enabled="true", format="csv")
+    ecm_setup_element["enabled"] = "true"
+    ecm_setup_element["format"] = "csv"
     folder_element = makeXMLPath(ecm_setup_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
+    set_simple_content(folder_element, joinpath(".", "config"))
     filename_element = makeXMLPath(ecm_setup_element, "filename")
-    set_content(filename_element, "ecm.csv")
+    set_simple_content(filename_element, "ecm.csv")
     return
 end
 

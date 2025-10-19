@@ -1,12 +1,14 @@
 module PhysiCellModelManager
 
-using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
+using SQLite, DataFrames, XML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
 using PhysiCellXMLRules, PhysiCellCellCreator
 
 export initializeModelManager, simulationIDs, setNumberOfParallelSims, getMonadIDs, getSimulationIDs
 
 #! put these first as they define classes the rest rely on
 include("utilities.jl")
+include(joinpath(@__DIR__, "..", "deps", "PCMMXML.jl"))
+using .PCMMXML
 include("classes.jl")
 include("project_configuration.jl")
 include("hpc.jl")

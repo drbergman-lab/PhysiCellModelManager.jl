@@ -1,6 +1,6 @@
 using RecipesBase
 
-export finalPopulationCount
+export finalPopulationCount, populationCount, populationTimeSeries
 
 """
     populationCount(snapshot, cell_type_to_name_dict::Dict{Int,String}=Dict{Int,String}(), labels::Vector{String}=String[]; include_dead::Bool=false)
@@ -190,7 +190,7 @@ Note: unlike `SimulationPopulationTimeSeries`, this type does not save the data 
 
 ```
 mpts = MonadPopulationTimeSeries(1)
-mpts = MonadPopulationTimeSeries(monad(1))
+mpts = MonadPopulationTimeSeries(Monad(1))
 ```
 
 # Fields
@@ -264,6 +264,7 @@ end
 
 """
     populationTimeSeries(M::AbstractMonad[; include_dead::Bool=false])
+    populationTimeSeries(pcmm_output::PCMMOutput{<:AbstractMonad}[; include_dead::Bool=false])
 
 Return the population time series of a simulation or a monad.
 

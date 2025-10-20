@@ -21,6 +21,7 @@ struct VoxelWeights
         weight_total = sum(weights)
         return new(use_weights, weights, weight_total)
     end
+
     function VoxelWeights(snapshot::PhysiCellSnapshot)
         loadSubstrates!(snapshot)
         weights = snapshot.substrates[!, :volume]

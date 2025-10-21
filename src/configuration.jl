@@ -102,12 +102,7 @@ function getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractStrin
 end
 
 function elementIsTerminal(e::XMLElement)
-    is_terminal = true
-    for _ in child_elements(e)
-        is_terminal = false
-        break
-    end
-    return is_terminal
+    return isempty(child_elements(e))
 end
 
 """

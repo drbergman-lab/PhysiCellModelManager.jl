@@ -101,9 +101,7 @@ function getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractStrin
     return ret_val
 end
 
-function elementIsTerminal(e::XMLElement)
-    return isempty(child_elements(e))
-end
+elementIsTerminal(e::XMLElement) = isempty(child_elements(e))
 
 """
     updateSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})

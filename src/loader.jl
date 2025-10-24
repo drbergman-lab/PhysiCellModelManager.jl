@@ -92,9 +92,9 @@ function PhysiCellSnapshot(simulation_id::Int, index::Union{Integer, Symbol},
         return missing
     end
     xml_doc = parse_file("$(filepath_base).xml")
-    time = getContent(xml_doc, ["metadata","current_time"]) |> x->parse(Float64, x)
+    time = getSimpleContent(xml_doc, ["metadata","current_time"]) |> x->parse(Float64, x)
     seconds_to_nanoseconds = x -> round(x * 1e9) |> Nanosecond
-    runtime = getContent(xml_doc, ["metadata", "current_runtime"]) |> x -> parse(Float64, x) |> seconds_to_nanoseconds
+    runtime = getSimpleContent(xml_doc, ["metadata", "current_runtime"]) |> x -> parse(Float64, x) |> seconds_to_nanoseconds
     cells = DataFrame()
     if include_cells
         if _loadCells!(cells, filepath_base, cell_type_to_name_dict, labels) |> ismissing

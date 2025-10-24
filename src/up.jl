@@ -93,7 +93,7 @@ function upgradeToV0_0_1(::Bool)
             xml_doc = parse_file(path_to_xml)
             for column_name in column_names
                 xml_path = columnNameToXMLPath(column_name)
-                base_value = getContent(xml_doc, xml_path)
+                base_value = getSimpleContent(xml_doc, xml_path)
                 stmt = SQLite.Stmt(db_rulesets_variations, "UPDATE rulesets_variations SET '$(column_name)'=(:base_value) WHERE rulesets_collection_variation_id=0;")
                 DBInterface.execute(stmt, (base_value,))
             end

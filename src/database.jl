@@ -296,8 +296,8 @@ function insertFolder(location::Symbol, folder::String, description::String="")
     db_variations = joinpath(path_to_folder, locationVariationsDBName(location)) |> SQLite.DB # create the variations database
     location_variation_id_name = locationVariationIDName(location)
     table_name = locationVariationsTableName(location)
-    createPCMMTable(table_name, "$location_variation_id_name INTEGER PRIMARY KEY"; db=db_variations)
-    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $table_name ($location_variation_id_name) VALUES(0);")
+    createPCMMTable(table_name, "$location_variation_id_name INTEGER PRIMARY KEY, par_key BLOB UNIQUE"; db=db_variations)
+    DBInterface.execute(db_variations, "INSERT OR IGNORE INTO $table_name ($location_variation_id_name, par_key) VALUES(?, ?)", (0, UInt8[]))
     input_folder = InputFolder(location, folder)
     prepareBaseFile(input_folder)
 end
@@ -552,6 +552,7 @@ Remove constant columns if `remove_constants` is true and the DataFrame has more
 """
 function locationVariationsTable(query::String, db::SQLite.DB; remove_constants::Bool=false)
     df = queryToDataFrame(query, db=db)
+    select!(df, Not(:par_key))
     if remove_constants && size(df, 1) > 1
         col_names = names(df)
         filter!(n -> length(unique(df[!,n])) > 1, col_names)
@@ -760,4 +761,22 @@ printSimulationsTable(; sink=CSV.write("temp.csv")) # write data for all simulat
 function printSimulationsTable(args...; sink=println, kwargs...)
     assertInitialized()
     simulationsTable(args...; kwargs...) |> sink
+end
+
+function validateParsBytes(db::SQLite.DB, table_name::String)
+    df = queryToDataFrame("SELECT * FROM $table_name;", db=db)
+    @assert names(df)[1] == tableIDName(table_name) "$(table_name) does not have the primary key as the first column."
+    @assert names(df)[2] == "par_key" "$(table_name) does not have par_key as the second column."
+    for row in eachrow(df)
+        par_key = row[:par_key]
+        vals = [row[3:end]...]
+        vals[vals .== "true"] .= 1.0
+        vals[vals .== "false"] .= 0.0
+        expected_par_key = reinterpret(UInt8, Vector{Float64}(vals))
+        @assert par_key == expected_par_key """
+        par_key does not match the expected values for $(table_name) ID $(row[1]).
+        Expected: $(expected_par_key)
+        Found: $(par_key)
+        """
+    end
 end

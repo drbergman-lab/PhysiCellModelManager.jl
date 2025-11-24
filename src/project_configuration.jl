@@ -21,7 +21,7 @@ struct ProjectLocations{L,M,N}
     function ProjectLocations(d::Dict{Symbol,Any})
         all_locations = (location for location in keys(d)) |> collect |> sort |> Tuple
         required = (location for (location, location_dict) in pairs(d) if location_dict["required"]) |> collect |> sort |> Tuple
-        varied_locations = (location for (location,location_dict) in pairs(d) if any(location_dict["varied"])) |> collect |> sort |> Tuple
+        varied_locations = (location for (location, location_dict) in pairs(d) if any(location_dict["varied"])) |> collect |> sort |> Tuple
         return new{length(all_locations),length(required),length(varied_locations)}(all_locations, required, varied_locations)
     end
 
@@ -57,7 +57,7 @@ end
 Parse the `inputs.toml` file in the data directory and create a global [`ProjectLocations`](@ref) object.
 """
 function parseProjectInputsConfigurationFile()
-    inputs_dict_temp = Dict{String, Any}()
+    inputs_dict_temp = Dict{String,Any}()
     try
         inputs_dict_temp = pathToInputsConfig() |> TOML.parsefile
     catch e
@@ -79,9 +79,9 @@ function parseProjectInputsConfigurationFile()
             @assert location_dict["basename"] isa Vector && length(location_dict["varied"]) == length(location_dict["basename"]) "inputs.toml: $(location): varied must be a Bool or a Vector of the same length as basename."
         end
     end
-    pcmm_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol, Any}
+    pcmm_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol,Any}
     pcmm_globals.project_locations = ProjectLocations()
-    createSimpleInputFolders()
+    createSimpleInputFoldersFunction()
     return true
 end
 

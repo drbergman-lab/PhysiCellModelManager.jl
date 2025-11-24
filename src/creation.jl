@@ -70,10 +70,24 @@ Get the latest release tag from a GitHub repository.
 function latestReleaseTag(repo_url::String)
     api_url = replace(repo_url, "github.com" => "api.github.com/repos") * "/releases/latest"
     #! include this header for CI testing to not exceed request limit (I think?): macos for some reason raised a `RequestError: HTTP/2 403`; users should not need to set this ENV variable
-    headers = haskey(ENV, "PCMM_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
+    headers = requestHeaders()
     response = Downloads.download(api_url; headers=headers)
     release_info = JSON3.read(response, Dict{String, Any})
     return release_info["tag_name"]
+end
+
+"""
+    requestHeaders()
+
+Get the request headers for GitHub API requests.
+This allows the GitHub actions to use a token if provided in the `PCMM_PUBLIC_REPO_AUTH` environment variable to avoid rate limiting.
+"""
+function requestHeaders()
+    if haskey(ENV, "PCMM_PUBLIC_REPO_AUTH")
+        println("Using GitHub token from PCMM_PUBLIC_REPO_AUTH environment variable for API requests.")
+        return Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])")
+    end
+    return Pair{String,String}[]
 end
 
 """
@@ -106,7 +120,7 @@ function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
         #! download drbergman/PhysiCell main branch
         println("Downloading PhysiCell repository")
         url = "https://api.github.com/repos/drbergman/PhysiCell/releases/latest"
-        headers = haskey(ENV, "PCMM_PUBLIC_REPO_AUTH") ? Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])") : Pair{String,String}[]
+        headers = requestHeaders()
         response = Downloads.download(url; headers=headers)
         release_data = JSON3.read(response)
         zipball_url = release_data["zipball_url"]

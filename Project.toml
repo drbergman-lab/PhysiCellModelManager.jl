@@ -1,6 +1,6 @@
 name = "PhysiCellModelManager"
 uuid = "7582d1aa-5e58-4d65-a123-4418a61a2644"
-version = "0.1.7"
+version = "0.2.0"
 authors = ["Daniel Bergman <danielrbergman@gmail.com> and contributors"]
 
 [deps]

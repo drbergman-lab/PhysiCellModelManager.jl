@@ -4,6 +4,9 @@ Not every release will change the database structure, but when one does in a way
 The warning will link to this page and the function will wait for user input to proceed.
 Changes are listed in reverse chronological order.
 
+## to v0.2.0
+Add a unique column to each variations database (e.g. `config_variations.db`) to replace the previous index that tracked all parameter values. This makes the check of parameter uniqueness robust to more columns.
+
 ## to v0.1.3
 Rename the database file from `pcvct.db` to `pcmm.db` to reflect the name change of the package.
 

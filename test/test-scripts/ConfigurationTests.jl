@@ -80,6 +80,7 @@ paths_not_in_template = [
 
 #! these are paths that have already been accounted for or don't want to try varying (maybe not a number)
 paths_to_skip = [
+    configPath("max_time"),
     configPath("use_2D"),
     configPath("full_data_interval"),
     configPath("SVG_save_interval"),

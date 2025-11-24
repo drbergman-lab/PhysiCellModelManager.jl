@@ -211,7 +211,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
         query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])")
         variation_row = queryToDataFrame(query; db=locationVariationsDatabase(location, M), is_row=true)
         for column_name in names(variation_row)
-            if column_name == locationVariationIDName(location)
+            if column_name == locationVariationIDName(location) || column_name == "par_key"
                 continue
             end
             xml_path = columnNameToXMLPath(column_name)

@@ -277,6 +277,14 @@ variationValues(ev, cdf::Real) = variationValues(ev, [cdf])
 variationValues(::DistributedVariation) = error("A cdf must be provided for a DistributedVariation.")
 
 """
+    variationValues(f::Function, ev::ElementaryVariation[, cdf])
+
+Apply a function `f` to each of the variation values of an [`ElementaryVariation`](@ref).
+See [`variationValues`](@ref) for details on how the variation values are obtained.
+"""
+variationValues(f::Function, args...) = f.(variationValues(args...))
+
+"""
     variationDataType(ev::ElementaryVariation)
 
 Get the data type of the variation.
@@ -286,11 +294,21 @@ variationDataType(dv::DistributedVariation) = eltype(dv.distribution)
 
 """
     sqliteDataType(ev::ElementaryVariation)
+    sqliteDataType(data_type::DataType)
 
-Get the SQLite data type to hold the data in the variation.
+Get the SQLite data type to hold the Julia data type.
+
+These are the mappings in the order of the if-else statements:
+- `Bool` -> `TEXT`
+- `Integer` -> `INT`
+- `Real` -> `REAL`
+- otherwise -> `TEXT`
 """
 function sqliteDataType(ev::ElementaryVariation)
-    data_type = variationDataType(ev)
+    return sqliteDataType(variationDataType(ev))
+end
+
+function sqliteDataType(data_type::DataType)
     if data_type == Bool
         return "TEXT"
     elseif data_type <: Integer
@@ -415,7 +433,7 @@ end
 
 variationTarget(cv::CoVariation) = variationTarget.(cv.variations)
 variationLocation(cv::CoVariation) = variationLocation.(cv.variations)
-columnName(cv::CoVariation) = columnName.(cv.variations) |> x->join(x, " AND ")
+columnName(cv::CoVariation) = columnName.(cv.variations) |> x -> join(x, " AND ")
 
 function Base.length(cv::CoVariation)
     return length(cv.variations[1])
@@ -426,7 +444,7 @@ function Base.show(io::IO, ::MIME"text/plain", cv::CoVariation)
     data_type_str = string(data_type)
     n = length(data_type_str)
     println(io, "CoVariation ($(data_type_str)):")
-    println(io, "------------" * "-"^(n+3))
+    println(io, "------------" * "-"^(n + 3))
     locations = variationLocation(cv)
     unique_locations = unique(locations)
     for location in unique_locations
@@ -549,14 +567,17 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
 
     xps = variationTarget.(evs)
     table_name = locationVariationsTableName(location)
-    id_column_name = locationVariationIDName(location)
-    column_names = tableColumns(table_name; db=db_columns)
-    filter!(x -> x != id_column_name, column_names)
-    varied_column_names = [columnName(xp.xml_path) for xp in xps]
 
-    is_new_column = [!(varied_column_name in column_names) for varied_column_name in varied_column_names]
+    @debug validateParsBytes(db_columns, table_name)
+
+    id_column_name = locationVariationIDName(location)
+    prev_par_column_names = tableColumns(table_name; db=db_columns)
+    filter!(x -> !(x in (id_column_name, "par_key")), prev_par_column_names)
+    varied_par_column_names = [columnName(xp.xml_path) for xp in xps]
+
+    is_new_column = [!(varied_column_name in prev_par_column_names) for varied_column_name in varied_par_column_names]
     if any(is_new_column)
-        new_column_names = varied_column_names[is_new_column]
+        new_column_names = varied_par_column_names[is_new_column]
         new_column_data_types = evs[is_new_column] .|> sqliteDataType
         xml_doc = parse_file(path_to_xml)
         default_values_for_new = [getContent(xml_doc, xp.xml_path) for xp in xps[is_new_column]]
@@ -571,18 +592,28 @@ function addColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVa
         stmt = SQLite.Stmt(db_columns, query)
         DBInterface.execute(stmt, Tuple(default_values_for_new))
 
-        index_name = "$(table_name)_index"
-        SQLite.dropindex!(db_columns, index_name; ifexists=true) #! remove previous index
-        index_columns = deepcopy(column_names)
-        append!(index_columns, new_column_names)
-        SQLite.createindex!(db_columns, table_name, index_name, index_columns; unique=true, ifnotexists=false) #! add new index to make sure no variations are repeated
+        select_query = constructSelectQuery(table_name; selection="$(tableIDName(table_name)), par_key")
+        par_key_df = queryToDataFrame(select_query; db=db_columns)
+
+        default_values_for_new[default_values_for_new.=="true"] .= "1"
+        default_values_for_new[default_values_for_new.=="false"] .= "0"
+
+        new_bytes = reinterpret(UInt8, parse.(Float64, default_values_for_new))
+        for row in eachrow(par_key_df)
+            id = row[1]
+            par_key = row[2]
+            append!(par_key, new_bytes)
+            DBInterface.execute(db_columns, "UPDATE $table_name SET par_key = ? WHERE $(tableIDName(table_name)) = ?;", (par_key, id))
+        end
     end
 
-    static_column_names = deepcopy(column_names)
-    old_varied_names = varied_column_names[.!is_new_column]
-    filter!(x -> !(x in old_varied_names), static_column_names)
+    @debug validateParsBytes(db_columns, table_name)
 
-    return static_column_names, varied_column_names
+    static_par_column_names = deepcopy(prev_par_column_names)
+    previously_varied_names = varied_par_column_names[.!is_new_column]
+    filter!(x -> !(x in previously_varied_names), static_par_column_names)
+
+    return static_par_column_names, varied_par_column_names
 end
 
 """
@@ -594,6 +625,7 @@ A struct to hold the setup for the columns in a variations database.
 - `db::SQLite.DB`: The database connection to the variations database.
 - `table::String`: The name of the table in the database.
 - `variation_id_name::String`: The name of the variation ID column in the table.
+- `ordered_inds::Vector{Int}`: Indexes into the concatenated static and varied values to get the parameters in the order of the table columns (excluding the variation ID and par_key columns).
 - `static_values::Vector{String}`: The static values for the columns that are not varied.
 - `feature_str::String`: The string representation of the features (columns) in the table.
 - `placeholders::String`: The string representation of the placeholders for the values in the table.
@@ -604,6 +636,7 @@ struct ColumnSetup
     db::SQLite.DB
     table::String
     variation_id_name::String
+    ordered_inds::Vector{Int}
     static_values::Vector{String}
     feature_str::String
     placeholders::String
@@ -619,17 +652,24 @@ Add new rows to the variations database for the given location and folder_id if 
 function addVariationRows(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int, all_varied_values::AbstractVector{<:AbstractVector})
     column_setup = setUpColumns(location, folder_id, evs, reference_variation_id)
 
-    return [addVariationRow(column_setup, string.(varied_values)) for varied_values in all_varied_values]
+    return [addVariationRow(column_setup, varied_values) for varied_values in all_varied_values]
 end
 
 """
-    addVariationRow(column_setup::ColumnSetup, varied_values::Vector{String})
+    addVariationRow(column_setup::ColumnSetup, varied_values::AbstractVector{String})
 
 Add a new row to the variations database using the prepared statement.
 If the row already exists, it returns the existing variation ID.
 """
-function addVariationRow(column_setup::ColumnSetup, varied_values::Vector{String})
-    params = Tuple([column_setup.static_values; varied_values]) #! Combine static and varied values into a single tuple for database insertion
+function addVariationRow(column_setup::ColumnSetup, varied_values::AbstractVector{String})
+    raw_pars = [column_setup.static_values; varied_values]
+
+    pars_as_strs = copy(raw_pars)
+    pars_as_strs[pars_as_strs.=="true"] .= "1"
+    pars_as_strs[pars_as_strs.=="false"] .= "0"
+    pars_as_floats = parse.(Float64, pars_as_strs)
+    par_key = reinterpret(UInt8, pars_as_floats[column_setup.ordered_inds])
+    params = Tuple([raw_pars; [par_key]]) #! Combine static and varied values into a single tuple for database insertion
     new_id = stmtToDataFrame(column_setup.stmt_insert, params) |> x -> x[!, 1]
 
     new_added = length(new_id) == 1
@@ -637,6 +677,7 @@ function addVariationRow(column_setup::ColumnSetup, varied_values::Vector{String
         df = stmtToDataFrame(column_setup.stmt_select, params; is_row=true)
         new_id = df[!, 1]
     end
+    @debug validateParsBytes(column_setup.db, column_setup.table)
     return new_id[1]
 end
 
@@ -646,30 +687,38 @@ end
 Set up the columns for the variations database for the given location and folder_id.
 """
 function setUpColumns(location::Symbol, folder_id::Int, evs::Vector{<:ElementaryVariation}, reference_variation_id::Int)
-    static_column_names, varied_column_names = addColumns(location, folder_id, evs)
+    static_par_column_names, varied_par_column_names = addColumns(location, folder_id, evs)
     db_columns = locationVariationsDatabase(location, folder_id)
     table_name = locationVariationsTableName(location)
     variation_id_name = locationVariationIDName(location)
 
-    if isempty(static_column_names)
+    if isempty(static_par_column_names)
         static_values = String[]
         table_features = String[]
     else
-        query = constructSelectQuery(table_name, "WHERE $(variation_id_name)=$(reference_variation_id);"; selection=join("\"" .* static_column_names .* "\"", ", "))
+        query = constructSelectQuery(table_name, "WHERE $(variation_id_name)=$(reference_variation_id);"; selection=join("\"" .* static_par_column_names .* "\"", ", "))
         static_values = queryToDataFrame(query; db=db_columns, is_row=true) |> x -> [string(c[1]) for c in eachcol(x)] |> Vector{String}
-        table_features = static_column_names
+        table_features = copy(static_par_column_names)
     end
-    append!(table_features, varied_column_names)
+    append!(table_features, varied_par_column_names)
 
-    feature_str = join("\"" .* table_features .* "\"", ",")
-    placeholders = join(["?" for _ in table_features], ",")
+    feature_str = join("\"" .* table_features .* "\"", ",") * ",par_key"
+    placeholders = join(["?" for _ in table_features], ",") * ",?"
 
     stmt_insert = SQLite.Stmt(db_columns, "INSERT OR IGNORE INTO $(table_name) ($(feature_str)) VALUES($placeholders) RETURNING $(variation_id_name);")
     where_str = "WHERE ($(feature_str))=($(placeholders))"
     stmt_str = constructSelectQuery(table_name, where_str; selection=variation_id_name)
     stmt_select = SQLite.Stmt(db_columns, stmt_str)
 
-    return ColumnSetup(db_columns, table_name, variation_id_name, static_values, feature_str, placeholders, stmt_insert, stmt_select)
+    column_to_full_index = Dict{String,Int}()
+    for (ind, col_name) in enumerate(table_features)
+        column_to_full_index[col_name] = ind
+    end
+    param_column_names = tableColumns(table_name; db=db_columns) #! ensure columns are up to date
+    filter!(x -> !(x in (variation_id_name, "par_key")), param_column_names)
+    ordered_inds = [column_to_full_index[col_name] for col_name in param_column_names]
+
+    return ColumnSetup(db_columns, table_name, variation_id_name, ordered_inds, static_values, feature_str, placeholders, stmt_insert, stmt_select)
 end
 
 ################## Specialized Variations ##################
@@ -769,11 +818,11 @@ struct SobolVariation <: AddVariationMethod
     n::Int
     n_matrices::Int
     randomization::RandomizationMethod
-    skip_start::Union{Missing, Bool, Int}
-    include_one::Union{Missing, Bool}
+    skip_start::Union{Missing,Bool,Int}
+    include_one::Union{Missing,Bool}
 end
-SobolVariation(n::Int; n_matrices::Int=1, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing, Bool, Int}=missing, include_one::Union{Missing, Bool}=missing) = SobolVariation(n, n_matrices, randomization, skip_start, include_one)
-SobolVariation(; pow2::Int=1, n_matrices::Int=1, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing, Bool, Int}=missing, include_one::Union{Missing, Bool}=missing) = SobolVariation(2^pow2, n_matrices, randomization, skip_start, include_one)
+SobolVariation(n::Int; n_matrices::Int=1, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing,Bool,Int}=missing, include_one::Union{Missing,Bool}=missing) = SobolVariation(n, n_matrices, randomization, skip_start, include_one)
+SobolVariation(; pow2::Int=1, n_matrices::Int=1, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing,Bool,Int}=missing, include_one::Union{Missing,Bool}=missing) = SobolVariation(2^pow2, n_matrices, randomization, skip_start, include_one)
 
 """
     RBDVariation <: AddVariationMethod
@@ -807,10 +856,10 @@ struct RBDVariation <: AddVariationMethod
     n::Int
     rng::AbstractRNG
     use_sobol::Bool
-    pow2_diff::Union{Missing, Int}
+    pow2_diff::Union{Missing,Int}
     num_cycles::Rational
 
-    function RBDVariation(n::Int, rng::AbstractRNG, use_sobol::Bool, pow2_diff::Union{Missing, Int}, num_cycles::Union{Missing, Int, Rational})
+    function RBDVariation(n::Int, rng::AbstractRNG, use_sobol::Bool, pow2_diff::Union{Missing,Int}, num_cycles::Union{Missing,Int,Rational})
         if use_sobol
             k = log2(n) |> round |> Int #! nearest power of 2 to n
             if ismissing(pow2_diff)
@@ -820,9 +869,9 @@ struct RBDVariation <: AddVariationMethod
             end
             @assert abs(pow2_diff) <= 1 "n must be within 1 of a power of 2 for RBDVariation with Sobol sequence"
             if ismissing(num_cycles)
-                num_cycles = 1//2
+                num_cycles = 1 // 2
             else
-                @assert num_cycles == 1//2 "num_cycles must be 1//2 for RBDVariation with Sobol sequence"
+                @assert num_cycles == 1 // 2 "num_cycles must be 1//2 for RBDVariation with Sobol sequence"
             end
         else
             pow2_diff = missing #! not used in this case
@@ -895,7 +944,7 @@ struct ParsedVariations
     function ParsedVariations(avs::Vector{<:AbstractVariation})
         sz = length.(avs)
 
-        location_variations_dict = Dict{Symbol, Any}()
+        location_variations_dict = Dict{Symbol,Any}()
         for location in projectLocations().varied
             location_variations_dict[location] = (ElementaryVariation[], Int[])
         end
@@ -978,22 +1027,17 @@ function gridToDB(location::Symbol, evs::Vector{<:DiscreteVariation}, folder_id:
         #! all_varied_values[1], e.g., is a matrix where each column corresponds to a parameter varied in dimension 1
         #! each column in that matrix is the values that parameter can take on
         dim_indices = findall(ev_dim .== ev_dims)
-        push!(all_varied_values, reduce(hcat, variationValues.(evs[dim_indices])))
+        push!(all_varied_values, reduce(hcat, variationValues.(string, evs[dim_indices])))
     end
 
     #! record the size of each dimension being varied
     sz_variations = size.(all_varied_values, 1)
 
-    #! initialize the matrix to hold parameter vectors in columns
-    values_mat = zeros(Float64, length(evs), prod(sz_variations))
-
-    for (i, I) in enumerate(CartesianIndices(Dims(sz_variations)))
-        #! each column corresponds to one parameter vector
-        #! I is a CartesianIndex, meaning it tracks the row of each matrix in all_varied_values
-        #! for each dimension being varied (d), get the row I.I[d] from the matrix (all_varied_values[d][I.I[d], :])
-        #! and concatenate (vcat) these rows to form the ith parameter vector
-        values_mat[:, i] = reduce(vcat, (all_varied_values[d][I.I[d], :] for d in eachindex(I.I)))
-    end
+    #! each column corresponds to one parameter vector
+    #! I is a CartesianIndex, meaning it tracks the row of each matrix in all_varied_values
+    #! for each dimension being varied (d), get the row I.I[d] from the matrix (all_varied_values[d][I.I[d], :])
+    #! and concatenate (vcat) these rows to form the ith parameter vector
+    values_mat = hcat((reduce(vcat, (all_varied_values[d][I.I[d], :] for d in eachindex(I.I))) for (i, I) in enumerate(CartesianIndices(Dims(sz_variations))))...)
     values_iterator = eachcol(values_mat) #! each column is a parameter vector
 
     return reshape(addVariationRows(location, folder_id, evs, reference_variation_id, values_iterator), sz_variations...)
@@ -1011,7 +1055,7 @@ function orthogonalLHS(k::Int, d::Int)
     lhs_inds = zeros(Int, (n, d))
     for i in 1:d
         n_bins = k^(i - 1) #! number of bins from previous dims (a bin has sampled points that are in the same subelement up through i-1 dim and need to be separated in subsequent dims)
-        bin_size = k^(d-i+1) #! number of sampled points in each bin
+        bin_size = k^(d - i + 1) #! number of sampled points in each bin
         if i == 1
             lhs_inds[:, 1] = 1:n
         else
@@ -1022,7 +1066,7 @@ function orthogonalLHS(k::Int, d::Int)
                     rand_ind_of_ind = rand(1:length(bin_inds)) #! pick the index of a remaining index
                     ind[j] = popat!(bin_inds, rand_ind_of_ind) #! get the random index and remove it so we don't pick it again
                 end
-                lhs_inds[ind,i] = shuffle(1:n_bins) .+ (pt_ind - 1) * n_bins #! for the selected inds, shuffle the next set of ith coords into them
+                lhs_inds[ind, i] = shuffle(1:n_bins) .+ (pt_ind - 1) * n_bins #! for the selected inds, shuffle the next set of ith coords into them
             end
         end
         lhs_inds[:, 1:i] = sortslices(lhs_inds[:, 1:i], dims=1, by=x -> (x ./ (n / k) .|> ceil .|> Int)) #! sort the found values so that sampled points in the same box upon projection into the 1:i dims are adjacent
@@ -1055,7 +1099,7 @@ size(cdfs)
 """
 function generateLHSCDFs(n::Int, d::Int; add_noise::Bool=false, rng::AbstractRNG=Random.GLOBAL_RNG, orthogonalize::Bool=true)
     cdfs = (Float64.(1:n) .- (add_noise ? rand(rng, Float64, n) : 0.5)) / n #! permute below for each parameter separately
-    k = n ^ (1 / d) |> round |> Int
+    k = n^(1 / d) |> round |> Int
     if orthogonalize && (n == k^d)
         #! then good to do the orthogonalization
         lhs_inds = orthogonalLHS(k, d)
@@ -1142,7 +1186,7 @@ size(cdfs)
 (5, 2, 7)
 ```
 """
-function generateSobolCDFs(n::Int, d::Int; n_matrices::Int=1, T::Type=Float64, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing, Bool, Int}=missing, include_one::Union{Missing, Bool}=missing)
+function generateSobolCDFs(n::Int, d::Int; n_matrices::Int=1, T::Type=Float64, randomization::RandomizationMethod=NoRand(), skip_start::Union{Missing,Bool,Int}=missing, include_one::Union{Missing,Bool}=missing)
     s = Sobol.SobolSeq(d * n_matrices)
     if ismissing(skip_start) #! default to this
         if ispow2(n + 1) #! then n = 2^k - 1
@@ -1158,7 +1202,7 @@ function generateSobolCDFs(n::Int, d::Int; n_matrices::Int=1, T::Type=Float64, r
             end
         end
     end
-    n_draws = n - (include_one===true) #! if include_one is true, then we need to draw n-1 points and then append 1 to the end
+    n_draws = n - (include_one === true) #! if include_one is true, then we need to draw n-1 points and then append 1 to the end
     if skip_start == false #! false or 0
         cdfs = randomize(reduce(hcat, [zeros(T, n_matrices * d), [next!(s) for i in 1:n_draws-1]...]), randomization) #! n_draws-1 because the SobolSeq already skips 0
     else
@@ -1173,7 +1217,7 @@ function generateSobolCDFs(n::Int, d::Int; n_matrices::Int=1, T::Type=Float64, r
         end
         cdfs = randomize(cdfs, randomization)
     end
-    if include_one===true #! cannot compare missing==true, but can make this comparison
+    if include_one === true #! cannot compare missing==true, but can make this comparison
         cdfs = hcat(cdfs, ones(T, d * n_matrices))
     end
     return reshape(cdfs, (d, n_matrices, n))
@@ -1192,7 +1236,7 @@ A struct that holds the result of adding Sobol variations to a set of inputs.
 """
 struct AddSobolVariationsResult <: AddVariationsResult
     all_variation_ids::AbstractArray{VariationID}
-    cdfs::Array{Float64, 3}
+    cdfs::Array{Float64,3}
 end
 
 function addVariations(sobol_variation::SobolVariation, inputs::InputFolders, pv::ParsedVariations, reference_variation_id::VariationID)
@@ -1226,10 +1270,10 @@ function generateRBDCDFs(rbd_variation::RBDVariation, d::Int)
         println("Using Sobol sequence for RBD.")
         if rbd_variation.n == 1
             rbd_sorting_inds = fill(1, (1, d))
-            cdfs = 0.5 .+ zeros(Float64, (1,d))
+            cdfs = 0.5 .+ zeros(Float64, (1, d))
         else
             @assert !ismissing(rbd_variation.pow2_diff) "pow2_diff must be calculated for RBDVariation constructor with Sobol sequence. How else could we get here?"
-            @assert rbd_variation.num_cycles == 1//2 "num_cycles must be 1//2 for RBDVariation constructor with Sobol sequence. How else could we get here?"
+            @assert rbd_variation.num_cycles == 1 // 2 "num_cycles must be 1//2 for RBDVariation constructor with Sobol sequence. How else could we get here?"
             #! vary along a half period of the sine function since that will cover all CDF values (compare to the full period below). in computing the RBD, we will 
             #!   /    __\      /\  <- \ is the flipped version of the / in this line of commented code
             #!  /       /    \/    <- \ is the flipped version of the / in this line of commented code
@@ -1240,7 +1284,7 @@ function generateRBDCDFs(rbd_variation::RBDVariation, d::Int)
             else
                 skip_start = false
             end
-            cdfs = generateSobolCDFs(rbd_variation.n, d; n_matrices=1, randomization=NoRand(), skip_start=skip_start, include_one=rbd_variation.pow2_diff==1) #! rbd_sorting_inds here is (d, n_matrices=1, rbd_variation.n)
+            cdfs = generateSobolCDFs(rbd_variation.n, d; n_matrices=1, randomization=NoRand(), skip_start=skip_start, include_one=rbd_variation.pow2_diff == 1) #! rbd_sorting_inds here is (d, n_matrices=1, rbd_variation.n)
             cdfs = reshape(cdfs, d, rbd_variation.n) |> permutedims #! cdfs is now (rbd_variation.n, d)
             rbd_sorting_inds = reduce(hcat, map(sortperm, eachcol(cdfs)))
         end
@@ -1249,9 +1293,9 @@ function generateRBDCDFs(rbd_variation::RBDVariation, d::Int)
         #! vary along the full period of the sine function and do fft as normal
         #!   /\
         #! \/  
-        sorted_s_values = range(-π, stop = π, length = rbd_variation.n+1) |> collect
+        sorted_s_values = range(-π, stop=π, length=rbd_variation.n + 1) |> collect
         pop!(sorted_s_values)
-        permuted_s_values = [sorted_s_values[randperm(rbd_variation.rng, rbd_variation.n)] for _ in 1:d] |> x->reduce(hcat, x)
+        permuted_s_values = [sorted_s_values[randperm(rbd_variation.rng, rbd_variation.n)] for _ in 1:d] |> x -> reduce(hcat, x)
         cdfs = 0.5 .+ asin.(sin.(permuted_s_values)) ./ π
         rbd_sorting_inds = reduce(hcat, map(sortperm, eachcol(permuted_s_values)))
     end
@@ -1293,7 +1337,7 @@ A struct that holds the result of adding Sobol variations to a set of inputs.
 """
 struct AddRBDVariationsResult <: AddVariationsResult
     all_variation_ids::AbstractArray{VariationID}
-    location_variation_ids_dict::Dict{Symbol, Matrix{Int}}
+    location_variation_ids_dict::Dict{Symbol,Matrix{Int}}
 end
 
 ################## Sampling Helper Functions ##################
@@ -1313,7 +1357,7 @@ function cdfsToVariations(location::Symbol, pv::ParsedVariations, folder_id::Int
     new_values = []
     ev_dims = pv[location].indices
     for (ev, col_ind) in zip(evs, ev_dims)
-        new_value = variationValues(ev, cdfs[:,col_ind]) #! ok, all the new values for the given parameter
+        new_value = variationValues(string, ev, cdfs[:, col_ind]) #! ok, all the new values for the given parameter
         push!(new_values, new_value)
     end
 

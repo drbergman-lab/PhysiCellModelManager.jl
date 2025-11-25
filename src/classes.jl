@@ -167,14 +167,14 @@ end
 function InputFolders(args...; kwargs...) end
 
 """
-    createSimpleInputFolders()
+    createSimpleInputFoldersFunction()
 
 Creates a simple method for creating `InputFolders` objects at module initialization based on `data/inputs/inputs.toml`.
 
 The required inputs are sorted alphabetically and used as the positional arguments.
 The optional inputs are used as keyword arguments with a default value of `\"\"`, indicating they are unused.
 """
-function createSimpleInputFolders()
+function createSimpleInputFoldersFunction()
     #! first, delete any existing "simple" InputFolders functions (probably better to find a way to handle this by resetting this and other stuff on re-initialization)
     input_folders_methods = methods(InputFolders) |> collect
     filter!(x -> x.file == :none, input_folders_methods) #! the one added here has no file, so we filter out any existing ones that have a file

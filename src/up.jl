@@ -12,7 +12,7 @@ Otherwise, it will prompt the user for confirmation before large upgrades.
 """
 function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
     println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
-    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3"]
+    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0"]
     @assert issorted(milestone_versions) "Milestone versions must be sorted in ascending order. Got $(milestone_versions)."
     next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
     next_milestones = milestone_versions[next_milestone_inds]
@@ -41,7 +41,7 @@ end
 
 Populate a target table with data from a source table, using a column mapping if provided.
 """
-function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String, String}=Dict{String,String}())
+function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String,String}=Dict{String,String}())
     @assert tableExists(source_table; db=db) "Source table $(source_table) does not exist in the database."
     @assert tableExists(target_table; db=db) "Target table $(target_table) does not exist in the database."
     source_columns = tableColumns(source_table; db=db)
@@ -67,6 +67,27 @@ pcmmVersionTableName(version::VersionNumber) = version < v"0.0.30" ? "pcvct_vers
 Upgrade the database to PhysiCellModelManager.jl version X.Y.Z. Each milestone version has its own upgrade function.
 """
 function upgradeToVX_Y_Z end
+
+function continueMilestoneUpgrade(version::VersionNumber, auto_upgrade::Bool)
+    warning_msg = """
+    \t- Upgrading to version $(version)...
+
+    WARNING: Upgrading to version $(version) will change the database schema.
+    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
+
+    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
+
+    Continue upgrading to version $(version)? (y/n):
+    """
+    println(warning_msg)
+    response = auto_upgrade ? "y" : readline()
+    if response != "y"
+        println("Upgrade to version $(version) aborted.")
+        return false
+    end
+    println("\t- Upgrading to version $(version)...")
+    return true
+end
 
 function upgradeToV0_0_1(::Bool)
     println("\t- Upgrading to version 0.0.1...")
@@ -104,22 +125,9 @@ function upgradeToV0_0_1(::Bool)
 end
 
 function upgradeToV0_0_3(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.3...
-    \nWARNING: Upgrading to version 0.0.3 will change the database schema.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.3? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.3 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.3", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.3...")
     #! first get vct.db right changing simulations and monads tables
     if DBInterface.execute(centralDB(), "SELECT 1 FROM pragma_table_info('simulations') WHERE name='config_variation_id';") |> DataFrame |> isempty
         DBInterface.execute(centralDB(), "ALTER TABLE simulations RENAME COLUMN variation_id TO config_variation_id;")
@@ -187,22 +195,9 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
 end
 
 function upgradeToV0_0_10(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.10...
-    \nWARNING: Upgrading to version 0.0.10 will change the database schema.
-    See info at https://github.com/drbergman-lab/PhysiCellModelManager.jl?tab=readme-ov-file#to-v0010
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.10? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.10 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.10", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.10...")
 
     createPCMMTable("physicell_versions", physicellVersionsSchema())
     pcmm_globals.current_physicell_version_id = resolvePhysiCellVersionID()
@@ -283,22 +278,9 @@ function upgradeToV0_0_13(::Bool)
 end
 
 function upgradeToV0_0_15(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.15...
-    \nWARNING: Upgrading to version 0.0.15 will change the database schema.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.15? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.15 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.15", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.15...")
 
     #! first include ic_ecm_variation_id in simulations and monads tables
     if DBInterface.execute(centralDB(), "SELECT 1 FROM pragma_table_info('simulations') WHERE name='ic_ecm_variation_id';") |> DataFrame |> isempty
@@ -333,22 +315,9 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
 end
 
 function upgradeToV0_0_16(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.16...
-    \nWARNING: Upgrading to version 0.0.16 will change the database schema.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.16? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.16 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.16", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.16...")
 
     #! add intracellular_id and intracellular_variation_id to simulations and monads tables
     if DBInterface.execute(centralDB(), "SELECT 1 FROM pragma_table_info('simulations') WHERE name='intracellular_id';") |> DataFrame |> isempty
@@ -419,22 +388,10 @@ function upgradeToV0_0_25(::Bool)
 end
 
 function upgradeToV0_0_29(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.29...
-    \nWARNING: Upgrading to version 0.0.29 will change the location of the `inputs.toml` file.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.29? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.29 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.29", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.29...")
+
     old_file_path = joinpath(dataDir(), "inputs.toml")
     new_file_path = pathToInputsConfig()
     @assert isfile(old_file_path) "The inputs.toml file is missing. Please create it before upgrading to version 0.0.29."
@@ -448,22 +405,9 @@ function upgradeToV0_0_29(auto_upgrade::Bool)
 end
 
 function upgradeToV0_0_30(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.0.30...
-    \nWARNING: Upgrading to version 0.0.30 will change the database schema.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.0.30? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.0.30 aborted.")
+    if !continueMilestoneUpgrade(v"0.0.30", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.0.30...")
 
     if tableExists("pcvct_version")
         DBInterface.execute(centralDB(), "ALTER TABLE pcvct_version RENAME TO pcmm_version;")
@@ -475,22 +419,9 @@ function upgradeToV0_0_30(auto_upgrade::Bool)
 end
 
 function upgradeToV0_1_3(auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version 0.1.3...
-    \nWARNING: Upgrading to version 0.1.3 will rename `vct.db` to `pcmm.db`.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version 0.1.3? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version 0.1.3 aborted.")
+    if !continueMilestoneUpgrade(v"0.1.3", auto_upgrade)
         return false
     end
-    println("\t- Upgrading to version 0.1.3...")
 
     old_path = joinpath(dataDir(), "vct.db")
     new_path = joinpath(dataDir(), "pcmm.db")
@@ -501,6 +432,88 @@ function upgradeToV0_1_3(auto_upgrade::Bool)
     else
         println("While upgrading to version 0.1.3, the vct.db file was not found. This is unexpected.")
         return false
+    end
+    return true
+end
+
+function upgradeToV0_2_0(auto_upgrade::Bool)
+    if !continueMilestoneUpgrade(v"0.2.0", auto_upgrade)
+        return false
+    end
+
+    parseProjectInputsConfigurationFile()
+    varied_locations = projectLocations().varied
+    for location in projectLocations().varied
+        location_folders = queryToDataFrame(constructSelectQuery(locationTableName(location); selection="folder_name")) |> x -> x.folder_name
+        location_variation_id_name = locationVariationIDName(location)
+        for location_folder in location_folders
+            path_to_db = joinpath(locationPath(location, location_folder), locationVariationsDBName(location))
+            if !isfile(path_to_db)
+                continue
+            end
+            db = SQLite.DB(path_to_db)
+            table_name = locationVariationsTableName(location)
+            df = queryToDataFrame(constructSelectQuery(table_name); db=db)
+            if "par_key" in names(df)
+                continue
+            end
+            ids = df[!, location_variation_id_name]
+            select!(df, Not(location_variation_id_name))
+            @assert !(:par_key in names(df)) "Column par_key already found in table $(table_name) in database at $(path_to_db). It seems the upgrade has already been applied."
+            par_names = "'" .* names(df) .* "'"
+            sqlite_types = sqliteDataType.(eltype.(eachcol(df)))
+            col_inserts = par_names .* " " .* sqlite_types
+
+            SQLite.transaction(db)
+            try
+                DBInterface.execute(db, "ALTER TABLE $(table_name) RENAME TO $(table_name)_old;")
+                schema = "$location_variation_id_name INTEGER PRIMARY KEY, par_key BLOB UNIQUE"
+                if !isempty(col_inserts)
+                    schema *= "," * join(col_inserts, ',')
+                end
+                createPCMMTable(table_name, schema; db=db)
+
+                stmt_str = "INSERT INTO $(table_name) ($(location_variation_id_name), par_key"
+                if !isempty(par_names)
+                    stmt_str *= ", $(join(par_names, ','))"
+                end
+                stmt_str *= ") VALUES ($(join(["?" for _ in 1:(length(par_names)+2)], ",")));"
+                stmt = SQLite.Stmt(db, stmt_str)
+
+                for (row_id, row) in zip(ids, eachrow(df))
+                    original_vals = [row...]
+                    vals = copy(original_vals)
+                    vals[vals.=="true"] .= 1.0
+                    vals[vals.=="false"] .= 0.0
+                    is_string = [v isa String for v in vals]
+                    vals[is_string] .= tryparse.(Float64, vals[is_string])
+                    @assert all(!isnothing, vals[is_string]) "All parameter values must be parseable as Float64 to create the binary representation. Found non-parseable values: $(original_vals[is_string .& isnothing.(vals)])."
+                    @assert all(v -> v ∈ (0.0, 1.0) , vals[is_string]) "All parameter values that were strings must be 'true' or 'false' to create the binary representation. Found: $(original_vals[is_string .& .!([v ∈ (0.0, 1.0) for v in vals])])."
+                    original_vals[is_string] .= [v == 0.0 ? "false" : "true" for v in vals[is_string]] #! fix original vals to be the correct strings
+                    @assert all(x -> x isa Real, vals) "All parameter values must be Real to create the binary representation. Found: $(typeof.(vals))."
+                    par_key = reinterpret(UInt8, Vector{Float64}(vals))
+                    params = [row_id, par_key, original_vals...]
+                    DBInterface.execute(stmt, params)
+                end
+                DBInterface.execute(db, "DROP TABLE $(table_name)_old;")
+                validateParsBytes(db, table_name)
+            catch e
+                SQLite.rollback(db)
+                @info """
+                Error during upgrade of database at $(path_to_db): $(e). Not committing changes to any databases.
+                Please report this issue at https://github.com/drbergman-lab/PhysiCellModelManager.jl/issues
+                For now, revert back to the previous PCMM version v0.1.7:
+
+                    pkg> rm PhysiCellModelManager
+                    pkg> add PhysiCellModelManager@v0.1.7
+                """
+                return false
+            else
+                SQLite.commit(db)
+                index_name = "$(table_name)_index"
+                SQLite.dropindex!(db, index_name; ifexists=true) #! remove previous index
+            end
+        end
     end
     return true
 end

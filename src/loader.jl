@@ -536,7 +536,7 @@ function _loadCells!(cells::DataFrame, filepath_base::String, cell_type_to_name_
         println("When loading cells, could not find file $mat_file. Returning missing.")
         return missing
     end
-    A = matread(mat_file)["cell"]
+    A = matread(mat_file)["cells"]
     conversion_dict = Dict("ID" => Int, "dead" => Bool, "cell_type" => Int)
     for (label, row) in zip(labels, eachrow(A))
         if label in keys(conversion_dict)
@@ -601,7 +601,7 @@ function _loadSubstrates!(substrates::DataFrame, filepath_base::String, substrat
         println("When loading substrates, could not find file $mat_file. Returning missing.")
         return missing
     end
-    A = matread(mat_file) |> values |> first #! julia seems to read in the multiscale_microenvironment and assign the key multiscale_microenvironmen (note the missing 't'); do this to make sure we get the data
+    A = matread(mat_file)["multiscale_microenvironment"]
     col_names = [:x; :y; :z; :volume; substrate_names]
     for (col_name, row) in zip(col_names, eachrow(A))
         substrates[!, col_name] = row

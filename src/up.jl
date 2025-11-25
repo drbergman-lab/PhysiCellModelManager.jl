@@ -1,5 +1,19 @@
 using PhysiCellXMLRules
 
+const pcmm_milestones = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0"]
+const upgrade_fns = Dict{VersionNumber, Function}()
+
+macro up_fns()
+    pairs_exprs = Expr[]
+    for version in pcmm_milestones
+        fn_name = Symbol("upgradeToV$(replace(string(version), "." => "_"))")
+        push!(pairs_exprs, :( upgrade_fns[$(version)] = $(fn_name) ))
+    end
+    quote
+        $(pairs_exprs...)
+    end
+end
+
 """
     upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
 
@@ -12,24 +26,21 @@ Otherwise, it will prompt the user for confirmation before large upgrades.
 """
 function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
     println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
-    milestone_versions = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0"]
-    @assert issorted(milestone_versions) "Milestone versions must be sorted in ascending order. Got $(milestone_versions)."
-    next_milestone_inds = findall(x -> from_version < x, milestone_versions) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
-    next_milestones = milestone_versions[next_milestone_inds]
+    @assert issorted(pcmm_milestones) "Milestone versions must be sorted in ascending order. Got $(pcmm_milestones)."
+    next_milestone_inds = findall(x -> from_version < x, pcmm_milestones) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
+    next_milestones = pcmm_milestones[next_milestone_inds]
     success = true
     for next_milestone in next_milestones
-        up_fn_symbol = Meta.parse("upgradeToV$(replace(string(next_milestone), "." => "_"))")
-        if !isdefined(PhysiCellModelManager, up_fn_symbol)
-            throw(ArgumentError("Upgrade from version $(from_version) to $(next_milestone) not supported."))
-        end
-        success = eval(up_fn_symbol)(auto_upgrade)
+        up_fn = get(upgrade_fns, next_milestone, nothing)
+        @assert !isnothing(up_fn) "No upgrade function found for version $(next_milestone)."
+        success = up_fn(auto_upgrade)
         if !success
             break
         else
             DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(next_milestone)) SET version='$(next_milestone)';")
         end
     end
-    if success && to_version > milestone_versions[end]
+    if success && to_version > pcmm_milestones[end]
         println("\t- Upgrading to version $(to_version)...")
         DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(to_version)) SET version='$(to_version)';")
     end
@@ -517,3 +528,5 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
     end
     return true
 end
+
+@up_fns

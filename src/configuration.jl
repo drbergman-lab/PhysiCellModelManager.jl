@@ -240,7 +240,7 @@ function createXMLFile(location::Symbol, M::AbstractMonad)
     save_file(xml_doc, path_to_xml)
     free(xml_doc)
     postVariationXMLProcessing(location, path_to_xml)
-    return
+    return path_to_xml
 end
 
 """

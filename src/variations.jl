@@ -23,7 +23,7 @@ Any PhysiCellModelManager.jl function that uses XML paths will automatically han
 struct XMLPath
     xml_path::Vector{String}
 
-    function XMLPath(xml_path::Vector{<:AbstractString})
+    function XMLPath(xml_path::AbstractVector{<:AbstractString})
         for path_element in xml_path
             tokens = split(path_element, ":")
             if length(tokens) < 4

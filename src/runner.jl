@@ -275,10 +275,10 @@ struct PCMMOutput{T<:AbstractTrial}
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", output::PCMMOutput)
+function Base.show(io::IO, output::PCMMOutput)
     println(io, "PCMM Output")
     println(io, "------------")
-    show(io, MIME"text/plain"(), output.trial)
+    println(io, output.trial)
     println(io, "")
     println(io, "In completing this trial:")
     println(io, "  - Scheduled $(output.n_scheduled) simulations.")

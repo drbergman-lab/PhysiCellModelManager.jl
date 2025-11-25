@@ -44,7 +44,7 @@ end
 
 columnName(xp::XMLPath) = columnName(xp.xml_path)
 
-Base.show(io::IO, ::MIME"text/plain", xp::XMLPath) = println(io, "XMLPath: $(columnName(xp))")
+Base.show(io::IO, xp::XMLPath) = println(io, "XMLPath: $(columnName(xp))")
 
 ################## Abstract Variations ##################
 
@@ -135,7 +135,7 @@ DiscreteVariation(xml_path::Vector{<:AbstractString}, value::T) where T = Discre
 
 Base.length(discrete_variation::DiscreteVariation) = length(discrete_variation.values)
 
-function Base.show(io::IO, ::MIME"text/plain", dv::DiscreteVariation)
+function Base.show(io::IO, dv::DiscreteVariation)
     println(io, "DiscreteVariation ($(variationDataType(dv))):")
     println(io, "  location: $(dv.location)")
     println(io, "  target: $(columnName(dv))")
@@ -220,7 +220,7 @@ columnName(ev::ElementaryVariation) = variationTarget(ev) |> columnName
 
 Base.length(::DistributedVariation) = -1 #! set to -1 to be a convention
 
-function Base.show(io::IO, ::MIME"text/plain", dv::DistributedVariation)
+function Base.show(io::IO, dv::DistributedVariation)
     println(io, "DistributedVariation" * (dv.flip ? " (flipped)" : "") * ":")
     println(io, "  location: $(dv.location)")
     println(io, "  target: $(columnName(dv))")
@@ -439,7 +439,7 @@ function Base.length(cv::CoVariation)
     return length(cv.variations[1])
 end
 
-function Base.show(io::IO, ::MIME"text/plain", cv::CoVariation)
+function Base.show(io::IO, cv::CoVariation)
     data_type = typeof(cv).parameters[1]
     data_type_str = string(data_type)
     n = length(data_type_str)

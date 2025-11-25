@@ -126,7 +126,7 @@ gsa_sampling = run(method, reference, avs...) # test the method with Vararg vari
 @test size(gsa_sampling.monad_ids_df) == (5, 2)
 
 # print tests
-Base.show(stdout, MIME"text/plain"(), moat_sampling)
-Base.show(stdout, MIME"text/plain"(), sobol_sampling)
-Base.show(stdout, MIME"text/plain"(), rbd_sampling)
+println(stdout, moat_sampling)
+println(stdout, sobol_sampling)
+println(stdout, rbd_sampling)
 

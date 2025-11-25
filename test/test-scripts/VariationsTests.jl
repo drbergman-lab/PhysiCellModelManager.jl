@@ -93,7 +93,7 @@ cycle_rate_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", 
 val_1 = [0.0, 1.0]
 val_2 = [1000.0, 2000.0]
 cv = CoVariation((apoptosis_rate_path, val_1), (cycle_rate_path, val_2))
-show(stdout, MIME"text/plain"(), cv)
+println(stdout, cv)
 
 sampling = createTrial(inputs, [dv_max_time, cv]; n_replicates=2)
 @test length(PhysiCellModelManager.readConstituentIDs(sampling)) == 2
@@ -138,7 +138,7 @@ ev = DiscreteVariation(rulePath("default", "cycle entry", "decreasing_signals", 
 ev = DiscreteVariation(["options", "random_seed"], ["system_clock", 0])
 @test PhysiCellModelManager.sqliteDataType(ev) == "TEXT"
 
-Base.show(stdout, MIME"text/plain"(), PhysiCellModelManager.XMLPath(xml_path))
-Base.show(stdout, MIME"text/plain"(), ev)
-Base.show(stdout, MIME"text/plain"(), UniformDistributedVariation(xml_path, 0.0, 1.0))
-Base.show(stdout, MIME"text/plain"(), cv)
+println(stdout, PhysiCellModelManager.XMLPath(xml_path))
+println(stdout, ev)
+println(stdout, UniformDistributedVariation(xml_path, 0.0, 1.0))
+println(stdout, cv)

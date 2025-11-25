@@ -108,7 +108,7 @@ struct InputFolder
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", input_folder::InputFolder)
+function Base.show(io::IO, input_folder::InputFolder)
     println(io, "InputFolder:")
     println(io, "  Location: $(input_folder.location)")
     println(io, "  ID: $(input_folder.id)")
@@ -195,7 +195,7 @@ end
 
 Base.getindex(input_folders::InputFolders, loc::Symbol)::InputFolder = input_folders.input_folders[loc]
 
-function Base.show(io::IO, ::MIME"text/plain", input_folders::InputFolders)
+function Base.show(io::IO, input_folders::InputFolders)
     println(io, "InputFolders:")
     printInputFolders(io, input_folders)
 end
@@ -206,11 +206,12 @@ end
 Prints the folder information for each input folder in the InputFolders object.
 """
 function printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=1)
+    max_width = maximum(length(string(loc)) for loc in keys(input_folders.input_folders))
     for (loc, input_folder) in pairs(input_folders.input_folders)
         if isempty(input_folder.folder)
             continue
         end
-        println(io, "  "^n_indent, "$loc: $(input_folder.folder)")
+        println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $(input_folder.folder)")
     end
 end
 
@@ -245,7 +246,7 @@ end
 
 Base.getindex(variation_id::VariationID, loc::Symbol)::Int = variation_id.ids[loc]
 
-function Base.show(io::IO, ::MIME"text/plain", variation_id::VariationID)
+function Base.show(io::IO, variation_id::VariationID)
     println(io, "VariationID:")
     printVariationID(io, variation_id)
 end
@@ -256,11 +257,12 @@ end
 Prints the variation ID information for each varied input in the VariationID object.
 """
 function printVariationID(io::IO, variation_id::VariationID, n_indent::Int=1)
+    max_width = maximum(length(string(loc)) for loc in keys(variation_id.ids))
     for (loc, id) in pairs(variation_id.ids)
         if id == -1
             continue
         end
-        println(io, "  "^n_indent, "$loc: $id")
+        println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $id")
     end
 end
 
@@ -358,7 +360,7 @@ end
 
 Base.length(simulation::Simulation) = 1
 
-function Base.show(io::IO, ::MIME"text/plain", simulation::Simulation)
+function Base.show(io::IO, simulation::Simulation)
     println(io, "Simulation (ID=$(simulation.id)):")
     println(io, "  Inputs:")
     printInputFolders(io, simulation.inputs, 2)
@@ -498,7 +500,7 @@ end
 
 Simulation(monad::Monad) = Simulation(monad.inputs, monad.variation_id)
 
-function Base.show(io::IO, ::MIME"text/plain", monad::Monad)
+function Base.show(io::IO, monad::Monad)
     println(io, "Monad (ID=$(monad.id)):")
     println(io, "  Inputs:")
     printInputFolders(io, monad.inputs, 2)
@@ -671,7 +673,7 @@ end
 
 Sampling(sampling::Sampling; kwargs...) = Sampling(sampling.id; kwargs...)
 
-function Base.show(io::IO, ::MIME"text/plain", sampling::Sampling)
+function Base.show(io::IO, sampling::Sampling)
     println(io, "Sampling (ID=$(sampling.id)):")
     printMonadIDs(io, sampling)
     println(io, "  Inputs:")
@@ -771,7 +773,7 @@ function trialID(samplings::Vector{Sampling})
     return id
 end
 
-function Base.show(io::IO, ::MIME"text/plain", trial::Trial)
+function Base.show(io::IO, trial::Trial)
     println(io, "Trial (ID=$(trial.id)):")
     for sampling in trial.samplings
         println(io, "  Sampling (ID=$(sampling.id)):")

@@ -27,5 +27,5 @@ cell_types = keys(ests.data)
 ests[first(cell_types)]
 @test_throws ArgumentError ests["not_a_cell_type"]
 
-Base.show(stdout, MIME"text/plain"(), asts)
-Base.show(stdout, MIME"text/plain"(), ests)
+println(stdout, asts)
+println(stdout, ests)

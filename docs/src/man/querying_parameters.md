@@ -1,13 +1,15 @@
 # Querying parameters
 It is often helpful to access the parameters used in a simulation after it has been run.
 There are two main ways to achieve this:
-- [`printSimulationsTable`](@ref) focuses on the databases and the user reading the information
-- [`getAllParameterValues`](@ref) focuses on programmatic access to the parameters across all XML inputs
+- [`simulationsTable`](@ref) uses the databases and excels at user-readability
+- [`getAllParameterValues`](@ref) uses all values in the XMLs, exceling at programmatic access
 
-## [`printSimulationsTable`](@ref)
-The function [`printSimulationsTable`](@ref) can be used to print a table of simulation data.
-Use the `sink` keyword argument to, for example, redirect the output to a file instead of the console.
+## [`simulationsTable`](@ref)
+The function [`simulationsTable`](@ref) can be used to print a table of simulation data.
 This function, by default, only prints varied values and does some renaming to make the column names more human-readable.
+
+The function [`printSimulationsTable`](@ref) is a convenience wrapper around [`simulationsTable`](@ref) that prints the table directly.
+Use the `sink` keyword argument to, for example, redirect the output to a file instead of the console.
 
 ## [`getAllParameterValues`](@ref)
 The function [`getAllParameterValues`](@ref) can be used to programmatically access all the terminal elements in the XML input files for a given set of simulations.

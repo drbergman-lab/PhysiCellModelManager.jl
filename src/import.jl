@@ -324,16 +324,16 @@ function adaptMain(path_from_inputs::AbstractString)
     path_to_main = joinpath(dataDir(), "inputs", path_from_inputs, "main.cpp")
     lines = readlines(path_to_main)
 
-    filter!(x->!contains(x, "copy_command"), lines) #! remove any lines carrying out the copy command, which could be a little risky if the user uses for something other than copying over the config file
+    filter!(!contains("copy_command"), lines) #! remove any lines carrying out the copy command, which could be a little risky if the user uses for something other than copying over the config file
 
-    if any(x->contains(x, "argument_parser.parse"), lines)
+    if any(contains("argument_parser.parse"), lines)
         #! already adapted the main.cpp
         return true
     end
 
-    idx1 = findfirst(x->contains(x, "// load and parse settings file(s)"), lines)
+    idx1 = findfirst(contains("// load and parse settings file(s)"), lines)
     if isnothing(idx1)
-        idx1 = findfirst(x->contains(x, "bool XML_status = false;"), lines)
+        idx1 = findfirst(contains("bool XML_status = false;"), lines)
         if isnothing(idx1)
             msg = """
             Could not find the line to insert the settings file parsing code.
@@ -344,8 +344,8 @@ function adaptMain(path_from_inputs::AbstractString)
             return false
         end
     end
-    idx_not_xml_status = findfirst(x->contains(x, "!XML_status"), lines)
-    idx2 = idx_not_xml_status + findfirst(x -> contains(x, "}"), lines[idx_not_xml_status:end]) - 1
+    idx_not_xml_status = findfirst(contains("!XML_status"), lines)
+    idx2 = idx_not_xml_status + findfirst(contains("}"), lines[idx_not_xml_status:end]) - 1
 
     deleteat!(lines, idx1:idx2)
 
@@ -409,10 +409,10 @@ Adapt the custom cpp file to be used in the PhysiCellModelManager.jl structure.
 function adaptCustomCPP(path_from_inputs::AbstractString)
     path_to_custom_cpp = joinpath(dataDir(), "inputs", path_from_inputs, "custom.cpp")
     lines = readlines(path_to_custom_cpp)
-    idx = findfirst(x->contains(x, "load_cells_from_pugixml"), lines)
+    idx = findfirst(contains("load_cells_from_pugixml"), lines)
 
     if isnothing(idx)
-        if !any(x->contains(x, "load_initial_cells"), lines)
+        if !any(contains("load_initial_cells"), lines)
             msg = """
             Could not find the line to insert the initial cells loading code.
             Aborting the import process.
@@ -425,7 +425,7 @@ function adaptCustomCPP(path_from_inputs::AbstractString)
 
     lines[idx] = "\tload_initial_cells();"
 
-    idx = findfirst(x -> contains(x, "setup_cell_rules"), lines)
+    idx = findfirst(contains("setup_cell_rules"), lines)
     if !isnothing(idx)
         lines[idx] = "\tsetup_behavior_rules();"
     end

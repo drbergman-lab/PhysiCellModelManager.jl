@@ -204,14 +204,14 @@ Revert the main.cpp file in the export folder to the given PhysiCell version.
 function revertMain(export_folder::AbstractString, physicell_version::AbstractString)
     path_to_main = joinpath(export_folder, "main.cpp")
     lines = readlines(path_to_main)
-    idx = findfirst(x -> contains(x, "<getopt.h>"), lines)
+    idx = findfirst(contains("<getopt.h>"), lines)
     if !isnothing(idx)
         popat!(lines, idx)
     end
 
-    idx1 = findfirst(x -> contains(x, "// read arguments"), lines)
+    idx1 = findfirst(contains("// read arguments"), lines)
     if isnothing(idx1)
-        idx1 = findfirst(x -> contains(x, "argument_parser"), lines)
+        idx1 = findfirst(contains("argument_parser"), lines)
         if isnothing(idx1)
             msg = """
             Could not identify where the argument_parser ends in the main.cpp file.
@@ -221,7 +221,7 @@ function revertMain(export_folder::AbstractString, physicell_version::AbstractSt
             return false
         end
     end
-    idx2 = findfirst(x -> contains(x, "// OpenMP setup"), lines)
+    idx2 = findfirst(contains("// OpenMP setup"), lines)
     if isnothing(idx2)
         idx2 = findfirst(x -> contains(x, "omp_set_num_threads(") && contains(x, "PhysiCell_settings.omp_num_threads"), lines)
         if isnothing(idx2)
@@ -385,11 +385,11 @@ Revert the custom cpp file in the export folder to the given PhysiCell version.
 function revertCustomCPP(path_to_custom_modules::AbstractString, ::AbstractString)
     path_to_custom_cpp = joinpath(path_to_custom_modules, "custom.cpp")
     lines = readlines(path_to_custom_cpp)
-    idx = findfirst(x -> contains(x, "load_initial_cells();"), lines)
+    idx = findfirst(contains("load_initial_cells();"), lines)
 
     lines[idx] = "    load_cells_from_pugixml();"
 
-    idx = findfirst(x -> contains(x, "setup_behavior_rules()"), lines)
+    idx = findfirst(contains("setup_behavior_rules()"), lines)
     if !isnothing(idx)
         lines[idx] = "    setup_cell_rules();"
     end

@@ -81,7 +81,6 @@ function parseProjectInputsConfigurationFile()
     end
     pcmm_globals.inputs_dict = [Symbol(location) => location_dict for (location, location_dict) in pairs(inputs_dict_temp)] |> Dict{Symbol,Any}
     pcmm_globals.project_locations = ProjectLocations()
-    createSimpleInputFoldersFunction()
     return true
 end
 

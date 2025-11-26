@@ -166,31 +166,19 @@ end
 #! this is the function that takes in the required inputs as positional arguments and the optional inputs as keyword arguments
 function InputFolders(args...; kwargs...) end
 
-"""
-    createSimpleInputFoldersFunction()
+function InputFolders(req_loc_folders::Vararg{String}; opt_loc_folders...)
+    assertInitialized()
+    req_locs = projectLocations().required
+    @assert length(req_loc_folders) == length(req_locs) "Number of required location folders provided ($(length(req_loc_folders))) does not match number of required locations ($(length(req_locs))). Required locations are: $(req_locs)."
 
-Creates a simple method for creating `InputFolders` objects at module initialization based on `data/inputs/inputs.toml`.
-
-The required inputs are sorted alphabetically and used as the positional arguments.
-The optional inputs are used as keyword arguments with a default value of `\"\"`, indicating they are unused.
-"""
-function createSimpleInputFoldersFunction()
-    #! first, delete any existing "simple" InputFolders functions (probably better to find a way to handle this by resetting this and other stuff on re-initialization)
-    input_folders_methods = methods(InputFolders) |> collect
-    filter!(x -> x.file == :none, input_folders_methods) #! the one added here has no file, so we filter out any existing ones that have a file
-    Base.delete_method.(input_folders_methods)
-
-    #! now, create the new "simple" InputFolders function
-    fn_args = join(["$(location)::String" for location in projectLocations().required], ", ")
-    fn_kwargs = join(["$(location)::String=\"\"" for location in setdiff(projectLocations().all, projectLocations().required)], ", ")
-    ret_val = "[$(join([":$(location) => $(location)" for location in projectLocations().all], ", "))] |> InputFolders"
-    """
-    function InputFolders($(fn_args); $(fn_kwargs))
-        assertInitialized()
-        return $(ret_val)
+    location_pairs = Vector{Pair{Symbol,Union{String,Int}}}()
+    for (loc, folder) in zip(req_locs, req_loc_folders)
+        push!(location_pairs, loc => folder)
     end
-    """ |> Meta.parse |> eval
-    return
+    for (loc, val) in pairs(opt_loc_folders)
+        push!(location_pairs, loc => val)
+    end
+    return InputFolders(location_pairs)
 end
 
 Base.getindex(input_folders::InputFolders, loc::Symbol)::InputFolder = input_folders.input_folders[loc]

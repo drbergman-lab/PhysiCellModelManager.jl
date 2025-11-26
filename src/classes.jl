@@ -194,11 +194,11 @@ end
 Prints the folder information for each input folder in the InputFolders object.
 """
 function printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=1)
-    max_width = maximum(length(string(loc)) for loc in keys(input_folders.input_folders))
-    for (loc, input_folder) in pairs(input_folders.input_folders)
-        if isempty(input_folder.folder)
-            continue
-        end
+    if_nt = input_folders.input_folders #! InputFolders NamedTuple
+    used_locs = [loc for loc in keys(if_nt) if !isempty(if_nt[loc].folder)]
+    max_width = maximum(length(string(loc)) for loc in used_locs)
+    for loc in used_locs
+        input_folder = if_nt[loc]
         println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $(input_folder.folder)")
     end
 end
@@ -245,11 +245,10 @@ end
 Prints the variation ID information for each varied input in the VariationID object.
 """
 function printVariationID(io::IO, variation_id::VariationID, n_indent::Int=1)
-    max_width = maximum(length(string(loc)) for loc in keys(variation_id.ids))
-    for (loc, id) in pairs(variation_id.ids)
-        if id == -1
-            continue
-        end
+    used_locs = [loc for loc in keys(variation_id.ids) if variation_id.ids[loc] != -1]
+    max_width = maximum(length(string(loc)) for loc in used_locs)
+    for loc in used_locs
+        id = variation_id.ids[loc]
         println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $id")
     end
 end

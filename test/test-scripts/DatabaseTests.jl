@@ -72,3 +72,21 @@ PhysiCellModelManager.assertInitialized()
 stmt_str = "SELECT * FROM simulations WHERE simulation_id = :simulation_id;"
 bad_params = (; :simulation_id => -1)
 @test_throws AssertionError PhysiCellModelManager.stmtToDataFrame(stmt_str, bad_params; is_row=true)
+
+# test getParameterValue
+simulation = Simulation(1)
+xml_path = ["overall", "max_time"]
+@test getParameterValue(simulation, xml_path) == 60.0 # max time in the GenerateData.jl test script is set to 60.0
+@test getParameterValue(1, xml_path) == 60.0 # use the simulation_id version
+
+monad = Monad(simulation)
+@test getParameterValue(monad, xml_path) == 60.0 # use the monad version
+@test getParameterValue(monad, ["domain", "use_2D"]) == true
+@test getParameterValue(monad, ["initial_conditions", "cell_positions", "folder"]) == "./config"
+
+xml_path = icCellsPath("default", "disc", 1, "x0")
+@test_throws AssertionError getParameterValue(simulation, xml_path) # not varied in simulation 1
+
+@test_nowarn getAllParameterValues(1)
+@test_nowarn getAllParameterValues(monad)
+@test_nowarn getAllParameterValues(Sampling(1))

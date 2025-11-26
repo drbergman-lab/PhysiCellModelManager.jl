@@ -576,14 +576,18 @@ function getParameterValue(simulation_id::Int, xp)
 end
 
 """
-getAllParameterValues(simulation_id::Int)
-getAllParameterValues(S::AbstractSampling)
+    getAllParameterValues(simulation_id::Int)
+    getAllParameterValues(S::AbstractSampling)
 
 Get all parameter values for the given simulation, monad, or sampling as a DataFrame.
 Simulation ID can also be passed directly as an integer.
 
-# Artificial attributes
-If sibling elements cannot be uniquely identified by an attribute (e.g., name, ID), artificial IDs will be added to the XML paths to ensure uniqueness for the dictionary keys.
+# Identifying attributes
+If sibling elements have identical tags, attributes are programmatically searched to find one that can be used to identify them.
+Priority is given to "name", "ID", and "id" attributes.
+If sibling elements cannot be uniquely identified by an attribute, artificial IDs will be added to the XML paths to ensure uniqueness for the column names.
+These will show up as `<tag>:temp_id:<index>` in the column names.
+Search for them with `contains(col_name, ":temp_id:")`.
 Note: these are not added to the XML files themselves.
 Users must manually insert such artificial IDs into their XML files to use PCMM to vary those parameters.
 
@@ -610,8 +614,6 @@ col_name = join(xml_path, '/')
 # or
 col_name = PhysiCellModelManager.columnName(xml_path)
 ```
-
-Note: the XML paths this function uses for column names may differ than ones you create.
 """
 function getAllParameterValues(S::Sampling)
     monad_ids = getMonadIDs(S)

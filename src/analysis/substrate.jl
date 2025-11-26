@@ -142,7 +142,7 @@ function Base.getindex(asts::AverageSubstrateTimeSeries, name::String)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", asts::AverageSubstrateTimeSeries)
+function Base.show(io::IO, asts::AverageSubstrateTimeSeries)
     println(io, "AverageSubstrateTimeSeries for Simulation $(asts.simulation_id)")
     println(io, "  Time: $(formatTimeRange(asts.time))")
     println(io, "  Substrates: $(join(keys(asts.substrate_concentrations), ", "))")
@@ -323,7 +323,7 @@ function Base.getindex(ests::ExtracellularSubstrateTimeSeries, name::String)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", ests::ExtracellularSubstrateTimeSeries)
+function Base.show(io::IO, ests::ExtracellularSubstrateTimeSeries)
     println(io, "ExtracellularSubstrateTimeSeries for Simulation $(ests.simulation_id)")
     println(io, "  Time: $(formatTimeRange(ests.time))")
     substrates = reduce(hcat, [keys(v) for v in values(ests.data)]) |> unique

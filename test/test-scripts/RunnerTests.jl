@@ -94,4 +94,4 @@ dv = DiscreteVariation(rulePath("default", "cycle entry", "decreasing_signals", 
 out = run(inputs, dv)
 @test out.n_success == 0
 
-Base.show(stdout, MIME"text/plain"(), out)
+println(stdout, out)

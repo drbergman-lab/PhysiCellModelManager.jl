@@ -124,7 +124,7 @@ function Base.getindex(spts::SimulationPopulationTimeSeries, cell_type::String)
     end
 end
 
-function Base.show(io::IO, ::MIME"text/plain", spts::SimulationPopulationTimeSeries)
+function Base.show(io::IO, spts::SimulationPopulationTimeSeries)
     println(io, "SimulationPopulationTimeSeries for Simulation $(spts.simulation_id):")
     println(io, "  Time: $(formatTimeRange(spts.time))")
     println(io, "  Cell types: $(join(keys(spts.cell_count), ", "))")
@@ -255,7 +255,7 @@ end
 
 Base.keys(apts::AbstractPopulationTimeSeries; exclude_time::Bool=false) = exclude_time ? keys(apts.cell_count) : ["time"; keys(apts.cell_count) |> collect]
 
-function Base.show(io::IO, ::MIME"text/plain", mpts::MonadPopulationTimeSeries)
+function Base.show(io::IO, mpts::MonadPopulationTimeSeries)
     println(io, "MonadPopulationTimeSeries for Monad $(mpts.monad_id):")
     printSimulationIDs(io, Monad(mpts.monad_id))
     println(io, "  Time: $(formatTimeRange(mpts.time))")

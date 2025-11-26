@@ -16,7 +16,7 @@ plot(result)
 plot(result; time_unit=:s, distance_unit=:mm)
 plot(result; time_unit=:s, distance_unit=:cm)
 
-Base.show(stdout, MIME"text/plain"(), result)
+println(stdout, result)
 
 result = PhysiCellModelManager.pcf(PhysiCellSnapshot(simulation_id, :initial), cell_types[1])
 result = PhysiCellModelManager.pcf(simulation_id, :initial, cell_types[1])
@@ -29,7 +29,7 @@ plot([result]; time_unit=:w)
 plot([result]; time_unit=:mo)
 plot([result]; time_unit=:y)
 
-Base.show(stdout, MIME"text/plain"(), result)
+println(stdout, result)
 
 @test_throws ArgumentError PhysiCellModelManager.pcf(simulation, :initial, :default) #! third argument should be a string or vector of strings
 @test_throws ArgumentError plot([result]; time_unit=:not_a_unit)

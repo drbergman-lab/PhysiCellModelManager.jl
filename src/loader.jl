@@ -143,7 +143,7 @@ end
 
 PhysiCellSnapshot(simulation::Simulation, index::Union{Integer,Symbol}, args...; kwargs...) = PhysiCellSnapshot(simulation.id, index, args...; kwargs...)
 
-function Base.show(io::IO, ::MIME"text/plain", snapshot::PhysiCellSnapshot)
+function Base.show(io::IO, snapshot::PhysiCellSnapshot)
     println(io, "PhysiCellSnapshot (SimID=$(snapshot.simulation_id), Index=$(snapshot.index))")
     println(io, "  Time: $(snapshot.time)")
     println(io, "  Current runtime: $(canonicalize(snapshot.runtime))")
@@ -338,7 +338,7 @@ end
 
 PhysiCellSequence(simulation::Simulation; kwargs...) = PhysiCellSequence(simulation.id; kwargs...)
 
-function Base.show(io::IO, ::MIME"text/plain", sequence::PhysiCellSequence)
+function Base.show(io::IO, sequence::PhysiCellSequence)
     println(io, "PhysiCellSequence (SimID=$(sequence.simulation_id))")
     println(io, "  #Snapshots: $(length(sequence.snapshots))")
     println(io, "  Cell Types: $(join(values(sequence.cell_type_to_name_dict), ", "))")

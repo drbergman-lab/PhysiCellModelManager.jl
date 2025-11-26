@@ -48,8 +48,8 @@ plotbycelltype(simulation_from_import; include_cell_type_names="fast T cell", ex
 @test ismissing(finalPopulationCount(pruned_simulation_id))
 
 spts = PhysiCellModelManager.SimulationPopulationTimeSeries(1)
-Base.show(stdout, MIME"text/plain"(), spts)
-Base.show(stdout, MIME"text/plain"(), mpts)
+println(stdout, spts)
+println(stdout, mpts)
 
 @test PhysiCellModelManager.formatTimeRange([78.0]) == "78.0"
 @test PhysiCellModelManager.formatTimeRange([0.0, 40.0, 78.0]) == "0.0-78.0 (not equally spaced)"

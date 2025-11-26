@@ -64,7 +64,7 @@ function Base.hcat(gs::Vararg{PCMMPCFResult})
     return PCMMPCFResult(time, pcf_result)
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::PCMMPCFResult)
+function Base.show(io::IO, p::PCMMPCFResult)
     println(io, "PCMMPCFResult:")
     if length(p.time) == 1
         println(io, "  Time: $(p.time[1])")

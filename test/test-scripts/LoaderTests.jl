@@ -84,9 +84,9 @@ PhysiCellModelManager.loadGraph!(sequence, :attachments)
 PhysiCellModelManager.loadGraph!(sequence, "spring_attachments")
 PhysiCellModelManager.loadGraph!(sequence, :neighbors)
 
-Base.show(stdout, MIME"text/plain"(), snapshot)
-Base.show(stdout, MIME"text/plain"(), sequence)
-Base.show(stdout, MIME"text/plain"(), sequence.snapshots[1])
+println(stdout, snapshot)
+println(stdout, sequence)
+println(stdout, sequence.snapshots[1])
 
 simulation = Simulation(monad)
 out = run(simulation; prune_options=PruneOptions(prune_txt=true))

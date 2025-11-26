@@ -173,10 +173,10 @@ end
 
 MOATSampling(sampling::Sampling, monad_ids_df::DataFrame) = MOATSampling(sampling, monad_ids_df, Dict{Function, GlobalSensitivity.MorrisResult}())
 
-function Base.show(io::IO, ::MIME"text/plain", moat_sampling::MOATSampling)
+function Base.show(io::IO, moat_sampling::MOATSampling)
     println(io, "MOAT sampling")
     println(io, "-------------")
-    show(io, MIME"text/plain"(), moat_sampling.sampling)
+    println(io, moat_sampling.sampling)
     println(io, "Sensitivity functions calculated:")
     for f in keys(moat_sampling.results)
         println(io, "  $f")
@@ -354,10 +354,10 @@ end
 
 SobolSampling(sampling::Sampling, monad_ids_df::DataFrame; sobol_index_methods::NamedTuple{(:first_order, :total_order), Tuple{Symbol, Symbol}}=(first_order=:Jansen1999, total_order=:Jansen1999)) = SobolSampling(sampling, monad_ids_df, Dict{Function, GlobalSensitivity.SobolResult}(), sobol_index_methods)
 
-function Base.show(io::IO, ::MIME"text/plain", sobol_sampling::SobolSampling)
+function Base.show(io::IO, sobol_sampling::SobolSampling)
     println(io, "Sobol sampling")
     println(io, "--------------")
-    show(io, MIME"text/plain"(), sobol_sampling.sampling)
+    println(io, sobol_sampling.sampling)
     println(io, "Sobol index methods:")
     println(io, "  First order: $(sobol_sampling.sobol_index_methods.first_order)")
     println(io, "  Total order: $(sobol_sampling.sobol_index_methods.total_order)")
@@ -497,10 +497,10 @@ end
 
 RBDSampling(sampling::Sampling, monad_ids_df::DataFrame, num_cycles; num_harmonics::Int=6) = RBDSampling(sampling, monad_ids_df, Dict{Function, GlobalSensitivity.SobolResult}(), num_harmonics, num_cycles)
 
-function Base.show(io::IO, ::MIME"text/plain", rbd_sampling::RBDSampling)
+function Base.show(io::IO, rbd_sampling::RBDSampling)
     println(io, "RBD sampling")
     println(io, "------------")
-    show(io, MIME"text/plain"(), rbd_sampling.sampling)
+    println(io, rbd_sampling.sampling)
     println(io, "Number of harmonics: $(rbd_sampling.num_harmonics)")
     println(io, "Number of cycles (1/2 or 1): $(rbd_sampling.num_cycles)")
     println(io, "GSA functions:")

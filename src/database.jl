@@ -926,8 +926,7 @@ end
 ########### Printing Database Functions ###########
 
 """
-    printSimulationsTable(; sink=println, kwargs...)
-    printSimulationsTable(; sink=println, kwargs...)
+    printSimulationsTable(args...; sink=println, kwargs...)
 
 Print a table of simulations and their varied values. See [`simulationsTable`](@ref) for details on the arguments and keyword arguments.
 
@@ -935,13 +934,11 @@ First, create a DataFrame by calling [`simulationsTable`](@ref) using `args...` 
 Then, pass the DataFrame to the `sink` function.
 
 # Arguments
-- ``
+See [`simulationsTable`](@ref) for details on the arguments.
 
 # Keyword Arguments
 - `sink`: A function to print the table. Defaults to `println`. Note, the table is a DataFrame, so you can also use `CSV.write` to write the table to a CSV file.
-- `remove_constants::Bool`: If true, removes columns that have the same value for all simulations. Defaults to true.
-- `sort_by::Vector{String}`: A vector of column names to sort the table by. Defaults to all columns. To populate this argument, first print the table to see the column names.
-- `sort_ignore::Vector{String}`: A vector of column names to ignore when sorting. Defaults to the database IDs associated with the simulations.
+See [`simulationsTable`](@ref) for details on the remaining keyword arguments.
 
 # Examples
 ```julia

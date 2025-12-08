@@ -60,7 +60,7 @@ out2 = run(simulation, discrete_variations; n_replicates=n_replicates, force_rec
 @test out2.trial isa Sampling
 @test PhysiCellModelManager.trialID(out2) == sampling.id
 @test out2.trial.inputs == sampling.inputs
-@test Set(PhysiCellModelManager.readConstituentIDs(out2.trial)) == Set(PhysiCellModelManager.readConstituentIDs(sampling))
+@test Set(PhysiCellModelManager.constituentIDs(out2.trial)) == Set(PhysiCellModelManager.constituentIDs(sampling))
 @test Set(PhysiCellModelManager.simulationIDs(out2.trial)) == Set(PhysiCellModelManager.simulationIDs(sampling))
 @test out2.n_scheduled == 0
 @test out2.n_success == 0
@@ -95,3 +95,5 @@ out = run(inputs, dv)
 @test out.n_success == 0
 
 println(stdout, out)
+
+deleteSimulations(out.trial.id)

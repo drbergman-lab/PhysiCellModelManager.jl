@@ -5,7 +5,7 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-sim_id = 1
+sim_id = simulationIDs()[1]
 fake_python_path = "fake_python_path"
 fake_studio_path = "fake_studio_path"
 @test_throws ArgumentError PhysiCellModelManager.resolveStudioGlobals(missing, missing)

@@ -17,7 +17,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
         end
         success = loadCustomCode(simulation; force_recompile=force_recompile)
         if !success
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -30,7 +30,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
             append!(flags, ["-i", pathToICCell(simulation)])
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC cell file.\n\tCause: $e\n")
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -42,7 +42,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
             append!(flags, ["-e", pathToICECM(simulation)]) #! if ic file included (id != -1), then include this in the command
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC ECM file.\n\tCause: $e\n")
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -61,13 +61,16 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
 end
 
 """
-    simulationFailedToRun(simulation::Simulation, monad_id::Int)
+    simulationFailed(simulation::Simulation, monad_id::Int)
+    simulationFailed(simulation_id::Int, monad_id::Int)
 
 Set the status code of the simulation to "Failed" and erase the simulation ID from the `simulations.csv` file for the monad it belongs to.
 """
-function simulationFailedToRun(simulation::Simulation, monad_id::Int)
-    DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation.id);" )
-    eraseSimulationIDFromConstituents(simulation.id; monad_id=monad_id)
+simulationFailed(simulation::Simulation, monad_id::Int) = simulationFailed(simulation.id, monad_id)
+
+function simulationFailed(simulation_id::Int, monad_id::Int)
+    DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation_id);" )
+    eraseSimulationIDFromConstituents(simulation_id; monad_id=monad_id)
     return
 end
 
@@ -80,11 +83,13 @@ A struct to hold the simulation process and its associated monad ID. Users shoul
 - `simulation::Simulation`: The simulation object.
 - `monad_id::Int`: The ID of the associated monad.
 - `process::Union{Nothing,Base.Process}`: The process associated with the simulation. If the simulation process fails, e.g. if the command cannot be constructed, this will be `nothing`.
+- `success::Bool`: The success status of the simulation process. Set after the process has finished.
 """
 struct SimulationProcess
     simulation::Simulation
     monad_id::Int
     process::Union{Nothing,Base.Process}
+    success::Bool
 
     function SimulationProcess(simulation::Simulation; monad_id::Union{Missing,Int}=missing, do_full_setup::Bool=true, force_recompile::Bool=false)
         if ismissing(monad_id)
@@ -94,7 +99,8 @@ struct SimulationProcess
 
         cmd = prepareSimulationCommand(simulation, monad_id, do_full_setup, force_recompile)
         if isnothing(cmd)
-            return new(simulation, monad_id, nothing)
+            updateDatabaseOnCompletion(simulation.id, monad_id, false)
+            return new(simulation, monad_id, nothing, false)
         end
 
         path_to_simulation_folder = trialFolder(simulation)
@@ -103,11 +109,19 @@ struct SimulationProcess
         flush(stdout)
         if pcmm_globals.run_on_hpc
             cmd = prepareHPCCommand(cmd, simulation.id)
-            p = run(pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "hpc.out"), stderr=joinpath(path_to_simulation_folder, "hpc.err")); wait=true)
+            the_pipeline = pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "hpc.out"), stderr=joinpath(path_to_simulation_folder, "hpc.err"))
         else
-            p = run(pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "output.log"), stderr=joinpath(path_to_simulation_folder, "output.err")); wait=true)
+            the_pipeline = pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "output.log"), stderr=joinpath(path_to_simulation_folder, "output.err"))
         end
-        return new(simulation, monad_id, p)
+        p = try
+            run(the_pipeline; wait=true)
+        catch e
+            println("\nWARNING: The command for Simulation $(simulation.id) failed to execute.\n\tCause: $e\n")
+            nothing
+        end
+        success = isnothing(p) ? false : p.exitcode == 0
+        updateDatabaseOnCompletion(simulation.id, monad_id, success)
+        return new(simulation, monad_id, p, success)
     end
 end
 
@@ -153,19 +167,19 @@ end
 """
     resolveSimulation(simulation_process::SimulationProcess, prune_options::PruneOptions)
 
-Resolve the simulation process by checking its exit code and updating the database accordingly.
+Resolve the simulation process by checking its success status, printing warnings if it failed, and pruning the simulation output if necessary.
 """
 function resolveSimulation(simulation_process::SimulationProcess, prune_options::PruneOptions)
+    if isnothing(simulation_process.process)
+        return
+    end
     simulation = simulation_process.simulation
-    monad_id = simulation_process.monad_id
     p = simulation_process.process
-    success = p.exitcode == 0
     path_to_simulation_folder = trialFolder(simulation)
     path_to_err = joinpath(path_to_simulation_folder, "output.err")
-    if success
+    if simulation_process.success
         rm(path_to_err; force=true)
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)
-        DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Completed")) WHERE simulation_id=$(simulation.id);" )
     else
         println("\nWARNING: Simulation $(simulation.id) failed. Please check $(path_to_err) for more information.\n")
         #! write the execution command to output.err
@@ -178,12 +192,10 @@ function resolveSimulation(simulation_process::SimulationProcess, prune_options:
                 println(io, line)
             end
         end
-        DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation.id);" )
-        eraseSimulationIDFromConstituents(simulation.id; monad_id=monad_id)
     end
 
     pruneSimulationOutput(simulation, prune_options)
-    return success
+    return
 end
 
 """
@@ -237,7 +249,7 @@ function collectSimulationTasks(sampling::Sampling; force_recompile::Bool=false)
     end
 
     simulation_tasks = []
-    for monad in Monad.(readConstituentIDs(sampling))
+    for monad in Monad.(constituentIDs(sampling))
         append!(simulation_tasks, collectSimulationTasks(monad, do_full_setup=false, force_recompile=false)) #! run the monad and add the number of new simulations to the total
     end
 
@@ -248,7 +260,7 @@ function collectSimulationTasks(trial::Trial; force_recompile::Bool=false)
     mkpath(trialFolder(trial))
 
     simulation_tasks = []
-    for sampling in Sampling.(readConstituentIDs(trial))
+    for sampling in Sampling.(constituentIDs(trial))
         append!(simulation_tasks, collectSimulationTasks(sampling; force_recompile=force_recompile)) #! run the sampling and add the number of new simulations to the total
     end
 
@@ -327,7 +339,7 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
     println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
 
     queue_channel = Channel{Task}(n_simulation_tasks)
-    result_channel = Channel{Bool}(n_simulation_tasks)
+    result_channel = Channel{SimulationProcess}(n_simulation_tasks)
     @async for simulation_task in simulation_tasks
         put!(queue_channel, simulation_task) #! if the queue_channel is full, this will block until there is space
     end
@@ -341,8 +353,8 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
 
     #! this code block effectively blocks the main thread until all the simulation_tasks have been processed
     for _ in 1:n_simulation_tasks #! take exactly the number of expected outputs
-        success = take!(result_channel) #! wait until the result_channel has a value to take
-        n_success += success
+        simulation_process = take!(result_channel) #! wait until the result_channel has a value to take
+        n_success += simulation_process.success
     end
 
     n_asterisks = 1
@@ -397,8 +409,19 @@ Process the given simulation task and return whether it was successful.
 function processSimulationTask(simulation_task, prune_options)
     schedule(simulation_task)
     simulation_process = fetch(simulation_task)
-    if isnothing(simulation_process.process)
-        return false
+    resolveSimulation(simulation_process, prune_options)
+    return simulation_process
+end
+
+"""
+    updateDatabaseOnCompletion(simulation_id::Int, monad_id::Int, success::Bool)
+
+Update the database on completion of a simulation.
+"""
+function updateDatabaseOnCompletion(simulation_id::Int, monad_id::Int, success::Bool)
+    if success
+        DBInterface.execute(centralDB(), "UPDATE simulations SET status_code_id=$(statusCodeID("Completed")) WHERE simulation_id=$(simulation_id);")
+    else
+        simulationFailed(simulation_id, monad_id)
     end
-    return resolveSimulation(simulation_process, prune_options)
 end

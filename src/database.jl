@@ -616,7 +616,7 @@ col_name = PhysiCellModelManager.columnName(xml_path)
 ```
 """
 function getAllParameterValues(S::Sampling)
-    monad_ids = getMonadIDs(S)
+    monad_ids = monadIDs(S)
     dfs = [getAllParameterValues(Monad(monad_id)) for monad_id in monad_ids]
     df = vcat(dfs...)
     df.monad_id = monad_ids
@@ -981,6 +981,126 @@ function validateParsBytes(db::SQLite.DB, table_name::String)
         par_key does not match the expected values for $(table_name) ID $(row[1]).
         Expected: $(expected_par_key)
         Found: $(par_key)
+        """
+    end
+end
+
+"""
+    databaseDiagnostics()
+
+Run diagnostics on the central database to check for consistency and integrity.
+"""
+function databaseDiagnostics()
+    assertInitialized()
+    consensus_ids = Dict{Type{<:AbstractTrial}, Set{Int}}()
+
+    #! check that all tables exist and that all entries in the database have corresponding folders
+    db_ids = Dict{Type{<:AbstractTrial}, Set{Int}}()
+    folder_ids = Dict{Type{<:AbstractTrial}, Set{Int}}()
+    missing_dirs = Dict{Type{<:AbstractTrial}, Set{Int}}()
+    missing_db_entries = Dict{Type{<:AbstractTrial}, Set{Int}}()
+    for T in (Simulation, Monad, Sampling, Trial)
+        table_name = lowerClassString(T) * "s"
+        db = centralDB()
+        @assert tableExists(table_name; db=db) "Table $(table_name) does not exist in $(basename(db.file)). Database is not complete."
+        query = constructSelectQuery(table_name; selection=tableIDName(table_name))
+        df = queryToDataFrame(query; db=db)
+        db_ids[T] = Set(df[!, 1])
+
+        path_to_output_folder = joinpath(dataDir(), "outputs", "$(lowerClassString(T))s")
+        if isdir(path_to_output_folder)
+            folders = readdir(joinpath(dataDir(), "outputs", "$(lowerClassString(T))s"))
+        else
+            folders = String[]
+        end
+
+        folder_ids_found = tryparse.(Int, folders)
+        filter!(!isnothing, folder_ids_found)
+        folder_ids[T] = Set(folder_ids_found)
+
+        missing_dirs[T] = setdiff(db_ids[T], folder_ids[T])
+        missing_db_entries[T] = setdiff(folder_ids[T], db_ids[T])
+
+        consensus_ids[T] = intersect(db_ids[T], folder_ids[T])
+    end
+
+    warning_msg_dirs = ""
+    for (T, missing_ids) in pairs(missing_dirs)
+        if !isempty(missing_ids)
+            warning_msg_dirs *= "- $(lowerClassString(T))s with IDs: $(sort(collect(missing_ids)))\n"
+        end
+    end
+    
+    if !isempty(warning_msg_dirs)
+        warning_msg_dirs = "The following have entries in the database but not a corresponding folder. This can happen if the object is created, but never run.\n" * warning_msg_dirs
+        @warn warning_msg_dirs
+    end
+
+    warning_msg_dbs = ""
+    for (T, missing_ids) in pairs(missing_db_entries)
+        if !isempty(missing_ids)
+            warning_msg_dbs *= "- $(lowerClassString(T))s with IDs: $(sort(collect(missing_ids)))\n"
+        end
+    end
+
+    if !isempty(warning_msg_dbs)
+        warning_msg_dbs = "The following folders exist but are missing their corresponding entries in the database:\n" * warning_msg_dbs
+        @error warning_msg_dbs
+    end
+
+    #! check that all abstract trials have extant constituent trials
+    msg = ""
+    for T in (Monad, Sampling, Trial)
+        all_recorded_constituent_ids = Set{Int}()
+        for id in consensus_ids[T]
+            push!(all_recorded_constituent_ids, constituentIDs(T, id)...)
+        end
+        all_extant_constituent_ids = consensus_ids[constituentType(T)]
+        missing_ids = setdiff(all_recorded_constituent_ids, all_extant_constituent_ids)
+        if isempty(missing_ids)
+            continue
+        end
+        msg *= "- $(lowerClassString(T))s reference non-existent $(lowerClassString(constituentType(T))) IDs: $(sort(collect(missing_ids)))\n"
+    end
+
+    if !isempty(msg)
+        msg = "The following constituents are expected but not found:\n" * msg
+        @error msg
+    end
+
+    #! check simulation status of all simulations; warn on < 4 (4=Completed, 5=Failed), info on 5
+    query = constructSelectQuery("simulations"; selection="simulation_id, status_code_id")
+    df = queryToDataFrame(query)
+    status_codes = recognizedStatusCodes()
+
+        #! check none of the concerning status codes are present (i.e., anything other than Completed or Failed)
+    codes_with_issues = String[]
+    for status_code in status_codes
+        if status_code ∈ ("Completed", "Failed")
+            continue
+        end
+        status_code_id = statusCodeID(status_code)
+        concerning_ids = df[df.status_code_id .== status_code_id, :simulation_id]
+        if !isempty(concerning_ids)
+            @warn "Found $(length(concerning_ids)) simulations in the database with status code '$(status_code)' (ID: $(status_code_id)): $(sort(collect(concerning_ids)))."
+            push!(codes_with_issues, status_code)
+        end
+    end
+
+        #! log info for all Failed simulations
+    failed_status_code_id = statusCodeID("Failed")
+    failed_ids = df[df.status_code_id .== failed_status_code_id, :simulation_id]
+    if !isempty(failed_ids)
+        @info "Found $(length(failed_ids)) simulations in the database with status code 'Failed' (ID: $(failed_status_code_id)): $(sort(collect(failed_ids)))."
+        push!(codes_with_issues, "Failed")
+    end
+
+        #! suggest deletion of simulations with issues
+    if !isempty(codes_with_issues)
+        arg_string = length(codes_with_issues) == 1 ? "\"$(codes_with_issues[1])\"" : "[$(join(["\"$c\"" for c in codes_with_issues], ", "))]"
+        @info """
+        If these simulations are no longer needed, you can use `deleteSimulations(simulation_ids)` to remove them from the database.
+        You can also use `deleteSimulationsByStatus($arg_string; user_check=false)` to remove all simulations with these status codes.
         """
     end
 end

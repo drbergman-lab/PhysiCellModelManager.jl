@@ -22,6 +22,8 @@ PhysiCellModelManager.jl tracks simulations in a database so that it does not ha
 This means that adding new simulations to a script and re-running the entire script, including on an HPC, will not run extraneous simulations.
 Thus, the script can serve as a record of the simulations that have been run, and can be used to reproduce the results at a later date.
 
+If you do need to manually delete simulations--for example, because of an error that prevented the simulation entry in the database updating its record--use the [`deleteSimulations`](@ref) function to ensure that the database is updated appropriately.
+
 ## Use version control on `inputs` and `scripts` directories.
 Alone, these two directories along with the version of PhysiCell can be used to reproduce the results of a project.
 The `createProject` function will create a `.gitignore` file in the data directory to make sure the appropriate files are tracked.

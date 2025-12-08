@@ -246,7 +246,7 @@ function upgradeToV0_0_11(::Bool)
         if !ismissing(row.physicell_version_id)
             continue
         end
-        monads = getMonadIDs(Sampling(row.sampling_id))
+        monads = monadIDs(Sampling(row.sampling_id))
         query = constructSelectQuery("monads", "WHERE monad_id IN ($(join(monads, ",")))"; selection="physicell_version_id")
         monads_df = queryToDataFrame(query)
         monad_physicell_versions = monads_df.physicell_version_id |> unique
@@ -453,7 +453,6 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
     end
 
     parseProjectInputsConfigurationFile()
-    varied_locations = projectLocations().varied
     for location in projectLocations().varied
         location_folders = queryToDataFrame(constructSelectQuery(locationTableName(location); selection="folder_name")) |> x -> x.folder_name
         location_variation_id_name = locationVariationIDName(location)

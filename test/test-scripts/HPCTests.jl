@@ -24,7 +24,9 @@ cmd_string = strip(cmd_string, '`')
 
 # test prep of command
 # gh actions runners not expected to have `sbatch` installed
-@test_throws Base.IOError PhysiCellModelManager.SimulationProcess(simulation)
+simulation_process = PhysiCellModelManager.SimulationProcess(simulation)
+@test isnothing(simulation_process.process)
+@test !simulation_process.success
 
 # test hpc removal of file that does not exist
 @test isnothing(PhysiCellModelManager.rm_hpc_safe("not_a_file.txt"))
@@ -67,3 +69,5 @@ cmd_string = string(hpc_command)
 cmd_string = strip(cmd_string, '`')
 @assert contains(cmd_string, "--cpus-per-task=2")
 @assert contains(cmd_string, "--job-name=test_78")
+
+deleteSimulationsByStatus("Failed"; user_check=false)

@@ -7,7 +7,7 @@ Record the IDs of the constituents of an [`AbstractTrial`](@ref) object in a CSV
 function recordConstituentIDs(T::Type{<:AbstractTrial}, id::Int, ids::Array{Int})
     path_to_folder = trialFolder(T, id)
     mkpath(path_to_folder)
-    path_to_csv = joinpath(path_to_folder, constituentsTypeFilename(T))
+    path_to_csv = joinpath(path_to_folder, constituentTypeFilename(T))
     lines_table = compressIDs(ids)
     CSV.write(path_to_csv, lines_table; header=false)
 end

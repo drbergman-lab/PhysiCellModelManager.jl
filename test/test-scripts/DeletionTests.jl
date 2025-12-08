@@ -3,6 +3,9 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
+# diagnostics
+@test_nowarn PhysiCellModelManager.databaseDiagnostics()
+
 # make a few more sims to test deletion
 out = run(Monad(1; n_replicates=3))
 @test out.trial isa Monad
@@ -49,3 +52,6 @@ old_stdin = stdin  #! Save the original stdin
 Base.stdin = input_buffer
 resetDatabase()
 Base.stdin = old_stdin
+
+# diagnostics again
+@test_nowarn PhysiCellModelManager.databaseDiagnostics()

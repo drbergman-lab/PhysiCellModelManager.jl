@@ -96,7 +96,7 @@ cv = CoVariation((apoptosis_rate_path, val_1), (cycle_rate_path, val_2))
 println(stdout, cv)
 
 sampling = createTrial(inputs, [dv_max_time, cv]; n_replicates=2)
-@test length(PhysiCellModelManager.readConstituentIDs(sampling)) == 2
+@test length(PhysiCellModelManager.constituentIDs(sampling)) == 2
 @test length(sampling) == 4
 
 df = PhysiCellModelManager.simulationsTable(sampling)
@@ -115,21 +115,21 @@ x0s = [0.0, -100.0]
 cv_new = CoVariation([cv.variations; DiscreteVariation(max_response_path, mrs); DiscreteVariation(x0_path, x0s)])
 cv_test = CoVariation(cv_new.variations...)
 sampling = createTrial(inputs, [dv_max_time, cv_new]; n_replicates=3)
-@test length(PhysiCellModelManager.readConstituentIDs(sampling)) == 2
+@test length(PhysiCellModelManager.constituentIDs(sampling)) == 2
 @test length(sampling) == 6
 
 d_1 = Uniform(0, 1)
 d_2 = Normal(3, 0.01)
 cv = CoVariation((apoptosis_rate_path, d_1), (cycle_rate_path, d_2))
 sampling = createTrial(LHSVariation(5), inputs, cv; n_replicates=3)
-@test length(PhysiCellModelManager.readConstituentIDs(sampling)) == 5
+@test length(PhysiCellModelManager.constituentIDs(sampling)) == 5
 @test length(sampling) == 15
 @test PhysiCellModelManager.variationLocation(cv) == [:config, :config]
 @test PhysiCellModelManager.variationTarget(cv) == PhysiCellModelManager.XMLPath.([apoptosis_rate_path, cycle_rate_path])
 
 cv = CoVariation(cv.variations[1], cv.variations[2]) #! CoVariation(ev1, ev2, ...)
 sampling = createTrial(SobolVariation(7), inputs, cv; n_replicates=2)
-@test length(PhysiCellModelManager.readConstituentIDs(sampling)) == 7
+@test length(PhysiCellModelManager.constituentIDs(sampling)) == 7
 
 # more tests for coverage
 ev = DiscreteVariation(rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "applies_to_dead"), [true, false])
@@ -142,3 +142,5 @@ println(stdout, PhysiCellModelManager.XMLPath(xml_path))
 println(stdout, ev)
 println(stdout, UniformDistributedVariation(xml_path, 0.0, 1.0))
 println(stdout, cv)
+
+deleteSimulationsByStatus("Not Started"; user_check=false)

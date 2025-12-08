@@ -22,7 +22,7 @@ createProject(project_dir)
 @test PhysiCellModelManager.icFilename("dcs") == "dcs.csv"
 
 # test request without authentication token
-PCMM_PUBLIC_REPO_AUTH = ENV["PCMM_PUBLIC_REPO_AUTH"]
+PCMM_PUBLIC_REPO_AUTH = get(ENV, "PCMM_PUBLIC_REPO_AUTH", "")
 delete!(ENV, "PCMM_PUBLIC_REPO_AUTH")
 
 try

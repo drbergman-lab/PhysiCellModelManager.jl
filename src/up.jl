@@ -453,7 +453,6 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
     end
 
     parseProjectInputsConfigurationFile()
-    varied_locations = projectLocations().varied
     for location in projectLocations().varied
         location_folders = queryToDataFrame(constructSelectQuery(locationTableName(location); selection="folder_name")) |> x -> x.folder_name
         location_variation_id_name = locationVariationIDName(location)

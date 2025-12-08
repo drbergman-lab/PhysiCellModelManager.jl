@@ -243,7 +243,7 @@ end
 function isPhysiECMInConfig(sampling::Sampling)
     #! otherwise, no previous sampling saying to use the macro, no ic file for ecm, and the base config file does not have ecm enabled,
     #! now just check that the variation is not enabling the ecm
-    for monad in Monad.(readConstituentIDs(sampling))
+    for monad in Monad.(constituentIDs(sampling))
         if isPhysiECMInConfig(monad)
             return true
         end

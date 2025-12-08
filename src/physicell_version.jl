@@ -173,7 +173,12 @@ function repoOwner(commit_hash, tag::String)
     end
     remotes = gitRemotes(physicellDir())
     for remote in remotes
-        remote_hash_tags = readchomp(`git -C $(physicellDir()) ls-remote --tags $remote`)
+        try
+            remote_hash_tags = readchomp(`git -C $(physicellDir()) ls-remote --tags $remote`)
+        catch e
+            return "REPO_OWNER_UNKNOWN_UNABLE_TO_ACCESS_REMOTE"
+        end
+
         remote_hash_tags = split(remote_hash_tags, "\n")
         for remote_hash_tag in remote_hash_tags
             remote_commit_hash, remote_tag_name = split(remote_hash_tag, "\t")

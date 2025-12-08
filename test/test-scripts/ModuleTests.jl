@@ -3,7 +3,7 @@ filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
-PhysiCellModelManager.readConstituentIDs(Trial, 1)
+PhysiCellModelManager.constituentIDs(Trial, 1)
 simulationIDs([Simulation(1), Simulation(2)])
 PhysiCellModelManager.trialMonads(1)
 getMonadIDs()

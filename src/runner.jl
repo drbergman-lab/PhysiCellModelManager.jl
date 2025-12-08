@@ -17,7 +17,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
         end
         success = loadCustomCode(simulation; force_recompile=force_recompile)
         if !success
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -30,7 +30,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
             append!(flags, ["-i", pathToICCell(simulation)])
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC cell file.\n\tCause: $e\n")
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -42,7 +42,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
             append!(flags, ["-e", pathToICECM(simulation)]) #! if ic file included (id != -1), then include this in the command
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC ECM file.\n\tCause: $e\n")
-            simulationFailedToRun(simulation, monad_id)
+            simulationFailed(simulation, monad_id)
             return nothing
         end
     end
@@ -61,13 +61,16 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
 end
 
 """
-    simulationFailedToRun(simulation::Simulation, monad_id::Int)
+    simulationFailed(simulation::Simulation, monad_id::Int)
+    simulationFailed(simulation_id::Int, monad_id::Union{Missing,Int}=missing)
 
 Set the status code of the simulation to "Failed" and erase the simulation ID from the `simulations.csv` file for the monad it belongs to.
 """
-function simulationFailedToRun(simulation::Simulation, monad_id::Int)
-    DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation.id);" )
-    eraseSimulationIDFromConstituents(simulation.id; monad_id=monad_id)
+simulationFailed(simulation::Simulation, monad_id::Int) = simulationFailed(simulation.id, monad_id)
+
+function simulationFailed(simulation_id::Int, monad_id::Union{Missing,Int}=missing)
+    DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation_id);" )
+    eraseSimulationIDFromConstituents(simulation_id; monad_id=monad_id)
     return
 end
 
@@ -157,7 +160,6 @@ Resolve the simulation process by checking its exit code and updating the databa
 """
 function resolveSimulation(simulation_process::SimulationProcess, prune_options::PruneOptions)
     simulation = simulation_process.simulation
-    monad_id = simulation_process.monad_id
     p = simulation_process.process
     success = p.exitcode == 0
     path_to_simulation_folder = trialFolder(simulation)
@@ -165,7 +167,6 @@ function resolveSimulation(simulation_process::SimulationProcess, prune_options:
     if success
         rm(path_to_err; force=true)
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)
-        DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Completed")) WHERE simulation_id=$(simulation.id);" )
     else
         println("\nWARNING: Simulation $(simulation.id) failed. Please check $(path_to_err) for more information.\n")
         #! write the execution command to output.err
@@ -178,12 +179,10 @@ function resolveSimulation(simulation_process::SimulationProcess, prune_options:
                 println(io, line)
             end
         end
-        DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Failed")) WHERE simulation_id=$(simulation.id);" )
-        eraseSimulationIDFromConstituents(simulation.id; monad_id=monad_id)
     end
 
     pruneSimulationOutput(simulation, prune_options)
-    return success
+    return success, simulation.id
 end
 
 """
@@ -237,7 +236,7 @@ function collectSimulationTasks(sampling::Sampling; force_recompile::Bool=false)
     end
 
     simulation_tasks = []
-    for monad in Monad.(readConstituentIDs(sampling))
+    for monad in Monad.(constituentIDs(sampling))
         append!(simulation_tasks, collectSimulationTasks(monad, do_full_setup=false, force_recompile=false)) #! run the monad and add the number of new simulations to the total
     end
 
@@ -248,7 +247,7 @@ function collectSimulationTasks(trial::Trial; force_recompile::Bool=false)
     mkpath(trialFolder(trial))
 
     simulation_tasks = []
-    for sampling in Sampling.(readConstituentIDs(trial))
+    for sampling in Sampling.(constituentIDs(trial))
         append!(simulation_tasks, collectSimulationTasks(sampling; force_recompile=force_recompile)) #! run the sampling and add the number of new simulations to the total
     end
 
@@ -327,7 +326,7 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
     println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
 
     queue_channel = Channel{Task}(n_simulation_tasks)
-    result_channel = Channel{Bool}(n_simulation_tasks)
+    result_channel = Channel{Tuple{Bool,Int}}(n_simulation_tasks)
     @async for simulation_task in simulation_tasks
         put!(queue_channel, simulation_task) #! if the queue_channel is full, this will block until there is space
     end
@@ -341,8 +340,13 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
 
     #! this code block effectively blocks the main thread until all the simulation_tasks have been processed
     for _ in 1:n_simulation_tasks #! take exactly the number of expected outputs
-        success = take!(result_channel) #! wait until the result_channel has a value to take
-        n_success += success
+        success, simulation_id = take!(result_channel) #! wait until the result_channel has a value to take
+        if success
+            DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Completed")) WHERE simulation_id=$(simulation_id);" )
+            n_success += 1
+        else
+            simulationFailed(simulation_id)
+        end
     end
 
     n_asterisks = 1

@@ -49,7 +49,7 @@ trial = Trial(samplings)
 inputs = InputFolders(; config="0_template", custom_code="0_template")
 simulation = Simulation(Monad(1))
 
-@test_throws ArgumentError PhysiCellModelManager.constituentsType(Simulation)
+@test_throws ArgumentError PhysiCellModelManager.constituentType(Simulation)
 
 getMonadIDs(samplings)
 @test PhysiCellModelManager.lowerClassString(simulation) == "simulation"

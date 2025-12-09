@@ -33,3 +33,5 @@ cv = CoVariation(dv1, dv2)
 
 out_fail = run(out.trial.monads[1], cv; n_replicates=n_replicates)
 @test out_fail.n_success == 0
+
+deleteSimulations(out_fail.trial.id)

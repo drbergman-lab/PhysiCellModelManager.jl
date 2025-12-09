@@ -125,6 +125,8 @@ method = RBD(5)
 gsa_sampling = run(method, reference, avs...) # test the method with Vararg variations
 @test size(gsa_sampling.monad_ids_df) == (5, 2)
 
+PhysiCellModelManager.deleteMonad(reference.id)
+
 # print tests
 println(stdout, moat_sampling)
 println(stdout, sobol_sampling)

@@ -428,7 +428,7 @@ end
     if T isa Simulation
         monads = [Monad(T)]
     else
-        monads = Monad.(getMonadIDs(T))
+        monads = Monad.(monadIDs(T))
     end
 
     simulation_id = simulationIDs(T) |> first

@@ -31,6 +31,7 @@ sampling = Sampling(inputs, location_variation_ids;
     n_replicates=n_replicates,
 )
 @test sampling isa Sampling
+possibly_empty_monad_ids = monadIDs(sampling)
 
 trial = Trial(1)
 @test trial isa Trial
@@ -49,9 +50,9 @@ trial = Trial(samplings)
 inputs = InputFolders(; config="0_template", custom_code="0_template")
 simulation = Simulation(Monad(1))
 
-@test_throws ArgumentError PhysiCellModelManager.constituentsType(Simulation)
+@test_throws ArgumentError PhysiCellModelManager.constituentType(Simulation)
 
-getMonadIDs(samplings)
+monadIDs(samplings)
 @test PhysiCellModelManager.lowerClassString(simulation) == "simulation"
 @test PhysiCellModelManager.lowerClassString(Monad(1)) == "monad"
 @test PhysiCellModelManager.lowerClassString(samplings[1]) == "sampling"
@@ -67,8 +68,10 @@ PhysiCellModelManager.setMarchFlag(old_march_flag)
 #! you probably do not want to use integer variation IDs to initialize a Sampling object. this is just to test edge cases in the constructor
 location_variation_ids = Dict{Symbol,Union{Integer,AbstractArray{<:Integer}}}(:config => 0, :rulesets_collection => -1, :ic_cell => -1)
 sampling = Sampling(inputs, location_variation_ids)
+append!(possibly_empty_monad_ids, monadIDs(sampling))
 location_variation_ids = Dict{Symbol,Union{Integer,AbstractArray{<:Integer}}}(:config => [0], :rulesets_collection => -1, :ic_cell => -1)
 sampling = Sampling(inputs, location_variation_ids)
+append!(possibly_empty_monad_ids, monadIDs(sampling))
 sampling = Sampling(Monad(1))
 all_monads = simulationIDs() .|> Simulation .|> Monad
 all_monad_ids = [monad.id for monad in all_monads] |> unique
@@ -82,3 +85,7 @@ println(stdout, simulation)
 println(stdout, monad)
 println(stdout, sampling)
 println(stdout, trial)
+
+deleteSimulationsByStatus("Not Started"; user_check=false)
+monad_ids_to_delete = setdiff(possibly_empty_monad_ids, all_monad_ids)
+PhysiCellModelManager.deleteMonad(monad_ids_to_delete)

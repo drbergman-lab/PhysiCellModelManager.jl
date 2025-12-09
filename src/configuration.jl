@@ -304,7 +304,7 @@ function prepareVariedInputFolder(location::Symbol, sampling::Sampling)
     if !sampling.inputs[location].varied #! this input is not being varied (either unused or static)
         return
     end
-    for monad in Monad.(readConstituentIDs(sampling))
+    for monad in Monad.(constituentIDs(sampling))
         prepareVariedInputFolder(location, monad)
     end
 end

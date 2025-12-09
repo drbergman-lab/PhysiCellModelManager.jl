@@ -3,7 +3,8 @@ module PhysiCellModelManager
 using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
 using PhysiCellXMLRules, PhysiCellCellCreator
 
-export initializeModelManager, simulationIDs, setNumberOfParallelSims, getMonadIDs, getSimulationIDs
+export initializeModelManager, simulationIDs, setNumberOfParallelSims, monadIDs
+export getSimulationIDs, getMonadIDs #! deprecated aliases
 
 #! put these first as they define classes the rest rely on
 include("utilities.jl")
@@ -168,6 +169,16 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     println(rpad("Max parallel sims:", 25, ' ') * string(pcmm_globals.max_number_of_parallel_simulations))
     flush(stdout)
 
+    try
+        databaseDiagnostics()
+    catch e
+        """
+        Database diagnostics failed during initialization with error: $(e).
+        PCMM was not able to check the integrity of the database.
+        This is unexpected behavior; please report this issue on the PhysiCellModelManager.jl GitHub page.
+        """ |> println
+    end
+
     return isInitialized()
 end
 
@@ -181,28 +192,29 @@ initializeModelManager(; kwargs...) = initializeModelManager("PhysiCell", "data"
 ################## Selection Functions ##################
 
 """
-    constituentsType(T::Type{<:AbstractTrial})
-    constituentsType(T::AbstractTrial)
+    constituentType(T::Type{<:AbstractTrial})
+    constituentType(T::AbstractTrial)
 
-Return the type of the constituents of `T`. Used in the [`readConstituentIDs`](@ref) function.
+Return the type of the constituents of `T`. Used in the [`constituentIDs`](@ref) function.
 """
-constituentsType(::Type{Simulation}) = throw(ArgumentError("Type Simulation does not have constituents."))
-constituentsType(::Type{Monad}) = Simulation
-constituentsType(::Type{Sampling}) = Monad
-constituentsType(::Type{Trial}) = Sampling
+constituentType(::Type{Simulation}) = throw(ArgumentError("Type Simulation does not have constituents."))
+constituentType(::Type{Monad}) = Simulation
+constituentType(::Type{Sampling}) = Monad
+constituentType(::Type{Trial}) = Sampling
 
-constituentsType(T::AbstractTrial) = constituentsType(typeof(T))
-
-"""
-    constituentsTypeFilename(T::Type{<:AbstractTrial})
-    constituentsTypeFilename(T::AbstractTrial)
-
-Return the filename of the constituents of `T`. Used in the [`readConstituentIDs`](@ref) function.
-"""
-constituentsTypeFilename(T) = "$(T |> constituentsType |> lowerClassString)s.csv"
+constituentType(T::AbstractTrial) = constituentType(typeof(T))
 
 """
-    readConstituentIDs(T::AbstractTrial)
+    constituentTypeFilename(T::Type{<:AbstractTrial})
+    constituentTypeFilename(T::AbstractTrial)
+
+Return the filename of the constituents of `T`. Used in the [`constituentIDs`](@ref) function.
+"""
+constituentTypeFilename(T) = "$(T |> constituentType |> lowerClassString)s.csv"
+
+"""
+    constituentIDs(T::AbstractTrial)
+    constituentIDs(::Type{T}, id::Int) where {T<:AbstractTrial}
 
 Read a CSV file containing constituent IDs from `T` and return them as a vector of integers.
 
@@ -212,14 +224,14 @@ For a monad, this is the simulation IDs.
 
 # Examples
 ```julia
-ids = readConstituentIDs(Sampling(1)) # read the IDs of the monads in sampling 1
-ids = readConstituentIDs(Sampling, 1) # identical to above but does not need to create the Sampling object
+ids = constituentIDs(Sampling(1)) # read the IDs of the monads in sampling 1
+ids = constituentIDs(Sampling, 1) # identical to above but does not need to create the Sampling object
 
-ids = readConstituentIDs(Monad, 1) # read the IDs of the simulations in monad 1
-ids = readConstituentIDs(Trial, 1) # read the IDs of the samplings in trial 1
+ids = constituentIDs(Monad, 1) # read the IDs of the simulations in monad 1
+ids = constituentIDs(Trial, 1) # read the IDs of the samplings in trial 1
 ```
 """
-function readConstituentIDs(path_to_csv::String)
+function constituentIDs(path_to_csv::String)
     if !isfile(path_to_csv)
         return Int[]
     end
@@ -237,8 +249,8 @@ function readConstituentIDs(path_to_csv::String)
     return ids
 end
 
-readConstituentIDs(T::AbstractTrial) = readConstituentIDs(joinpath(trialFolder(T), constituentsTypeFilename(T)))
-readConstituentIDs(T::Type{<:AbstractTrial}, id::Int) = readConstituentIDs(joinpath(trialFolder(T, id), constituentsTypeFilename(T)))
+constituentIDs(T::AbstractTrial) = constituentIDs(joinpath(trialFolder(T), constituentTypeFilename(T)))
+constituentIDs(::Type{T}, id::Int) where {T<:AbstractTrial} = constituentIDs(joinpath(trialFolder(T, id), constituentTypeFilename(T)))
 
 """
     samplingSimulationIDs(sampling_id::Int)
@@ -246,8 +258,8 @@ readConstituentIDs(T::Type{<:AbstractTrial}, id::Int) = readConstituentIDs(joinp
 Internal function to get the simulation IDs for a given sampling ID. Users should use [`simulationIDs`](@ref) instead.
 """
 function samplingSimulationIDs(sampling_id::Int)
-    monad_ids = readConstituentIDs(Sampling, sampling_id)
-    return vcat([readConstituentIDs(Monad, monad_id) for monad_id in monad_ids]...)
+    monad_ids = constituentIDs(Sampling, sampling_id)
+    return vcat([constituentIDs(Monad, monad_id) for monad_id in monad_ids]...)
 end
 
 """
@@ -256,7 +268,7 @@ end
 Internal function to get the simulation IDs for a given trial ID. Users should use [`simulationIDs`](@ref) instead.
 """
 function trialSimulationIDs(trial_id::Int)
-    sampling_ids = readConstituentIDs(Trial, trial_id)
+    sampling_ids = constituentIDs(Trial, trial_id)
     return vcat([samplingSimulationIDs(sampling_id) for sampling_id in sampling_ids]...)
 end
 
@@ -279,7 +291,7 @@ simulationIDs([trial1, trial2]) # all simulation IDs between trial1 and trial2
 """
 simulationIDs() = constructSelectQuery("simulations"; selection="simulation_id") |> queryToDataFrame |> x -> x.simulation_id
 simulationIDs(simulation::Simulation) = [simulation.id]
-simulationIDs(monad::Monad) = readConstituentIDs(monad)
+simulationIDs(monad::Monad) = constituentIDs(monad)
 simulationIDs(sampling::Sampling) = samplingSimulationIDs(sampling.id)
 simulationIDs(trial::Trial) = trialSimulationIDs(trial.id)
 simulationIDs(Ts::AbstractArray{<:AbstractTrial}) = reduce(vcat, simulationIDs.(Ts))
@@ -297,15 +309,15 @@ end
 """
     trialMonads(trial_id::Int)
 
-Internal function to get the monad IDs for a given trial ID. Users should use [`getMonadIDs`](@ref) instead.
+Internal function to get the monad IDs for a given trial ID. Users should use [`monadIDs`](@ref) instead.
 """
 function trialMonads(trial_id::Int)
-    sampling_ids = readConstituentIDs(Trial, trial_id)
-    return vcat([readConstituentIDs(Sampling, sampling_id) for sampling_id in sampling_ids]...)
+    sampling_ids = constituentIDs(Trial, trial_id)
+    return vcat([constituentIDs(Sampling, sampling_id) for sampling_id in sampling_ids]...)
 end
 
 """
-    getMonadIDs()
+    monadIDs()
 
 Return a vector of all monad IDs in the database.
 
@@ -313,18 +325,28 @@ Alternate forms take a monad, sampling, or trial object (or an array of any comb
 
 # Examples
 ```julia
-getMonadIDs() # all monad IDs in the database
-getMonadIDs(monad) # just a vector with the monad ID, i.e. [monad.id]
-getMonadIDs(sampling) # all monad IDs in a sampling
-getMonadIDs(trial) # all monad IDs in a trial
-getMonadIDs([trial1, trial2]) # all monad IDs between trial1 and trial2
+monadIDs() # all monad IDs in the database
+monadIDs(monad) # just a vector with the monad ID, i.e. [monad.id]
+monadIDs(sampling) # all monad IDs in a sampling
+monadIDs(trial) # all monad IDs in a trial
+monadIDs([trial1, trial2]) # all monad IDs between trial1 and trial2
 ```
 """
-getMonadIDs() = constructSelectQuery("monads"; selection="monad_id") |> queryToDataFrame |> x -> x.monad_id
-getMonadIDs(monad::Monad) = [monad.id]
-getMonadIDs(sampling::Sampling) = readConstituentIDs(sampling)
-getMonadIDs(trial::Trial) = trialMonads(trial.id)
-getMonadIDs(Ts::AbstractArray{<:AbstractTrial}) = reduce(vcat, getMonadIDs.(Ts))
+monadIDs() = constructSelectQuery("monads"; selection="monad_id") |> queryToDataFrame |> x -> x.monad_id
+monadIDs(monad::Monad) = [monad.id]
+monadIDs(sampling::Sampling) = constituentIDs(sampling)
+monadIDs(trial::Trial) = trialMonads(trial.id)
+monadIDs(Ts::AbstractArray{<:AbstractTrial}) = reduce(vcat, monadIDs.(Ts))
+
+"""
+    getMonadIDs(args...)
+
+Deprecated alias for [`monadIDs`](@ref). Use `monadIDs` instead.
+"""
+function getMonadIDs(args...)
+    Base.depwarn("`getMonadIDs` is deprecated. Use `monadIDs` instead.", :getMonadIDs; force=true)
+    return monadIDs(args...)
+end
 
 ################## Miscellaneous Functions ##################
 
@@ -369,9 +391,8 @@ lowerClassString(Simulation) # "simulation"
 lowerClassString(Simulation(1)) # "simulation"
 ```
 """
-function lowerClassString(T::Type{<:AbstractTrial})
-    name = string(T) |> lowercase
-    return split(name, ".")[end]
+function lowerClassString(::Type{T}) where {T<:AbstractTrial}
+    return nameof(T) |> String |> lowercase
 end
 
 lowerClassString(T::AbstractTrial) = lowerClassString(typeof(T))

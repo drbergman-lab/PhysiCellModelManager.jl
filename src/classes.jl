@@ -433,7 +433,7 @@ struct Monad <: AbstractMonad
         @assert id > 0 "Monad id must be positive. Got $id."
         @assert n_replicates >= 0 "Monad n_replicates must be non-negative. Got $n_replicates."
 
-        previous_simulation_ids = readConstituentIDs(Monad, id)
+        previous_simulation_ids = constituentIDs(Monad, id)
         new_simulation_ids = Int[]
         num_sims_to_add = n_replicates - (use_previous ? length(previous_simulation_ids) : 0)
         if num_sims_to_add > 0
@@ -564,7 +564,7 @@ struct Sampling <: AbstractSampling
         monad_ids = [monad.id for monad in monads]
         if !isempty(sampling_ids) #! if there are previous samplings with the same parameters
             for sampling_id in sampling_ids #! check if the monad_ids are the same with any previous monad_ids
-                monad_ids_in_sampling = readConstituentIDs(Sampling, sampling_id) #! get the monad_ids belonging to this sampling
+                monad_ids_in_sampling = constituentIDs(Sampling, sampling_id) #! get the monad_ids belonging to this sampling
                 if symdiff(monad_ids_in_sampling, monad_ids) |> isempty #! if the monad_ids are the same
                     id = sampling_id #! use the existing sampling_id
                     break
@@ -597,7 +597,7 @@ struct Sampling <: AbstractSampling
         for monad in monads
             @assert monad.inputs == inputs "All monads must have the same inputs. You can instead make these into a Trial. Got $(monad.inputs) and $(inputs)."
         end
-        @assert Set(readConstituentIDs(Sampling, id)) == Set([monad.id for monad in monads]) "Monad ids do not match those in the database for Sampling $(id):\n$(Set(readConstituentIDs(Sampling, id)))\nvs\n$(Set([monad.id for monad in monads]))"
+        @assert Set(constituentIDs(Sampling, id)) == Set([monad.id for monad in monads]) "Monad ids do not match those in the database for Sampling $(id):\n$(Set(constituentIDs(Sampling, id)))\nvs\n$(Set([monad.id for monad in monads]))"
         return new(id, inputs, monads)
     end
 end
@@ -652,9 +652,9 @@ function Sampling(sampling_id::Int; n_replicates::Integer=0, use_previous::Bool=
     if isempty(df)
         error("Sampling $(sampling_id) not in the database.")
     end
-    monad_ids = readConstituentIDs(Sampling, sampling_id)
+    monad_ids = constituentIDs(Sampling, sampling_id)
     monads = Monad.(monad_ids; n_replicates=n_replicates, use_previous=use_previous)
-    inputs = monads[1].inputs #! readConstituentIDs() should be returning monads already associated with a Sampling and thus having the same inputs
+    inputs = monads[1].inputs #! constituentIDs() should be returning monads already associated with a Sampling and thus having the same inputs
     return Sampling(sampling_id, inputs, monads)
 end
 
@@ -668,7 +668,7 @@ function Base.show(io::IO, sampling::Sampling)
 end
 
 function printMonadIDs(io::IO, sampling::Sampling, n_indent::Int=1)
-    monad_ids = readConstituentIDs(sampling) |> compressIDs
+    monad_ids = constituentIDs(sampling) |> compressIDs
     monad_ids = join(monad_ids[1], ", ")
     monad_ids = replace(monad_ids, ":" => "-")
     println(io, "  "^n_indent, "Monads: $(monad_ids)")
@@ -712,7 +712,7 @@ struct Trial <: AbstractTrial
 
     function Trial(id::Integer, samplings::Vector{Sampling})
         @assert id > 0 "Trial id must be positive. Got $id."
-        @assert Set(readConstituentIDs(Trial, id)) == Set([sampling.id for sampling in samplings]) "Samplings do not match the samplings in the database."
+        @assert Set(constituentIDs(Trial, id)) == Set([sampling.id for sampling in samplings]) "Samplings do not match the samplings in the database."
         return new(id, samplings)
     end
 end
@@ -727,9 +727,8 @@ function Trial(trial_id::Int; n_replicates::Integer=0, use_previous::Bool=true)
     assertInitialized()
     df = constructSelectQuery("trials", "WHERE trial_id=$(trial_id);") |> queryToDataFrame
     @assert !isempty(df) "Trial $(trial_id) not in the database."
-    samplings = Sampling.(readConstituentIDs(Trial, trial_id); n_replicates=n_replicates, use_previous=use_previous)
+    samplings = Sampling.(constituentIDs(Trial, trial_id); n_replicates=n_replicates, use_previous=use_previous)
     @assert !isempty(samplings) "No samplings found for trial_id=$trial_id. This trial has not been created."
-    samplings = Sampling.(readConstituentIDs(Trial, trial_id); n_replicates=n_replicates, use_previous=use_previous)
     return Trial(trial_id, samplings)
 end
 
@@ -744,7 +743,7 @@ function trialID(samplings::Vector{Sampling})
     trial_ids = constructSelectQuery("trials"; selection="trial_id") |> queryToDataFrame |> x -> x.trial_id
     if !isempty(trial_ids) #! if there are previous trials
         for trial_id in trial_ids #! check if the sampling_ids are the same with any previous sampling_ids
-            sampling_ids_in_db = readConstituentIDs(Trial, trial_id) #! get the sampling_ids belonging to this trial
+            sampling_ids_in_db = constituentIDs(Trial, trial_id) #! get the sampling_ids belonging to this trial
             if symdiff(sampling_ids_in_db, sampling_ids) |> isempty #! if the sampling_ids are the same
                 id = trial_id #! use the existing trial_id
                 break

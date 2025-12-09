@@ -4,7 +4,9 @@ str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
 @test PhysiCellModelManager.physicellVersion() == readchomp(joinpath(PhysiCellModelManager.physicellDir(), "VERSION.txt"))
-@test PhysiCellModelManager.physicellVersion(Simulation(1)) == readchomp(joinpath(PhysiCellModelManager.physicellDir(), "VERSION.txt"))
+
+sim_id = simulationIDs()[1]
+@test PhysiCellModelManager.physicellVersion(Simulation(sim_id)) == readchomp(joinpath(PhysiCellModelManager.physicellDir(), "VERSION.txt"))
 
 path_to_file = joinpath("PhysiCell", "Makefile")
 

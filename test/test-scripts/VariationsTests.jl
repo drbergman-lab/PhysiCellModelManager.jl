@@ -144,3 +144,32 @@ println(stdout, UniformDistributedVariation(xml_path, 0.0, 1.0))
 println(stdout, cv)
 
 deleteSimulationsByStatus("Not Started"; user_check=false)
+
+# latent variation tests
+latent_parameters = [Uniform(0.0, 1e-6), truncated(Normal(0.5, 0.1); lower=0)] # two latent parameters: one setting the bottom threshold and one setting the threshold gap
+latent_parameter_names = ["bottom_threshold", "threshold_gap"] # optional, human-interpretable names for the latent parameters
+targets = [rulePath("default", "cycle entry", "decreasing_signals", "max_response"), # this will track the bottom threshold
+           rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "half_max"), # this will track the top threshold
+           rulePath("default", "cycle entry", "decreasing_signals", "signal:name:pressure", "hill_power")] # this will also track the top threshold
+maps = [lp -> lp[1], # map the first latent parameter to the bottom threshold
+        lp -> lp[1] + lp[2], # map the sum of the two latent parameters to the top threshold
+        lp -> lp[1] + lp[2]] # map the sum of the two latent parameters to the top threshold for the second rule as well
+lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
+dv = UniformDistributedVariation(configPath("max_time"), 12.0, 13.0)
+out = run(LHSVariation(4), inputs, [lv, dv]; n_replicates=1)
+@test out.n_success == 4
+println(stdout, lv)
+lv = LatentVariation(latent_parameters, targets, maps) # using default latent parameter names
+@test all(==(-1), size(lv))
+@test [target.xml_path for target in lv.targets] == targets
+
+cdfs = [rand(2) for _ in 1:7] # 7 random cdf values for the 2 latent parameters
+PhysiCellModelManager.variationValues(lv, cdfs)
+PhysiCellModelManager.variationValues(lv, hcat(cdfs...))
+pv = PhysiCellModelManager.ParsedVariations([lv])
+@test PhysiCellModelManager.nTargetDims(pv) == 3
+
+latent_parameters = [[1e-8, 1e-7, 1e-6], [0.5, 0.6, 0.7, 0.8, 1.0]] # discrete version of the above
+lv = LatentVariation(latent_parameters, targets, maps)
+println(stdout, lv)
+PhysiCellModelManager.columnName(lv)

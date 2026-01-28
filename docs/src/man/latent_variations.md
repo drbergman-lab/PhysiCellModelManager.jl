@@ -31,6 +31,7 @@ The lengths of the latent parameter vectors do not need to be the same.
 When values are requested from the `LatentVariation`, PhysiCellModelManager.jl will use all combinations of the latent parameter values to compute the corresponding target parameter values.
 
 ```jldoctest
+using PhysiCellModelManager
 latent_parameters = [[0.2, 0.4], [0.1, 0.2, 0.3]] # two latent parameters: one setting the bottom threshold and one setting the threshold gap
 latent_parameter_names = ["bottom_threshold", "threshold_gap"] # optional, human-interpretable names for the latent parameters
 targets = [configPath("default", "custom:signal_threshold_low"),
@@ -58,7 +59,7 @@ If the latent parameters are provided as probability distributions, then the `La
 When values are requested from the `LatentVariation`, PhysiCellModelManager.jl will draw samples from each of the latent parameter distributions and compute the corresponding target parameter values.
 
 ```jldoctest
-using Distributions
+using PhysiCellModelManager, Distributions
 latent_parameters = [Uniform(0.0, 1.0), truncated(Normal(0.5, 0.1); lower=0)] # two latent parameters: one setting the bottom threshold and one setting the threshold gap
 latent_parameter_names = ["bottom_threshold", "threshold_gap"] # optional, human-interpretable names for the latent parameters
 targets = [configPath("default", "custom:signal_threshold_low"),

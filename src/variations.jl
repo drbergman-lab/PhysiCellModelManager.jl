@@ -966,8 +966,8 @@ LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 LatentVariation (Distribution), 2 -> 3:
 ---------------------------------------
   Latent Parameters (n = 2):
-    lp#1. bottom_threshold (Uniform{Float64}(a=0.0, b=1.0))
-    lp#2. threshold_gap (Truncated(Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
+    lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
+    lp#2. threshold_gap (Truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
   Target Parameters (n = 3):
     tp#1. stem: custom:alpha increases asymmetric division to type1 half max
             Location: rulesets_collection

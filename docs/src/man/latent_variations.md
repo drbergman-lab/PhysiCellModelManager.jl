@@ -48,10 +48,10 @@ LatentVariation (Discrete), 2 -> 2:
   Target Parameters (n = 2):
     tp#1. default: signal threshold low
             Location: config
-            Target: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_low
+            Target: XMLPath: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_low
     tp#2. default: signal threshold high
             Location: config
-            Target: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_high
+            Target: XMLPath: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_high
 ```
 
 ## `LatentVariation{Distribution}`
@@ -70,14 +70,14 @@ LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 # output
 LatentVariation (Distribution), 2 -> 2:
 ---------------------------------------
-    Latent Parameters (n = 2):
-      lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
-      lp#2. threshold_gap (Truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
-    Target Parameters (n = 2):
-      tp#1. default: signal threshold low
-              Location: config
-              Target: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_low
-      tp#2. default: signal threshold high
-              Location: config
-              Target: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_high
+  Latent Parameters (n = 2):
+    lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
+    lp#2. threshold_gap (Truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
+  Target Parameters (n = 2):
+    tp#1. default: signal threshold low
+            Location: config
+            Target: XMLPath: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_low
+    tp#2. default: signal threshold high
+            Location: config
+            Target: XMLPath: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_high
 ```

@@ -20,6 +20,7 @@ makedocs(;
             "Querying parameters" => "man/querying_parameters.md",
             "XML path helpers" => "man/xml_path_helpers.md",
             "CoVariations" => "man/covariations.md",
+            "LatentVariations" => "man/latent_variations.md",
             "Data directory" => "man/data_directory.md",
             "Intracellular inputs" => "man/intracellular_inputs.md",
             "Known limitations" => "man/known_limitations.md",

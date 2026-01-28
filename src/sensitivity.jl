@@ -195,7 +195,7 @@ Run a global sensitivity analysis method on the given arguments.
 
 # Keyword Arguments
 - `reference_variation_id::VariationID`: the reference variation IDs as a `VariationID`
-- `ignore_indices::AbstractVector{<:Integer}=[]`: indices into `pv.variations` to ignore when perturbing the parameters. Only used for [Sobolʼ](@ref).
+- `ignore_indices::AbstractVector{<:Integer}=[]`: indices into dimensions of `pv.latent_variations` to ignore when perturbing the parameters. Only used for [Sobolʼ](@ref). These count the latent parameters, i.e. possibly >1 per latent variation!
 - `force_recompile::Bool=false`: whether to force recompilation of the simulation code
 - `prune_options::PruneOptions=PruneOptions()`: the options for pruning the simulation results
 - `n_replicates::Int=1`: the number of replicates to run for each monad, i.e., at each sampled parameter vector.
@@ -210,58 +210,38 @@ function runSensitivitySampling(method::MOAT, inputs::InputFolders, pv::ParsedVa
         error("MOAT does not support ignoring indices...yet? Only Sobolʼ does for now.")
     end
     add_variations_result = addVariations(method.lhs_variation, inputs, pv, reference_variation_id)
-    variation_ids = add_variations_result.all_variation_ids
-    base_variation_ids = Dict{Symbol, Vector{Int}}()
-    perturbed_variation_ids = Dict{Symbol, Matrix{Int}}()
+    base_variation_ids = add_variations_result.variation_ids
+    
+    perturbed_variation_ids = stack(zip(base_variation_ids, eachcol(add_variations_result.cdfs)); dims=1) do (variation_id, cdf_col)
+        perturbVariation(pv, inputs, variation_id, cdf_col) #! each base point produces a row of perturbations (one per latent dimension perturbed)
+    end
 
-    proj_locs = projectLocations()
-    for location in proj_locs.varied
-        base_variation_ids[location] = [variation_id[location] for variation_id in variation_ids]
-        perturbed_variation_ids[location] = repeat(base_variation_ids[location], 1, length(pv.sz))
-    end
-    for (base_point_ind, variation_id) in enumerate(variation_ids) #! for each base point in the LHS
-        for d in eachindex(pv.sz) #! perturb each feature one time
-            for location in proj_locs.varied
-                perturbed_variation_ids[location][base_point_ind, d] = perturbVariation(location, pv, inputs[location].folder, variation_id[location], d)
-            end
-        end
-    end
-    all_variation_ids = Dict{Symbol, Matrix{Int}}()
-    for location in proj_locs.varied
-        all_variation_ids[location] = hcat(base_variation_ids[location], perturbed_variation_ids[location])
-    end
-    location_variation_dict = (loc => all_variation_ids[loc] for loc in proj_locs.varied) |> Dict
-    monad_dict, monad_ids = variationsToMonads(inputs, location_variation_dict)
-    header_line = ["base"; columnName.(pv.variations)]
+    variation_ids = hcat(base_variation_ids, perturbed_variation_ids)
+    monads = variationsToMonads(inputs, variation_ids)
+    monad_ids = [monad.id for monad in monads]
+    perturb_headers = mapreduce(lv -> lv.latent_parameter_names, vcat, pv.latent_variations)
+    header_line = ["base"; perturb_headers]
     monad_ids_df = DataFrame(monad_ids, header_line)
-    sampling = Sampling(monad_dict |> values |> collect; n_replicates=n_replicates, use_previous=use_previous)
+    sampling = Sampling(unique(monads); n_replicates=n_replicates, use_previous=use_previous)
     run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return MOATSampling(sampling, monad_ids_df)
 end
 
 """
-    perturbVariation(location::Symbol, pv::ParsedVariations, folder::String, reference_variation_id::Int, d::Int)
+    perturbVariation(pv::ParsedVariations, inputs::InputFolders, reference_variation_id::VariationID, cdf_col::AbstractVector{<:Real})
 
 Perturb the variation at the given location and dimension for [`MOAT`](@ref) global sensitivity analysis.
 """
-function perturbVariation(location::Symbol, pv::ParsedVariations, folder::String, reference_variation_id::Int, d::Int)
-    matching_dims = pv[location].indices .== d
-    evs = pv[location].variations[matching_dims] #! all the variations associated with the dth feature
-    if isempty(evs)
-        return reference_variation_id
+function perturbVariation(pv::ParsedVariations, inputs::InputFolders, reference_variation_id::VariationID, cdf_col::AbstractVector{<:Real})
+    perturbed_cdfs = repeat(cdf_col, 1, length(cdf_col))
+    for (d, col) in enumerate(eachcol(perturbed_cdfs))
+        dcdf = cdf_col[d] < 0.5 ? 0.5 : -0.5
+        col[d] += dcdf
     end
-    base_values = variationValue.(evs, reference_variation_id, folder)
-
-    cdfs_at_base = [cdf(ev, bv) for (ev, bv) in zip(evs, base_values)]
-    @assert maximum(cdfs_at_base) - minimum(cdfs_at_base) < 1e-10 "All base values must have the same CDF (within tolerance).\nInstead, got $cdfs_at_base."
-    dcdf = cdfs_at_base[1] < 0.5 ? 0.5 : -0.5
-    new_values = variationValues.(evs, cdfs_at_base[1] + dcdf) #! note, this is a vector of values
-
-    discrete_variations = [DiscreteVariation(variationTarget(ev), new_value) for (ev, new_value) in zip(evs, new_values)]
-
-    new_variation_id = gridToDB(discrete_variations, inputFolderID(location, folder), reference_variation_id)
-    @assert length(new_variation_id) == 1 "Only doing one perturbation at a time."
-    return new_variation_id[1]
+    
+    perturbed_variation_ids = addCDFVariations(inputs, pv, reference_variation_id, perturbed_cdfs)
+    @assert length(perturbed_variation_ids) == length(cdf_col) "Expected one perturbation per latent dimension, but got $(length(perturbed_variation_ids)) perturbations for $(length(cdf_col)) latent dimensions."
+    return perturbed_variation_ids
 end
 
 """
@@ -371,32 +351,24 @@ function runSensitivitySampling(method::Sobolʼ, inputs::InputFolders, pv::Parse
     ignore_indices::AbstractVector{<:Integer}=Int[], force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), n_replicates::Int=1, use_previous::Bool=true)
 
     add_variations_result = addVariations(method.sobol_variation, inputs, pv, reference_variation_id)
-    all_variation_ids = add_variations_result.all_variation_ids
+    variation_ids = add_variations_result.variation_ids
     cdfs = add_variations_result.cdfs
-    d = length(pv.sz)
+    d = nLatentDims(pv)
     focus_indices = [i for i in 1:d if !(i in ignore_indices)]
 
-    proj_locs = projectLocations()
-    location_variation_ids_A = [loc => [variation_id[loc] for variation_id in all_variation_ids[:,1]] for loc in proj_locs.varied] |> Dict
     A = cdfs[:,1,:] #! cdfs is of size (d, 2, n), i.e., d = # parameters, 2 design matrices, and n = # samples
-    location_variation_ids_B = [loc => [variation_id[loc] for variation_id in all_variation_ids[:,2]] for loc in proj_locs.varied] |> Dict
     B = cdfs[:,2,:]
     Aᵦ = [i => copy(A) for i in focus_indices] |> Dict
-    location_variation_ids_Aᵦ = [loc => [i => copy(location_variation_ids_A[loc]) for i in focus_indices] |> Dict for loc in proj_locs.varied] |> Dict
-    for i in focus_indices
+    variation_ids_Aᵦ = stack(focus_indices) do i
         Aᵦ[i][i,:] .= B[i,:]
-        for loc in proj_locs.varied
-            if i in pv[loc].indices
-                location_variation_ids_Aᵦ[loc][i][:] .= cdfsToVariations(loc, pv, inputs[loc].id, reference_variation_id[loc], Aᵦ[i]')
-            end
-        end
+        addCDFVariations(inputs, pv, reference_variation_id, Aᵦ[i])
     end
-    location_variation_ids_dict = [loc => hcat(location_variation_ids_A[loc], location_variation_ids_B[loc], [location_variation_ids_Aᵦ[loc][i] for i in focus_indices]...) for loc in proj_locs.varied] |> Dict{Symbol,Matrix{Int}}
-    monad_dict, monad_ids = variationsToMonads(inputs, location_variation_ids_dict)
-    monads = monad_dict |> values |> collect
-    header_line = ["A"; "B"; columnName.(pv.variations[focus_indices])]
+    monads = variationsToMonads(inputs, hcat(variation_ids, variation_ids_Aᵦ))
+    monad_ids = [monad.id for monad in monads]
+    perturb_headers = mapreduce(lv -> lv.latent_parameter_names, vcat, pv.latent_variations[focus_indices])
+    header_line = ["A"; "B"; perturb_headers]
     monad_ids_df = DataFrame(monad_ids, header_line)
-    sampling = Sampling(monads; n_replicates=n_replicates, use_previous=use_previous)
+    sampling = Sampling(unique(monads); n_replicates=n_replicates, use_previous=use_previous)
     run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return SobolSampling(sampling, monad_ids_df; sobol_index_methods=method.sobol_index_methods)
 end
@@ -515,12 +487,12 @@ function runSensitivitySampling(method::RBD, inputs::InputFolders, pv::ParsedVar
         error("RBD does not support ignoring indices...yet? Only Sobolʼ does for now.")
     end
     add_variations_result = addVariations(method.rbd_variation, inputs, pv, reference_variation_id)
-    location_variation_ids_dict = add_variations_result.location_variation_ids_dict
-    monad_dict, monad_ids = variationsToMonads(inputs, location_variation_ids_dict)
-    monads = monad_dict |> values |> collect
-    header_line = columnName.(pv.variations)
+    variation_matrix = add_variations_result.variation_matrix
+    monads = variationsToMonads(inputs, variation_matrix)
+    monad_ids = [monad.id for monad in monads]
+    header_line = mapreduce(lv -> lv.latent_parameter_names, vcat, pv.latent_variations)
     monad_ids_df = DataFrame(monad_ids, header_line)
-    sampling = Sampling(monads; n_replicates=n_replicates, use_previous=use_previous)
+    sampling = Sampling(unique(monads); n_replicates=n_replicates, use_previous=use_previous)
     run(sampling; force_recompile=force_recompile, prune_options=prune_options)
     return RBDSampling(sampling, monad_ids_df, method.rbd_variation.num_cycles; num_harmonics=method.num_harmonics)
 end
@@ -576,29 +548,17 @@ function evaluateFunctionOnSampling(gsa_sampling::GSASampling, f::Function)
 end
 
 """
-    variationsToMonads(inputs::InputFolders, variation_ids::Dict{Symbol,Matrix{Int}})
+    variationsToMonads(inputs::InputFolders, variation_ids::AbstractArray{VariationID})
 
-Return a dictionary of monads and a matrix of monad IDs based on the given variation IDs.
+Return a matrix of Monads based on the given variation IDs.
 
 For each varied location, a matrix of variation IDs is provided.
 This information, together with the `inputs`, identifies the monads to be used.
 
 # Returns
-- `monad_dict::Dict{VariationID, Monad}`: a dictionary of the monads to be used without duplicates.
-- `monad_ids::Matrix{Int}`: a matrix of the monad IDs to be used. Matches the shape of the input IDs matrices.
+- `monad_ids::Array{Monad}`: an array of the monads to be used. Matches the shape of the variations array.
 """
-function variationsToMonads(inputs::InputFolders, location_variation_ids_dict::Dict{Symbol,Matrix{Int}})
-    monad_dict = Dict{VariationID, Monad}()
-    monad_ids = zeros(Int, size(location_variation_ids_dict |> values |> first))
-    for i in eachindex(monad_ids)
-        monad_variation_id = [loc => location_variation_ids_dict[loc][i] for loc in projectLocations().varied] |> VariationID
-        if haskey(monad_dict, monad_variation_id)
-            monad_ids[i] = monad_dict[monad_variation_id].id
-            continue
-        end
-        monad = Monad(inputs, monad_variation_id)
-        monad_dict[monad_variation_id] = monad
-        monad_ids[i] = monad.id
-    end
-    return monad_dict, monad_ids
+function variationsToMonads(inputs::InputFolders, variation_ids::AbstractArray{VariationID})
+    monad_dict = Dict{VariationID, Monad}() #! cache to avoid recreating monads (not necessary, but requires fewer DB queries and so feels cleaner and faster)
+    return [get!(monad_dict, variation_id, Monad(inputs, variation_id)) for variation_id in variation_ids]
 end

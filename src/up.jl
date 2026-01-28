@@ -491,18 +491,18 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
                 stmt = SQLite.Stmt(db, stmt_str)
 
                 for (row_id, row) in zip(ids, eachrow(df))
-                    original_vals = [row...]
-                    vals = copy(original_vals)
-                    vals[vals.=="true"] .= 1.0
-                    vals[vals.=="false"] .= 0.0
-                    is_string = [v isa String for v in vals]
-                    vals[is_string] .= tryparse.(Float64, vals[is_string])
-                    @assert all(!isnothing, vals[is_string]) "All parameter values must be parseable as Float64 to create the binary representation. Found non-parseable values: $(original_vals[is_string .& isnothing.(vals)])."
-                    @assert all(v -> v ∈ (0.0, 1.0) , vals[is_string]) "All parameter values that were strings must be 'true' or 'false' to create the binary representation. Found: $(original_vals[is_string .& .!([v ∈ (0.0, 1.0) for v in vals])])."
-                    original_vals[is_string] .= [v == 0.0 ? "false" : "true" for v in vals[is_string]] #! fix original vals to be the correct strings
-                    @assert all(x -> x isa Real, vals) "All parameter values must be Real to create the binary representation. Found: $(typeof.(vals))."
-                    par_key = reinterpret(UInt8, Vector{Float64}(vals))
-                    params = [row_id, par_key, original_vals...]
+                    vals_db = [row...]
+                    vals_key = copy(vals_db)
+                    vals_key[vals_key.=="true"] .= 1.0
+                    vals_key[vals_key.=="false"] .= 0.0
+                    is_string = [v isa String for v in vals_key]
+                    vals_key[is_string] .= tryparse.(Float64, vals_key[is_string]) #! attempt to parse remaining strings as Float64 (we will next expect for these to be 0.0 or 1.0, i.e., numeric representations of booleans)
+                    @assert all(!isnothing, vals_key[is_string]) "All parameter values must be parseable as Float64 to create the binary representation. Found non-parseable values: $(vals_db[is_string .& isnothing.(vals_key)])."
+                    @assert all(v -> v ∈ (0.0, 1.0) , vals_key[is_string]) "All parameter values that were strings must be 'true' or 'false' to create the binary representation. Found: $(vals_db[is_string .& .!([v ∈ (0.0, 1.0) for v in vals_key])])."
+                    vals_db[is_string] .= [v == 0.0 ? "false" : "true" for v in vals_key[is_string]] #! fix db vals to be the correct strings
+                    @assert all(x -> x isa Real, vals_key) "All parameter values must be Real to create the binary representation. Found: $(typeof.(vals_key))."
+                    par_key = reinterpret(UInt8, Vector{Float64}(vals_key))
+                    params = [row_id, par_key, vals_db...]
                     DBInterface.execute(stmt, params)
                 end
                 DBInterface.execute(db, "DROP TABLE $(table_name)_old;")

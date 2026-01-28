@@ -23,7 +23,7 @@ You can optionally provide human-interpretable names for the latent parameters.
 These names will be used in the display of the `LatentVariation` to help identify the latent parameters.
 This can be especially useful when looking over results of sensitivity analyses or optimization runs that use `LatentVariation`'s.
 If none are provided, the latent parameters will be named according to the target parameters and their index in the latent parameter vector.
-See [`defaultLatentParameterNames`](@ref) for the default naming scheme.
+See [`defaultLatentParameterNames`](@ref PhysiCellModelManager.defaultLatentParameterNames) for the default naming scheme.
 
 ## `LatentVariation{Vector{<:Real}}`
 If the latent parameters are provided as vectors of discrete values, then the `LatentVariation` is parameterized as `LatentVariation{Vector{<:Real}}`.

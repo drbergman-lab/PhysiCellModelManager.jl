@@ -339,7 +339,9 @@ function prepareLibRoadRunner()
                     endswith(path_to_file, "roadrunner_macos_arm64.tar.gz") ||
                     endswith(path_to_file, "roadrunner-osx-10.9-cp36m.tar.gz") ||
                     endswith(path_to_file, "roadrunner-win64-vs14-cp35m.zip") ||
-                    endswith(path_to_file, "cpplibroadrunner-1.3.0-linux_x86_64.tar.gz")
+                    endswith(path_to_file, "cpplibroadrunner-1.3.0-linux_x86_64.tar.gz") ||
+                    endswith(path_to_file, "roadrunner_manylinux.zip") ||
+                    endswith(path_to_file, "roadrunner_macos_arm64.zip")
                 )
                 #! remove the downloaded binary
                 rm(path_to_file; force=true)

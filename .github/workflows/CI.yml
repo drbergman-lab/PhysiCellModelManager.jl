@@ -59,10 +59,10 @@ jobs:
     - name: Install ImageMagick on macOS
       if: matrix.os == 'macOS-latest'
       run: |
+        brew install ghostscript
         brew install imagemagick
         brew install ffmpeg
 
-    
     - name: Set fake paths for non-macOS
       if: matrix.os != 'macOS-latest'
       run: |

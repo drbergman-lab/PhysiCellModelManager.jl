@@ -951,7 +951,7 @@ Note:
 - The lengths of `locations`, `targets`, `maps`, and `types` must be the same, one per target parameter.
 
 # Examples
-```julia
+```jldoctest
 using Distributions
 latent_parameters = [Uniform(0.0, 1.0), truncated(Normal(0.5, 0.1); lower=0)] # two latent parameters: one setting the bottom threshold and one setting the threshold gap
 latent_parameter_names = ["bottom_threshold", "threshold_gap"] # optional, human-interpretable names for the latent parameters
@@ -961,7 +961,7 @@ targets = [rulePath("stem", "asymmetric division to type1", "increasing_signals"
 maps = [lp -> lp[1], # map the first latent parameter to the bottom threshold
         lp -> lp[1] + lp[2], # map the sum of the two latent parameters to the top threshold
         lp -> lp[1] + lp[2]] # map the sum of the two latent parameters to the top threshold for the second rule as well
-lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
+LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 # output
 LatentVariation (Distribution), 2 -> 3:
 ---------------------------------------

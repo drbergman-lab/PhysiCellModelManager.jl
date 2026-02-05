@@ -310,11 +310,11 @@ function prepareVariedInputFolder(location::Symbol, sampling::Sampling)
 end
 
 """
-    pathToICCell(simulation::Simulation)
+    setUpICCell(simulation::Simulation)
 
 Return the path to the IC cell file for the given simulation, creating it if it needs to be generated from an XML file.
 """
-function pathToICCell(simulation::Simulation)
+function setUpICCell(simulation::Simulation)
     @assert simulation.inputs[:ic_cell].id != -1 "No IC cell variation being used" #! we should have already checked this before calling this function
     path_to_ic_cell_folder = locationPath(:ic_cell, simulation)
     if isfile(joinpath(path_to_ic_cell_folder, "cells.csv")) #! ic already given by cells.csv
@@ -339,11 +339,11 @@ function pathToICCell(simulation::Simulation)
 end
 
 """
-    pathToICECM(simulation::Simulation)
+    setUpICECM(simulation::Simulation)
 
 Return the path to the IC ECM file for the given simulation, creating it if it needs to be generated from an XML file.
 """
-function pathToICECM(simulation::Simulation)
+function setUpICECM(simulation::Simulation)
     @assert simulation.inputs[:ic_ecm].id != -1 "No IC ecm variation being used" #! we should have already checked this before calling this function
     path_to_ic_ecm_folder = locationPath(:ic_ecm, simulation)
     if isfile(joinpath(path_to_ic_ecm_folder, "ecm.csv")) #! ic already given by ecm.csv

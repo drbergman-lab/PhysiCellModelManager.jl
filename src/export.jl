@@ -59,7 +59,7 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
     row = queryToDataFrame(query; is_row=true)
 
     #! config file
-    path_to_xml = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(row.config_variation_id[1]).xml")
+    path_to_xml = createXMLFile(:config, simulation)
     cp(path_to_xml, joinpath(export_config_folder, "PhysiCell_settings.xml"))
 
     #! custom code
@@ -71,9 +71,20 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
 
     #! rulesets
     if row.rulesets_collection_id[1] != -1
-        path_to_xml = joinpath(locationPath(:rulesets_collection, simulation), locationVariationsFolder(:rulesets_collection), "rulesets_collection_variation_$(row.rulesets_collection_variation_id[1]).xml")
+        path_to_xml = createXMLFile(:rulesets_collection, simulation)
         path_to_csv = joinpath(export_folder, "config", "cell_rules.csv")
-        exportCSVRules(path_to_csv, path_to_xml)
+        try
+            exportCSVRules(path_to_csv, path_to_xml)
+        catch e
+            bt = catch_backtrace()
+            @warn "Failed to export ruleset collection to CSV format" exception = (e, bt) path_to_xml = path_to_xml path_to_csv = path_to_csv
+            @info """
+            Could not export ruleset collection (at $(path_to_xml)) to CSV format. See above warning.
+            - Exporting the XML file instead.
+            - You will need to convert it to CSV format yourself and update the config file accordingly.
+            """
+            cp(path_to_xml, joinpath(export_folder, "config", "cell_rules.xml"))
+        end
     end
 
     #! intracellulars
@@ -83,15 +94,8 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
 
     #! ic cells
     if row.ic_cell_id[1] != -1
-        path_to_ic_cells_folder = locationPath(:ic_cell, simulation)
-        ic_cell_file_name = readdir(path_to_ic_cells_folder)
-        filter!(x -> x in ["cells.csv", "cells.xml"], ic_cell_file_name)
-        ic_cell_file_name = ic_cell_file_name[1]
-        if endswith(ic_cell_file_name, ".xml")
-            #! rel path from ic_cells_folder
-            ic_cell_file_name = joinpath(locationVariationsFolder(:ic_cell), "ic_cell_variation_$(row.ic_cell_variation_id[1])_s$(simulation.id).csv")
-        end
-        cp(joinpath(path_to_ic_cells_folder, ic_cell_file_name), joinpath(export_folder, "config", "cells.csv"))
+        path_to_ic_cell_file = setUpICCell(simulation)
+        cp(path_to_ic_cell_file, joinpath(export_folder, "config", "cells.csv"))
     end
 
     #! ic substrates
@@ -102,15 +106,8 @@ function createExportFolder(simulation::Simulation, export_folder::AbstractStrin
 
     #! ic ecm
     if row.ic_ecm_id[1] != -1
-        path_to_ic_ecm_folder = locationPath(:ic_ecm, simulation)
-        ic_ecm_file_name = readdir(path_to_ic_ecm_folder)
-        filter!(x -> x in ["ecm.csv", "ecm.xml"], ic_ecm_file_name)
-        ic_ecm_file_name = ic_ecm_file_name[1]
-        if endswith(ic_ecm_file_name, ".xml")
-            #! rel path from ic_ecm_folder
-            ic_ecm_file_name = joinpath(locationVariationsFolder(:ic_ecm), "ic_ecm_variation_$(row.ic_ecm_variation_id[1])_s$(simulation.id).csv")
-        end
-        cp(joinpath(path_to_ic_ecm_folder, ic_ecm_file_name), joinpath(export_folder, "config", "ecm.csv"))
+        path_to_ic_ecm_file = setUpICECM(simulation)
+        cp(path_to_ic_ecm_file, joinpath(export_folder, "config", "ecm.csv"))
     end
 
     #! ic dcs
@@ -306,10 +303,7 @@ function revertConfig(export_folder::AbstractString, physicell_version::Abstract
     cell_ic_element = makeXMLPath(xml_doc, ["initial_conditions", "cell_positions"])
     using_cell_ics = isfile(joinpath(path_to_config_folder, "cells.csv"))
     set_attributes(cell_ic_element; type="csv", enabled=string(using_cell_ics))
-    folder_element = makeXMLPath(cell_ic_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
-    filename_element = makeXMLPath(cell_ic_element, "filename")
-    set_content(filename_element, "cells.csv")
+    setFolderAndFilename!(cell_ic_element, joinpath(".", "config"), "cells.csv")
 
     #! ic ecm
     using_ecm_ics = isfile(joinpath(path_to_config_folder, "ecm.csv"))
@@ -326,12 +320,9 @@ function revertConfig(export_folder::AbstractString, physicell_version::Abstract
 
     #! rulesets
     rules_element = makeXMLPath(xml_doc, ["cell_rules", "rulesets", "ruleset"])
-    using_rules = isfile(joinpath(path_to_config_folder, "cell_rules.csv"))
-    set_attributes(rules_element; protocol="CBHG", version="3.0", format="csv", enabled=string(using_rules))
-    folder_element = makeXMLPath(rules_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
-    filename_element = makeXMLPath(rules_element, "filename")
-    set_content(filename_element, "cell_rules.csv")
+    filename, format, enabled = rulesetConfig(path_to_config_folder)
+    set_attributes(rules_element; protocol="CBHG", version="3.0", format=format, enabled=string(enabled))
+    setFolderAndFilename!(rules_element, joinpath(".", "config"), filename)
 
     #! intracellulars
     #! handled in exportIntracellular
@@ -342,6 +333,32 @@ function revertConfig(export_folder::AbstractString, physicell_version::Abstract
 end
 
 """
+    setFolderAndFilename(parent, folder::AbstractString, filename::AbstractString)
+
+Helper function to set the folder and filename elements under a parent element in the XML document.
+"""
+function setFolderAndFilename!(parent, folder::AbstractString, filename::AbstractString)
+    folder_element = makeXMLPath(parent, "folder")
+    set_content(folder_element, folder)
+    filename_element = makeXMLPath(parent, "filename")
+    set_content(filename_element, filename)
+    return
+end
+
+"""
+     rulesetConfig(path_to_config_folder::AbstractString)
+
+Helper function to determine the ruleset configuration based on the files present in the config folder.
+"""
+function rulesetConfig(path_to_config_folder::AbstractString)
+    using_csv = isfile(joinpath(path_to_config_folder, "cell_rules.csv"))
+    using_xml = !using_csv && isfile(joinpath(path_to_config_folder, "cell_rules.xml"))
+    filename = using_xml ? "cell_rules.xml" : "cell_rules.csv"
+    format = using_xml ? "xml" : "csv"
+    return (filename=filename, format=format, enabled=using_csv || using_xml)
+end
+
+"""
     setECMSetupElement(xml_doc::XMLDocument)
 
 Set up the ECM element in the XML document to support the ECM module.
@@ -349,10 +366,7 @@ Set up the ECM element in the XML document to support the ECM module.
 function setECMSetupElement(xml_doc::XMLDocument)
     ecm_setup_element = makeXMLPath(xml_doc, ["microenvironment_setup", "ecm_setup"])
     set_attributes(ecm_setup_element; enabled="true", format="csv")
-    folder_element = makeXMLPath(ecm_setup_element, "folder")
-    set_content(folder_element, joinpath(".", "config"))
-    filename_element = makeXMLPath(ecm_setup_element, "filename")
-    set_content(filename_element, "ecm.csv")
+    setFolderAndFilename!(ecm_setup_element, joinpath(".", "config"), "ecm.csv")
     return
 end
 

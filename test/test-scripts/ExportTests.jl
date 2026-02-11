@@ -1,4 +1,4 @@
-using LightXML
+using LightXML, PhysiCellXMLRules
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -75,3 +75,25 @@ sbml_filename_element = find_element(intracellular_element, "sbml_filename")
 @test !isnothing(sbml_filename_element)
 filename = content(sbml_filename_element)
 @test isfile(joinpath(path_to_exported_folder, filename))
+
+# test failure mode of ruleset export
+invalid_ruleset_folder = joinpath(PhysiCellModelManager.dataDir(), "inputs", "rulesets_collections", "invalid_ruleset")
+mkdir(invalid_ruleset_folder)
+path_to_csv = joinpath(invalid_ruleset_folder, "temp.csv")
+write(path_to_csv, "default,contact with default,increases,persistence time,100.0,0.5,8,0")
+path_to_xml = joinpath(invalid_ruleset_folder, "base_rulesets.xml")
+writeXMLRules(path_to_xml, path_to_csv)
+xml_doc = parse_file(path_to_xml)
+signal = PhysiCellModelManager.retrieveElement(xml_doc, ["behavior_ruleset:name:default", "behavior:name:persistence time", "increasing_signals", "signal:name:contact with default"])
+set_attribute(signal, "type", "invalid_type")
+save_file(xml_doc, path_to_xml)
+free(xml_doc)
+PhysiCellModelManager.reinitializeDatabase()
+
+inputs = InputFolders("0_template", "0_template"; rulesets_collection=basename(invalid_ruleset_folder))
+sim = Simulation(inputs)
+
+path_to_exported_folder = exportSimulation(sim, "InvalidRulesetExport")
+@test isfile(joinpath(path_to_exported_folder, "config", "cell_rules.xml"))
+
+deleteSimulation(sim.id)

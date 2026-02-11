@@ -27,7 +27,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
     flags = ["-o", path_to_simulation_output]
     if simulation.inputs[:ic_cell].id != -1
         try
-            append!(flags, ["-i", pathToICCell(simulation)])
+            append!(flags, ["-i", setUpICCell(simulation)])
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC cell file.\n\tCause: $e\n")
             simulationFailed(simulation, monad_id)
@@ -39,7 +39,7 @@ function prepareSimulationCommand(simulation::Simulation, monad_id::Int, do_full
     end
     if simulation.inputs[:ic_ecm].id != -1
         try
-            append!(flags, ["-e", pathToICECM(simulation)]) #! if ic file included (id != -1), then include this in the command
+            append!(flags, ["-e", setUpICECM(simulation)]) #! if ic file included (id != -1), then include this in the command
         catch e
             println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC ECM file.\n\tCause: $e\n")
             simulationFailed(simulation, monad_id)

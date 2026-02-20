@@ -184,22 +184,26 @@ end
 Base.getindex(input_folders::InputFolders, loc::Symbol)::InputFolder = input_folders.input_folders[loc]
 
 function Base.show(io::IO, input_folders::InputFolders)
-    println(io, "InputFolders:")
     printInputFolders(io, input_folders)
 end
 
 """
-    printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=1)
+    printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=0)
 
 Prints the folder information for each input folder in the InputFolders object.
 """
-function printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=1)
+function printInputFolders(io::IO, input_folders::InputFolders, n_indent::Int=0)
+    println(io, "  "^n_indent, "Input Folders:")
     if_nt = input_folders.input_folders #! InputFolders NamedTuple
     used_locs = [loc for loc in keys(if_nt) if !isempty(if_nt[loc].folder)]
     max_width = maximum(length(string(loc)) for loc in used_locs)
+    last_used_loc = last(used_locs)
     for loc in used_locs
         input_folder = if_nt[loc]
-        println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $(input_folder.folder)")
+        print(io, "  "^(n_indent + 1), "$(rpad("$loc:", max_width + 1)) $(input_folder.folder)")
+        if loc != last_used_loc
+            println(io)
+        end
     end
 end
 
@@ -235,21 +239,25 @@ end
 Base.getindex(variation_id::VariationID, loc::Symbol)::Int = variation_id.ids[loc]
 
 function Base.show(io::IO, variation_id::VariationID)
-    println(io, "VariationID:")
     printVariationID(io, variation_id)
 end
 
 """
-    printVariationID(io::IO, variation_id::VariationID, n_indent::Int=1)
+    printVariationID(io::IO, variation_id::VariationID, n_indent::Int=0)
 
 Prints the variation ID information for each varied input in the VariationID object.
 """
-function printVariationID(io::IO, variation_id::VariationID, n_indent::Int=1)
+function printVariationID(io::IO, variation_id::VariationID, n_indent::Int=0)
+    println(io, "  "^n_indent, "Variation ID:")
     used_locs = [loc for loc in keys(variation_id.ids) if variation_id.ids[loc] != -1]
     max_width = maximum(length(string(loc)) for loc in used_locs)
+    last_used_loc = last(used_locs)
     for loc in used_locs
         id = variation_id.ids[loc]
-        println(io, "  "^n_indent, "$(rpad("$loc:", max_width + 1)) $id")
+        print(io, "  "^(n_indent + 1), "$(rpad("$loc:", max_width + 1)) $id")
+        if loc != last_used_loc
+            println(io)
+        end
     end
 end
 
@@ -349,10 +357,9 @@ Base.length(simulation::Simulation) = 1
 
 function Base.show(io::IO, simulation::Simulation)
     println(io, "Simulation (ID=$(simulation.id)):")
-    println(io, "  Inputs:")
-    printInputFolders(io, simulation.inputs, 2)
-    println(io, "  Variation ID:")
-    printVariationID(io, simulation.variation_id, 2)
+    printInputFolders(io, simulation.inputs, 1)
+    println(io)
+    printVariationID(io, simulation.variation_id, 1)
 end
 
 ##########################################
@@ -489,10 +496,10 @@ Simulation(monad::Monad) = Simulation(monad.inputs, monad.variation_id)
 
 function Base.show(io::IO, monad::Monad)
     println(io, "Monad (ID=$(monad.id)):")
-    println(io, "  Inputs:")
-    printInputFolders(io, monad.inputs, 2)
-    println(io, "  Variation ID:")
-    printVariationID(io, monad.variation_id, 2)
+    printInputFolders(io, monad.inputs, 1)
+    println(io)
+    printVariationID(io, monad.variation_id, 1)
+    println(io)
     printSimulationIDs(io, monad)
 end
 
@@ -500,7 +507,7 @@ function printSimulationIDs(io::IO, T::AbstractTrial, n_indent::Int=1)
     simulation_ids = simulationIDs(T) |> compressIDs
     simulation_ids = join(simulation_ids[1], ", ")
     simulation_ids = replace(simulation_ids, ":" => "-")
-    println(io, "  "^n_indent, "Simulations: $simulation_ids")
+    print(io, "  "^n_indent, "Simulations: $simulation_ids")
 end
 
 ##########################################
@@ -662,16 +669,16 @@ Sampling(sampling::Sampling; kwargs...) = Sampling(sampling.id; kwargs...)
 
 function Base.show(io::IO, sampling::Sampling)
     println(io, "Sampling (ID=$(sampling.id)):")
+    printInputFolders(io, sampling.inputs, 1)
+    println(io)
     printMonadIDs(io, sampling)
-    println(io, "  Inputs:")
-    printInputFolders(io, sampling.inputs, 2)
 end
 
 function printMonadIDs(io::IO, sampling::Sampling, n_indent::Int=1)
     monad_ids = constituentIDs(sampling) |> compressIDs
     monad_ids = join(monad_ids[1], ", ")
     monad_ids = replace(monad_ids, ":" => "-")
-    println(io, "  "^n_indent, "Monads: $(monad_ids)")
+    print(io, "  "^n_indent, "Monads: $(monad_ids)")
 end
 
 ##########################################
@@ -761,8 +768,12 @@ end
 
 function Base.show(io::IO, trial::Trial)
     println(io, "Trial (ID=$(trial.id)):")
+    last_sampling = last(trial.samplings)
     for sampling in trial.samplings
         println(io, "  Sampling (ID=$(sampling.id)):")
         printMonadIDs(io, sampling, 2)
+        if sampling != last_sampling
+            println(io)
+        end
     end
 end

@@ -25,6 +25,7 @@ There are three ways to allow this function to find these dependencies:
 # Keyword Arguments
 - `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses the global variable `pcmm_globals.path_to_magick`.
 - `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses the global variable `pcmm_globals.path_to_ffmpeg`.
+- `verbose::Bool`: If `true`, prints the output of the commands used to generate the movie. Default is `false`.
 
 # Example
 ```julia
@@ -38,7 +39,7 @@ out = run(sampling) # run the sampling
 makeMovie(out) # make movies for all simulations in the output
 ```
 """
-function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg)
+function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg, verbose::Bool=false)
     assertInitialized()
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
     if isfile("$(path_to_output_folder)/out.mp4")
@@ -60,10 +61,16 @@ function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_g
     elseif !shellCommandExists("ffmpeg")
         throw(ErrorException("FFmpeg is not installed. Please install it to generate movies."))
     end
+    svgs = filter(f -> startswith(basename(f), "s") && endswith(f, ".svg"), readdir(path_to_output_folder))
+    if isempty(svgs)
+        @warn "No SVG files found in $(path_to_output_folder), skipping movie generation."
+        movie_generated = false
+        return movie_generated
+    end
     cmd = Cmd(`make jpeg OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
-    quietRun(cmd)
+    verbose ? run(cmd) : quietRun(cmd)
     cmd = Cmd(`make movie OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
-    quietRun(cmd)
+    verbose ? run(cmd) : quietRun(cmd)
     movie_generated = true
     jpgs = readdir(joinpath(trialFolder(Simulation, simulation_id), "output"), sort=false)
     filter!(f -> endswith(f, ".jpg"), jpgs)

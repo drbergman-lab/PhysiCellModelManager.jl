@@ -258,6 +258,7 @@ Base.keys(apts::AbstractPopulationTimeSeries; exclude_time::Bool=false) = exclud
 function Base.show(io::IO, mpts::MonadPopulationTimeSeries)
     println(io, "MonadPopulationTimeSeries for Monad $(mpts.monad_id):")
     printSimulationIDs(io, Monad(mpts.monad_id))
+    println(io)
     println(io, "  Time: $(formatTimeRange(mpts.time))")
     println(io, "  Cell types: $(join(keys(mpts.cell_count), ", "))")
 end

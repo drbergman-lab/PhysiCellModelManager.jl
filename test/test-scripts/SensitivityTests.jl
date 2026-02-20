@@ -19,7 +19,7 @@ dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
 add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
-reference_variation_id = add_variations_result.all_variation_ids[1]
+reference_variation_id = add_variations_result.variation_ids[1]
 
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 lower_bound = 250.0 - 50.0
@@ -67,7 +67,7 @@ dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
 add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
-reference_variation_id = add_variations_result.all_variation_ids[1]
+reference_variation_id = add_variations_result.variation_ids[1]
 
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 lower_bound = 250.0 - 50.0

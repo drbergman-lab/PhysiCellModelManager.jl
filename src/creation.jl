@@ -1,4 +1,4 @@
-using Downloads, JSON3, CSV, PhysiCellCellCreator
+using Downloads, JSON3, CSV
 
 export createProject
 

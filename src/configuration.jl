@@ -334,7 +334,7 @@ function setUpICCell(simulation::Simulation)
     path_to_ic_cell_variations = joinpath(path_to_ic_cell_folder, locationVariationsFolder(:ic_cell))
     path_to_ic_cell_xml = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell]).xml")
     path_to_ic_cell_file = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell])_s$(simulation.id).csv")
-    generateICCell(path_to_ic_cell_xml, path_to_ic_cell_file, domain_dict)
+    generateICCell(path_to_ic_cell_xml, domain_dict; output=path_to_ic_cell_file)
     return path_to_ic_cell_file
 end
 

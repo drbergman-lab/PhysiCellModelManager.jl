@@ -15,6 +15,7 @@ test_order = [
     "ICECMTests.jl",
     "ExportTests.jl",
     "SensitivityTests.jl",
+    "CalibrationTests.jl",
     "DatabaseTests.jl",
     "ClassesTests.jl",
     "LoaderTests.jl",

@@ -1,6 +1,6 @@
 name = "PhysiCellModelManager"
 uuid = "7582d1aa-5e58-4d65-a123-4418a61a2644"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["Daniel Bergman <danielrbergman@gmail.com> and contributors"]
 
 [deps]
@@ -23,6 +23,7 @@ MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 PairCorrelationFunction = "1da3c5ec-5de6-497d-83f1-8bbf7fdc92ec"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PhysiCellCellCreator = "eac91067-0c6e-4a29-b848-3b4e7cf67017"
 PhysiCellECMCreator = "515ed340-d2f8-4e13-b70e-c9ebab3e992f"
 PhysiCellXMLRules = "bad69253-e2d7-49f9-a0cf-2fd158c7c32b"
@@ -55,6 +56,7 @@ MacroTools = "0.5.16"
 MetaGraphsNext = "0.7.2, 0.8"
 PairCorrelationFunction = "0.0.11"
 Parameters = "0.12"
+PyCall = "1"
 PhysiCellCellCreator = "0.0.9"
 PhysiCellECMCreator = "0.0.9"
 PhysiCellXMLRules = "0.0.9"

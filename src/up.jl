@@ -1,6 +1,6 @@
 using PhysiCellXMLRules
 
-const pcmm_milestones = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0"]
+const pcmm_milestones = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0", v"0.2.2"]
 const upgrade_fns = Dict{VersionNumber, Function}()
 
 macro up_fns()
@@ -525,6 +525,18 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
             end
         end
     end
+    return true
+end
+
+"""
+    upgradeToV0_2_2(::Bool)
+
+Upgrade the database to PhysiCellModelManager.jl version 0.2.2.
+Adds the `calibrations` table to support the new calibration module.
+"""
+function upgradeToV0_2_2(::Bool)
+    println("\t- Upgrading to version 0.2.2...")
+    createPCMMTable("calibrations", calibrationsSchema())
     return true
 end
 

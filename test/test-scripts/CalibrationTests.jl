@@ -140,6 +140,25 @@ end
     @test length(fracs_filtered) == 1
 end
 
+@testset "meanPopulationTimeSeries" begin
+    ts = meanPopulationTimeSeries(1)
+    @test ts isa Dict{String,Vector{Float64}}
+    @test haskey(ts, cell_type)
+    @test all(v >= 0.0 for vec in values(ts) for v in vec)
+
+    ts_filtered = meanPopulationTimeSeries(1; cell_types=[cell_type])
+    @test length(ts_filtered) == 1
+    @test haskey(ts_filtered, cell_type)
+    @test ts_filtered[cell_type] ≈ ts[cell_type]
+end
+
+@testset "finalPopulationCount(Monad)" begin
+    counts = finalPopulationCount(Monad(1))
+    @test counts isa Dict{String,Float64}
+    @test haskey(counts, cell_type)
+    @test counts[cell_type] ≈ endpointPopulationCounts(1)[cell_type]
+end
+
 ################## pyabc Integration Tests (guarded) ##################
 
 pyabc_available = try
@@ -159,15 +178,19 @@ end
     if !pyabc_available
         @test_skip "pyabc not available"
     else
+        # Access extension internals via Base.get_extension (standard Julia API)
+        ext = Base.get_extension(PhysiCellModelManager, :PCMMCalibrationExt)
+        @test !isnothing(ext)
+
         # _importPyABC succeeds
-        @test_nowarn PhysiCellModelManager._importPyABC()
+        @test_nowarn ext._importPyABC()
 
         # Prior construction from Julia Distributions → pyabc.Distribution
-        pyabc = PhysiCellModelManager._importPyABC()
+        pyabc = ext._importPyABC()
         params = [
             CalibrationParameter("phase_dur", xml_path_phase, Uniform(200.0, 400.0)),
         ]
-        prior = PhysiCellModelManager._buildPrior(pyabc, params)
+        prior = ext._buildPrior(pyabc, params)
         # prior is a PyObject (pyabc.Distribution); call .rvs() to draw a sample dict
         sample = prior.rvs()
         @test haskey(sample, "phase_dur")
@@ -176,11 +199,11 @@ end
 
         # Normal prior round-trip
         params_normal = [CalibrationParameter("phase_dur", xml_path_phase, Normal(300.0, 30.0))]
-        @test_nowarn PhysiCellModelManager._buildPrior(pyabc, params_normal)
+        @test_nowarn ext._buildPrior(pyabc, params_normal)
 
         # Unsupported prior type raises ArgumentError
         struct _Dummy <: ContinuousUnivariateDistribution end
-        @test_throws ArgumentError PhysiCellModelManager._distributionToRV(pyabc, _Dummy())
+        @test_throws ArgumentError ext._distributionToRV(pyabc, _Dummy())
 
         # Full runABC end-to-end with tiny budget
         observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))

@@ -1,6 +1,6 @@
 using Distributions
 
-export CalibrationParameter, CalibrationProblem, Calibration, ABCResult
+export CalibrationParameter, CalibrationProblem, Calibration, ABCResult, posterior
 
 """
     CalibrationParameter
@@ -148,13 +148,9 @@ Extract posterior samples from an [`ABCResult`](@ref).
 
 # Arguments
 - `generation`: Integer generation index (0-based) or `:final` for the last generation.
+
+!!! note "Requires PyCall extension"
+    Both `PyCall` and `PhysiCellModelManager` must be loaded (in any order) for this
+    function to be available.
 """
-function posterior(result::ABCResult; generation::Union{Int,Symbol}=:final)
-    t = generation === :final ? result.history.max_t : Int(generation)
-    py_df, py_weights = result.history.get_distribution(m=0, t=t)
-    # pandas DataFrame doesn't implement Tables.jl; extract columns via PyCall
-    col_names = [String(c) for c in py_df.columns]
-    df = DataFrame(Dict(c => Vector{Float64}(py_df[c].values) for c in col_names))
-    weights = collect(Float64, py_weights)
-    return df, weights
-end
+function posterior end

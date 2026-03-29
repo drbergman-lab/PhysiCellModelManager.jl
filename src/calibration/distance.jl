@@ -1,4 +1,4 @@
-export endpointPopulationCounts, endpointPopulationFractions, mseDistance
+export endpointPopulationCounts, endpointPopulationFractions, meanPopulationTimeSeries, mseDistance
 
 ################## Summary Statistics ##################
 
@@ -26,9 +26,9 @@ problem = CalibrationProblem(
 ```
 """
 function endpointPopulationCounts(monad_id::Int; cell_types::Union{Nothing,Vector{String}}=nothing, include_dead::Bool=false)
-    sim_ids = constituentIDs(Monad, monad_id)
-    counts_per_sim = [finalPopulationCount(sim_id; include_dead=include_dead) for sim_id in sim_ids]
-    return _averageStatDicts(counts_per_sim, cell_types)
+    counts = finalPopulationCount(Monad(monad_id); include_dead=include_dead)
+    isnothing(cell_types) && return counts
+    return filter(p -> p.first in cell_types, counts)
 end
 
 """
@@ -48,12 +48,45 @@ closure wrapping it) as `summary_statistic` in a [`CalibrationProblem`](@ref).
 """
 function endpointPopulationFractions(monad_id::Int; cell_types::Union{Nothing,Vector{String}}=nothing, include_dead::Bool=false)
     sim_ids = constituentIDs(Monad, monad_id)
+    isempty(sim_ids) && error("Monad $monad_id has no simulations: cannot compute endpoint population fractions.")
     fractions_per_sim = map(sim_ids) do sim_id
         counts = finalPopulationCount(sim_id; include_dead=include_dead)
         total = sum(values(counts))
         total == 0 ? Dict(k => 0.0 for k in keys(counts)) : Dict(k => Float64(v) / total for (k, v) in counts)
     end
     return _averageStatDicts(fractions_per_sim, cell_types)
+end
+
+"""
+    meanPopulationTimeSeries(monad_id::Int; cell_types=nothing, include_dead::Bool=false)
+
+Built-in summary statistic: mean population time series across all replicates in a monad.
+
+Returns a `Dict{String,Vector{Float64}}` mapping cell type name → mean count over time.
+The time axis is shared across replicates (an error is thrown if they differ).
+Pass this (or a closure wrapping it) as `summary_statistic` in a
+[`CalibrationProblem`](@ref) when calibrating against time-series data.
+The corresponding `observed_data` values should be `Vector{Float64}` on the same time grid.
+
+# Arguments
+- `monad_id`: ID of the monad whose replicates to average.
+- `cell_types`: Optional `Vector{String}` to restrict which cell types are included.
+  If `nothing`, all cell types present in the simulation are included.
+- `include_dead`: Whether to include dead cells in the count (default `false`).
+
+# Examples
+```julia
+problem = CalibrationProblem(
+    inputs, parameters, observed,
+    monad_id -> meanPopulationTimeSeries(monad_id; cell_types=["tumor"]),
+    mseDistance
+)
+```
+"""
+function meanPopulationTimeSeries(monad_id::Int; cell_types::Union{Nothing,Vector{String}}=nothing, include_dead::Bool=false)
+    mpts = MonadPopulationTimeSeries(monad_id; include_dead=include_dead)
+    keys_to_use = isnothing(cell_types) ? collect(keys(mpts.cell_count)) : cell_types
+    return Dict{String,Vector{Float64}}(k => Vector{Float64}(mpts.cell_count[k].mean) for k in keys_to_use)
 end
 
 ################## Distance Functions ##################

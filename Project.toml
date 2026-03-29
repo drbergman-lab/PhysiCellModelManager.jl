@@ -23,7 +23,6 @@ MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
 MetaGraphsNext = "fa8bd995-216d-47f1-8a91-f3b68fbeb377"
 PairCorrelationFunction = "1da3c5ec-5de6-497d-83f1-8bbf7fdc92ec"
 Parameters = "d96e819e-fc66-5662-9728-84c9c7592b0a"
-PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 PhysiCellCellCreator = "eac91067-0c6e-4a29-b848-3b4e7cf67017"
 PhysiCellECMCreator = "515ed340-d2f8-4e13-b70e-c9ebab3e992f"
 PhysiCellXMLRules = "bad69253-e2d7-49f9-a0cf-2fd158c7c32b"
@@ -36,6 +35,12 @@ Sobol = "ed01d8cd-4d21-5b2a-85b4-cc3bdc58bad4"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
 Tables = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
+
+[weakdeps]
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
+
+[extensions]
+PCMMCalibrationExt = "PyCall"
 
 [compat]
 AutoHashEquals = "2.2.0"
@@ -72,7 +77,8 @@ julia = "1.10"
 
 [extras]
 Plots = "91a5bcdd-55d7-5caf-9e0b-520d859cae80"
+PyCall = "438e738f-606a-5dbb-bf0a-cddfbfd45ab0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Test", "Plots"]
+test = ["Test", "Plots", "PyCall"]

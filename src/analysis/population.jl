@@ -180,6 +180,28 @@ finalPopulationCount(simulation::Simulation; kwargs...) = finalPopulationCount(s
 finalPopulationCount(pcmm_output::PCMMOutput{Simulation}; kwargs...) = finalPopulationCount(pcmm_output.trial; kwargs...)
 
 """
+    finalPopulationCount(monad::Monad; include_dead::Bool=false)
+
+Return the mean final-snapshot cell counts across all replicates in a monad.
+
+Returns a `Dict{String,Float64}` mapping cell type name → mean count.
+Throws an error if the monad has no simulations.
+
+# Examples
+```julia
+fpc = finalPopulationCount(Monad(1))
+fpc["default"]  # mean count of "default" cell type at final snapshot
+```
+"""
+function finalPopulationCount(monad::Monad; include_dead::Bool=false)
+    sim_ids = constituentIDs(Monad, monad.id)
+    isempty(sim_ids) && error("Monad $(monad.id) has no simulations: cannot compute endpoint population count.")
+    counts_per_sim = [finalPopulationCount(sim_id; include_dead=include_dead) for sim_id in sim_ids]
+    all_keys = union(keys.(counts_per_sim)...)
+    return Dict{String,Float64}(k => mean(get(c, k, 0) for c in counts_per_sim) for k in all_keys)
+end
+
+"""
     MonadPopulationTimeSeries <: AbstractPopulationTimeSeries
 
 Holds the data for a monad's population time series.

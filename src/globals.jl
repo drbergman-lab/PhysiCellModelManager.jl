@@ -22,7 +22,6 @@ The global variable `pcmm_globals` is the instance of this struct that is used t
 - `max_number_of_parallel_simulations::Int`: The maximum number of parallel simulations that can be run at once. If running on an HPC, this is ignored and instead PhysiCellModelManager.jl will queue one job per simulation.
 - `path_to_python::Union{Missing,String}`: The path to the python executable for running PhysiCell Studio. See [`runStudio`](@ref).
 - `path_to_studio::Union{Missing,String}`: The path to the PhysiCell Studio directory. See [`runStudio`](@ref).
-- `path_to_uq_python::Union{Missing,String}`: The path to the python executable for calibration/UQ tasks (must have `pyabc` installed). Set via `PCMM_UQ_PYTHON_PATH` environment variable.
 - `path_to_magick::Union{Missing,String}`: The path to the ImageMagick installation. See [`makeMovie`](@ref).
 - `path_to_ffmpeg::Union{Missing,String}`: The path to the FFmpeg installation. See [`makeMovie`](@ref).
 """
@@ -50,7 +49,6 @@ The global variable `pcmm_globals` is the instance of this struct that is used t
 
     path_to_python::Union{Missing,String} = missing
     path_to_studio::Union{Missing,String} = missing
-    path_to_uq_python::Union{Missing,String} = missing
     path_to_magick::Union{Missing,String} = missing
     path_to_ffmpeg::Union{Missing,String} = missing
 end

@@ -3,9 +3,8 @@ module PCMMCalibrationExt
 using PhysiCellModelManager
 using PhysiCellModelManager: CalibrationProblem, CalibrationParameter, ABCResult, Calibration,
     VariationID, addVariations, GridVariation, Monad, DiscreteVariation,
-    createCalibration, calibrationMonadsCSV, calibrationABCDBPath,
-    pcmm_globals
-using PyCall
+    createCalibration, calibrationMonadsCSV, calibrationABCDBPath
+using PythonCall
 using Distributions: Distribution, Uniform, Normal, LogNormal, Exponential
 using DataFrames: DataFrame
 
@@ -14,45 +13,24 @@ using DataFrames: DataFrame
 """
     _importPyABC()
 
-Import the `pyabc` Python module, using the UQ-specific Python environment
-(`PCMM_UQ_PYTHON_PATH` / `pcmm_globals.path_to_uq_python`) when set.
+Import the `pyabc` Python module. The Python environment (including pyabc) is managed
+automatically by CondaPkg.jl when PythonCall is loaded.
 
 Raises a helpful error if `pyabc` is not importable.
 """
 function _importPyABC()
-    uq_python = pcmm_globals.path_to_uq_python
-    if !ismissing(uq_python)
-        # Ensure PyCall uses the configured Python; no-op if already configured
-        if PyCall.python != uq_python
-            @warn """
-            PyCall is currently using $(PyCall.python) but PCMM_UQ_PYTHON_PATH is set to
-            $(uq_python). PyCall cannot switch Python interpreters at runtime.
-            To use the UQ Python environment, rebuild PyCall before starting Julia:
-
-                ENV["PYTHON"] = "$(uq_python)"
-                import Pkg; Pkg.build("PyCall")
-            """
-        end
-    end
-
     try
         return pyimport("pyabc")
     catch
         throw(ErrorException("""
-        Could not import `pyabc`. Make sure it is installed in the Python environment
-        that PyCall is using (currently: $(PyCall.python)).
+        Could not import `pyabc`.
 
-        Setup instructions:
-            conda create -n pcmm-uq python=3.10
-            conda activate pcmm-uq
-            pip install pyabc
+        pyabc should be installed automatically via CondaPkg when PythonCall is loaded
+        in a project that depends on PhysiCellModelManager. If the install failed,
+        ensure you have a `CondaPkg.toml` file in your project. If not, add it to your project by:
 
-        Then point PCMM to this environment (add to your shell profile or set per-session):
-            export PCMM_UQ_PYTHON_PATH="/path/to/conda/envs/pcmm-uq/bin/python"
+                pkg> conda pip_add pyabc # in the Julia Pkg REPL
 
-        Then rebuild PyCall in Julia (once per machine):
-            ENV["PYTHON"] = ENV["PCMM_UQ_PYTHON_PATH"]
-            import Pkg; Pkg.build("PyCall")
         """))
     end
 end
@@ -77,14 +55,13 @@ function PhysiCellModelManager.runABC(problem::CalibrationProblem;
     py_distance = _buildPyDistance(problem)
 
     # SingleCoreSampler is required: pyabc's default MulticoreEvalParallelSampler attempts
-    # to pickle the model function across Python processes, which fails for PyCall-wrapped
+    # to pickle the model function across Python processes, which fails for PythonCall-wrapped
     # Julia functions. Simulation-level parallelism is handled by PCMM's own runner
     # (setNumberOfParallelSims), so this is no loss of throughput.
     sampler = pyabc.sampler.SingleCoreSampler()
 
     abc = pyabc.ABCSMC(py_model, prior, py_distance; population_size=population_size, sampler=sampler)
 
-    # Convert observed_data dict to Python dict for pyabc
     py_observed = Dict(k => v for (k, v) in problem.observed_data)
 
     abc.new(abc_db_path, py_observed)
@@ -98,10 +75,9 @@ end
 function PhysiCellModelManager.posterior(result::ABCResult; generation::Union{Int,Symbol}=:final)
     t = generation === :final ? result.history.max_t : Int(generation)
     py_df, py_weights = result.history.get_distribution(m=0, t=t)
-    # pandas DataFrame doesn't implement Tables.jl; extract columns via PyCall
-    col_names = [String(c) for c in py_df.columns]
-    df = DataFrame(Dict(c => Vector{Float64}(py_df[c].values) for c in col_names))
-    weights = collect(Float64, py_weights)
+    col_names = pyconvert(Vector{String}, py_df.columns.tolist())
+    df = DataFrame(Dict(c => pyconvert(Vector{Float64}, py_df[c].to_numpy()) for c in col_names))
+    weights = pyconvert(Vector{Float64}, py_weights)
     return df, weights
 end
 
@@ -118,9 +94,7 @@ Supported distributions: `Uniform`, `Normal`, `LogNormal`, `Exponential`.
 """
 function _buildPrior(pyabc, parameters::Vector{CalibrationParameter})
     rv_dict = Dict(Symbol(p.name) => _distributionToRV(pyabc, p.prior) for p in parameters)
-    # pyabc.Distribution is a dict subclass; pycall with PyObject return type prevents
-    # PyCall from auto-converting it to a Julia Dict (which would strip the .rvs() method).
-    return pycall(pyabc.Distribution, PyObject; rv_dict...)
+    return pyabc.Distribution(; rv_dict...)
 end
 
 """
@@ -184,27 +158,23 @@ The returned function accepts a Python dict of parameter values (one entry per
 """
 function _buildPyModel(problem::CalibrationProblem, monads_csv::String)
     function py_model(params_dict)
-        # Build one single-valued DiscreteVariation per calibration parameter
-        avs = [DiscreteVariation(p.xml_path, [Float64(params_dict[p.name])]) for p in problem.parameters]
+        # params_dict is a Python dict; index with Julia strings (PythonCall converts automatically)
+        avs = [DiscreteVariation(p.xml_path, [pyconvert(Float64, params_dict[p.name])]) for p in problem.parameters]
 
-        # Use the user-supplied reference variation ID (for fixed params like max_time),
-        # falling back to the base variation ID if none was provided.
         ref_id = ismissing(problem.reference_variation_id) ?
             VariationID(problem.inputs) : problem.reference_variation_id
 
-        # Resolve to a VariationID and create / retrieve the matching Monad
         add_result = addVariations(GridVariation(), problem.inputs, avs, ref_id)
         variation_id = add_result.variation_ids[1]
         monad = Monad(problem.inputs, variation_id; n_replicates=problem.n_replicates, use_previous=true)
 
         run(monad)
 
-        # Record this monad in the calibration's monads.csv
         open(monads_csv, "a") do io
             println(io, monad.id)
         end
 
-        # Return summary statistics as a plain Julia Dict (PyCall converts to Python dict)
+        # Return Julia Dict; PythonCall converts it to a Python dict automatically
         return problem.summary_statistic(monad.id)
     end
     return py_model
@@ -232,17 +202,16 @@ end
 
 Convert a Python dict (from pyabc) to a `Dict{String,Any}`.
 
-Keys are coerced to `String`. Values are coerced as follows:
+Keys are converted to `String`. Values are converted as follows:
 - Python scalars (float, int) → `Float64`
 - Python lists / numpy arrays → `Vector{Float64}` (for time-series summary statistics)
-- Complex-valued scalars → `Float64` via `real()`
 
 Raises an informative error if a value cannot be converted.
 """
 function _pyDictToJulia(d)
     result = Dict{String,Any}()
     for (k, v) in d
-        key = String(k)
+        key = pyconvert(String, k)
         result[key] = _pyValueToJulia(key, v)
     end
     return result
@@ -251,15 +220,11 @@ end
 function _pyValueToJulia(key::String, v)
     # Try scalar first
     try
-        return Float64(v)
-    catch end
-    # Try real part of a complex scalar
-    try
-        return Float64(real(v))
+        return pyconvert(Float64, v)
     catch end
     # Try converting to a Vector{Float64} (list or numpy array)
     try
-        return Vector{Float64}(v)
+        return pyconvert(Vector{Float64}, v)
     catch end
     throw(ArgumentError(
         """

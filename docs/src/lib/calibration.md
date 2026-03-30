@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Calibration
 
-Run ABC-SMC calibration on a model using pyabc (via PyCall.jl).
+Run ABC-SMC calibration on a model using pyabc (via PythonCall.jl).
 
 ## Public API
 

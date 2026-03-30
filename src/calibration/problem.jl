@@ -88,11 +88,17 @@ struct CalibrationProblem
     reference_variation_id::Union{Missing,VariationID}
 end
 
-function CalibrationProblem(inputs, parameters, observed_data::Dict{String,<:Any},
+function CalibrationProblem(inputs::InputFolders, parameters, observed_data::Dict{String,<:Any},
     summary_statistic, distance;
-    n_replicates::Int=1, reference_variation_id::Union{Missing,VariationID}=missing)
+    n_replicates::Int=1, reference_variation_id::VariationID=VariationID(inputs))
     return CalibrationProblem(inputs, parameters, Dict{String,Any}(observed_data),
                               summary_statistic, distance, n_replicates, reference_variation_id)
+end
+
+function CalibrationProblem(ref::AbstractMonad, parameters, observed_data::Dict{String,<:Any},
+    summary_statistic, distance; n_replicates::Int=1)
+    return CalibrationProblem(ref.inputs, parameters, Dict{String,Any}(observed_data),
+                              summary_statistic, distance, n_replicates, ref.variation_id)
 end
 
 """
@@ -119,7 +125,7 @@ Holds the result of an ABC-SMC calibration run.
 
 # Fields
 - `calibration::Calibration`: The PCMM calibration record (DB entry + folder).
-- `history`: The pyabc `History` object (Python, via PyCall). Access posterior samples
+- `history`: The pyabc `History` object (Python, via PythonCall). Access posterior samples
   with [`posterior`](@ref).
 - `parameters::Vector{CalibrationParameter}`: The calibrated parameters (same as in
   the `CalibrationProblem`).
@@ -133,7 +139,7 @@ df, weights = posterior(result; generation=2)  # specific generation
 """
 struct ABCResult
     calibration::Calibration
-    history::Any   # PyObject — typed as Any to avoid PyCall at load time
+    history::Any   # PyObject — typed as Any to avoid PythonCall at load time
     parameters::Vector{CalibrationParameter}
 end
 
@@ -149,8 +155,8 @@ Extract posterior samples from an [`ABCResult`](@ref).
 # Arguments
 - `generation`: Integer generation index (0-based) or `:final` for the last generation.
 
-!!! note "Requires PyCall extension"
-    Both `PyCall` and `PhysiCellModelManager` must be loaded (in any order) for this
+!!! note "Requires PythonCall extension"
+    Both `PythonCall` and `PhysiCellModelManager` must be loaded (in any order) for this
     function to be available.
 """
 function posterior end

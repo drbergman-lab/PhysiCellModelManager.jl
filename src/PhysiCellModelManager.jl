@@ -74,7 +74,6 @@ function __init__()
 
     pcmm_globals.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing
     pcmm_globals.path_to_studio = haskey(ENV, "PCMM_STUDIO_PATH") ? ENV["PCMM_STUDIO_PATH"] : missing
-    pcmm_globals.path_to_uq_python = haskey(ENV, "PCMM_UQ_PYTHON_PATH") ? ENV["PCMM_UQ_PYTHON_PATH"] : missing
     pcmm_globals.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
     pcmm_globals.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
 

@@ -1,4 +1,4 @@
-using DataFrames, Distributions, PyCall
+using DataFrames, Distributions, PythonCall
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -169,9 +169,12 @@ catch
 end
 
 if !pyabc_available
-    @warn "pyabc not available — skipping ABC-SMC integration tests. " *
-          "Install pyabc in your UQ Python environment to enable them:\n" *
-          "    pip install pyabc"
+    @warn """
+    pyabc not available — skipping ABC-SMC integration tests. Install pyabc in your CondaPkg.jl environment to enable them:
+
+        pkg> conda pip_add pyabc # in the Julia Pkg REPL
+
+    """
 end
 
 @testset "ABC-SMC integration" begin
@@ -194,7 +197,7 @@ end
         # prior is a PyObject (pyabc.Distribution); call .rvs() to draw a sample dict
         sample = prior.rvs()
         @test haskey(sample, "phase_dur")
-        val = Float64(sample["phase_dur"])
+        val = pyconvert(Float64, sample["phase_dur"])
         @test 200.0 <= val <= 400.0
 
         # Normal prior round-trip

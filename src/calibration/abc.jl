@@ -3,7 +3,7 @@ export runABC
 """
     runABC(problem::CalibrationProblem; kwargs...) → ABCResult
 
-Run ABC-SMC parameter calibration using `pyabc` (Python) via PyCall.
+Run ABC-SMC parameter calibration using `pyabc` (Python) via PythonCall.
 
 Each pyabc particle evaluation:
 1. Creates a `Monad` with `problem.n_replicates` simulations at the proposed parameter values.
@@ -30,13 +30,13 @@ An [`ABCResult`](@ref). Use [`posterior`](@ref) to extract weighted parameter sa
 Requires `pyabc` to be installed in the Python environment pointed to by
 `PCMM_UQ_PYTHON_PATH`. See the calibration documentation for setup instructions.
 
-!!! note "Requires PyCall extension"
-    Both `PyCall` and `PhysiCellModelManager` must be loaded (in any order) for this
+!!! note "Requires PythonCall extension"
+    Both `PythonCall` and `PhysiCellModelManager` must be loaded (in any order) for this
     function to be available.
 
 # Examples
 ```julia
-using PyCall
+using PythonCall
 using PhysiCellModelManager
 
 result = runABC(problem; population_size=200, max_nr_populations=5)

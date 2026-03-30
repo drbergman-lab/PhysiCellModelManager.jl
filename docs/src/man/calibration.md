@@ -7,51 +7,23 @@ It is well-suited to agent-based models where an explicit likelihood function is
 ## Python environment setup
 
 The ABC-SMC backend is provided by [pyabc](https://pyabc.readthedocs.io/), a Python library.
-PhysiCellModelManager.jl calls pyabc through [PyCall.jl](https://github.com/JuliaPy/PyCall.jl).
-You must set up a Python environment with pyabc before using the calibration features.
+PhysiCellModelManager.jl calls pyabc through [PythonCall.jl](https://github.com/cjdoris/PythonCall.jl),
+which manages a per-project Python environment via [CondaPkg.jl](https://github.com/cjdoris/CondaPkg.jl).
+**No manual Python setup is required.** When PythonCall is first loaded in your project, CondaPkg
+used to install pyabc into an isolated environment inside the project directory.
 
-### 1. Create a conda environment
-
-```bash
-conda create -n pcmm-uq python=3.10
-conda activate pcmm-uq
-pip install pyabc
-```
-
-### 2. Point PyCall at that environment
-
-Run the following **once per machine** from within your Julia session:
-
-```julia
-ENV["PYTHON"] = "/path/to/conda/envs/pcmm-uq/bin/python"
-import Pkg; Pkg.build("PyCall")
-```
-
-Replace `/path/to/conda/envs/pcmm-uq/bin/python` with the actual path on your machine.
-You can find it by running `which python` after activating the `pcmm-uq` environment.
-
-!!! warning "Global side-effect"
-    `Pkg.build("PyCall")` modifies the PyCall configuration stored in your **Julia depot** (`~/.julia`), not just the current project.
-    This means it affects every Julia project on the machine that uses PyCall.
-    If you share a machine or have other projects that rely on a different Python interpreter, take care before rebuilding.
-    See the [note on PythonCall.jl](@ref pythoncall-upgrade) below for the planned project-local alternative.
-
-### 3. Optional: set `PCMM_UQ_PYTHON_PATH`
-
-Set the environment variable `PCMM_UQ_PYTHON_PATH` to the path of your conda environment's Python binary.
-PhysiCellModelManager.jl will emit a warning at load time if PyCall is using a different interpreter, helping you catch misconfiguration early.
-
-```bash
-export PCMM_UQ_PYTHON_PATH="/path/to/conda/envs/pcmm-uq/bin/python"
-```
+!!! note "First-time install"
+    The first time you load `PythonCall` in a fresh environment with a `CondaPkg.toml` file, CondaPkg will download and
+    install a minimal Python and pyabc. This takes a few minutes; subsequent loads are instant.
 
 ## Activating the extension
 
-`runABC` and `posterior` are provided by a [package extension](https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions)) that is activated whenever **both** PyCall and PhysiCellModelManager.jl are loaded in the same Julia session.
-The order does not matter:
+`runABC` and `posterior` are provided by a [package extension](https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions))
+that is activated whenever **both** PythonCall and PhysiCellModelManager.jl are loaded in the
+same Julia session. The order does not matter:
 
 ```julia
-using PyCall
+using PythonCall
 using PhysiCellModelManager
 ```
 
@@ -59,7 +31,7 @@ or equivalently:
 
 ```julia
 using PhysiCellModelManager
-using PyCall
+using PythonCall
 ```
 
 As long as both are loaded, the extension is active and `runABC` / `posterior` are available.
@@ -69,7 +41,7 @@ As long as both are loaded, the extension is active and `runABC` / `posterior` a
 The example below calibrates two parameters — a cell apoptosis rate and a cell cycle duration — against observed endpoint population counts.
 
 ```julia
-using PyCall
+using PythonCall
 using PhysiCellModelManager
 using Distributions
 
@@ -176,9 +148,3 @@ Computes the mean squared error (MSE) between `simulated` and `observed`.
 Both scalar and vector (time series) values are supported.
 When `simulated` and `observed` are `Dict`s (as produced by the built-in summary statistics), `mseDistance` computes the MSE across all key–value pairs.
 
-## [Future upgrade: PythonCall.jl](@id pythoncall-upgrade)
-
-The current PyCall.jl integration has a known limitation: `Pkg.build("PyCall")` is a machine-wide setting that affects all Julia projects.
-The planned upgrade is to replace PyCall.jl with [PythonCall.jl](https://github.com/cjdoris/PythonCall.jl), which manages its Python environment on a per-project basis via [CondaPkg.jl](https://github.com/cjdoris/CondaPkg.jl).
-This will eliminate the global side-effect and make it possible to specify the exact Python and pyabc versions inside the PCMM project itself.
-Until that migration is complete, the conda + PyCall workflow described above is the supported approach.

@@ -1,3 +1,5 @@
+using Distributions
+
 filename = @__FILE__
 filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
@@ -124,6 +126,25 @@ gsa_sampling = run(method, reference, avs)
 method = RBD(5)
 gsa_sampling = run(method, reference, avs...) # test the method with Vararg variations
 @test size(gsa_sampling.monad_ids_df) == (5, 2)
+
+# Regression test: Sobol ignore_indices header mapping with latent variations
+# that have more than one latent parameter.
+latent_parameters = [Uniform(0.0, 1.0), Uniform(0.0, 1.0)]
+latent_parameter_names = ["latent_a", "latent_b"]
+targets = [configPath("max_time"), configPath("full_data"), configPath("svg_save")]
+maps = [lp -> 24.0 + lp[1],
+	lp -> 6.0 + lp[2],
+	lp -> 3.0 + 0.5 * (lp[1] + lp[2])]
+lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
+dv_extra = UniformDistributedVariation(configPath("default", "apoptosis", "death_rate"), 1.0e-8, 1.0e-6)
+avs_latent = [lv, dv_extra]
+pv_latent = PhysiCellModelManager.ParsedVariations(avs_latent)
+@test PhysiCellModelManager.nLatentDims(pv_latent) == 3
+
+sobol_ignore_sampling = run(Sobolʼ(3), reference, avs_latent; ignore_indices=[2])
+all_latent_names = mapreduce(lv_i -> lv_i.latent_parameter_names, vcat, pv_latent.latent_variations)
+expected_headers = ["A"; "B"; all_latent_names[[1, 3]]]
+@test names(sobol_ignore_sampling.monad_ids_df) == expected_headers
 
 PhysiCellModelManager.deleteMonad(reference.id)
 

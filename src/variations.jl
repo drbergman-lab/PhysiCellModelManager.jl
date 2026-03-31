@@ -989,7 +989,7 @@ struct LatentVariation{T<:Union{Vector{<:Real},<:Distribution}} <: AbstractVaria
     types::Vector{DataType}
 
     function LatentVariation(latent_parameters::Vector{<:Vector{T}}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets)) where T<:Real
-        @assert length(targets) == length(maps) "LatentVariation requires the number of locations, targets, and maps to be the same. Found $(length(locations)), $(length(targets)), $(length(maps)), respectively."
+        @assert length(targets) == length(maps) "LatentVariation requires the number of targets and maps to be the same. Found $(length(targets)) and $(length(maps)), respectively."
         locations = variationLocation.(targets)
         types = map(maps) do fn
             sample_input = [lp[1] for lp in latent_parameters]
@@ -1000,7 +1000,7 @@ struct LatentVariation{T<:Union{Vector{<:Real},<:Distribution}} <: AbstractVaria
     end
     
     function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets)) where T<:Distribution
-        @assert length(targets) == length(maps) "LatentVariation requires the number of locations, targets, and maps to be the same. Found $(length(locations)), $(length(targets)), $(length(maps)), respectively."
+        @assert length(targets) == length(maps) "LatentVariation requires the number of targets and maps to be the same. Found $(length(targets)) and $(length(maps)), respectively."
         locations = variationLocation.(targets)
         types = map(maps) do fn
             sample_input = [quantile(lp, 0.5) for lp in latent_parameters]

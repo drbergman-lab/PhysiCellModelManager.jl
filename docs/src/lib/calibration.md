@@ -2,7 +2,7 @@
 CollapsedDocStrings = true
 ```
 
-# Calibration
+# Calibration(@id calibration_section_lib)
 
 Run ABC-SMC calibration on a model using pyabc (via PythonCall.jl).
 
@@ -43,7 +43,9 @@ meanPopulationTimeSeries
 mseDistance
 ```
 
-<!--
-  Add new exported calibration symbols here as they are introduced.
-  All symbols listed above must be either `export`ed or declared `public` in src/calibration/.
--->
+## Private API
+```@autodocs
+Modules = [PhysiCellModelManager]
+Pages = ["calibration.jl"]
+Public = false
+```

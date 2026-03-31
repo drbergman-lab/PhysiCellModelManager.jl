@@ -1,7 +1,7 @@
 using Distributions
 import Distributions: cdf
 
-export ElementaryVariation, DiscreteVariation, DistributedVariation, CoVariation, LatentVariation
+export ElementaryVariation, DiscreteVariation, DistributedVariation, CoVariation, LatentVariation, variationName
 export UniformDistributedVariation, NormalDistributedVariation
 export GridVariation, LHSVariation, SobolVariation, RBDVariation
 export addDomainVariationDimension!, addCustomDataVariationDimension!, addAttackRateVariationDimension!
@@ -78,6 +78,7 @@ The location, target, and values of a discrete variation.
 - `location::Symbol`: The location of the variation. Can be `:config`, `:rulesets_collection`, `:intracellular`, `:ic_cell`, `:ic_ecm`. The location is inferred from the target.
 - `target::XMLPath`: The target of the variation. The target is a vector of strings that represent the XML path to the element being varied. See [`XMLPath`](@ref) for more information.
 - `values::Vector{T}`: The values of the variation. The values are the possible values that the target can take on.
+- `name::String`: Optional user-facing name for reporting outputs. If omitted, defaults to [`shortVariationName`](@ref).
 
 A singleton value can be passed in place of `values` for convenience.
 
@@ -85,6 +86,7 @@ A singleton value can be passed in place of `values` for convenience.
 ```jldoctest
 julia> dv = DiscreteVariation(["overall", "max_time"], [1440.0, 2880.0])
 DiscreteVariation (Float64):
+  name: Max Time
   location: config
   target: overall/max_time
   values: [1440.0, 2880.0]
@@ -94,6 +96,7 @@ xml_path = rulePath("default", "cycle entry", "decreasing_signals", "max_respons
 DiscreteVariation(xml_path, 0)
 # output
 DiscreteVariation (Int64):
+  name: default: cycle entry min
   location: rulesets_collection
   target: behavior_ruleset:name:default/behavior:name:cycle entry/decreasing_signals/max_response
   values: [0]
@@ -103,6 +106,7 @@ xml_path = icCellsPath("default", "disc", 1, "x0")
 DiscreteVariation(xml_path, [0.0, 100.0])
 # output
 DiscreteVariation (Float64):
+  name: default IC: disc[1] x0
   location: ic_cell
   target: cell_patches:name:default/patch_collection:type:disc/patch:ID:1/x0
   values: [0.0, 100.0]
@@ -112,6 +116,7 @@ xml_path = icECMPath(2, "ellipse", 1, "density")
 DiscreteVariation(xml_path, [0.1, 0.2])
 # output
 DiscreteVariation (Float64):
+  name: L2-ellipse-P1: density
   location: ic_ecm
   target: layer:ID:2/patch_collection:type:ellipse/patch:ID:1/density
   values: [0.1, 0.2]
@@ -121,23 +126,28 @@ struct DiscreteVariation{T} <: ElementaryVariation
     location::Symbol
     target::XMLPath
     values::Vector{T}
+    name::String
 
-    function DiscreteVariation(target::Vector{<:AbstractString}, values::Vector{T}) where T
-        return DiscreteVariation(XMLPath(target), values)
+    function DiscreteVariation(target::Vector{<:AbstractString}, values::Vector{T}; name::Union{Nothing,AbstractString}=nothing) where T
+        return DiscreteVariation(XMLPath(target), values; name=name)
     end
 
-    function DiscreteVariation(target::XMLPath, values::Vector{T}) where T
+    function DiscreteVariation(target::XMLPath, values::Vector{T}; name::Union{Nothing,AbstractString}=nothing) where T
         location = variationLocation(target)
-        return new{T}(location, target, values)
+        default_name = shortVariationName(location, columnName(target))
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{T}(location, target, values, variation_name)
     end
 end
 
-DiscreteVariation(xml_path::Vector{<:AbstractString}, value::T) where T = DiscreteVariation(xml_path, Vector{T}([value]))
+DiscreteVariation(xml_path::Vector{<:AbstractString}, value::T; name::Union{Nothing,AbstractString}=nothing) where T = DiscreteVariation(xml_path, Vector{T}([value]); name=name)
+DiscreteVariation(xml_path::XMLPath, value::T; name::Union{Nothing,AbstractString}=nothing) where T = DiscreteVariation(xml_path, Vector{T}([value]); name=name)
 
 Base.length(discrete_variation::DiscreteVariation) = length(discrete_variation.values)
 
 function Base.show(io::IO, dv::DiscreteVariation)
     println(io, "DiscreteVariation ($(variationDataType(dv))):")
+    println(io, "  name: $(variationName(dv))")
     println(io, "  location: $(dv.location)")
     println(io, "  target: $(columnName(dv))")
     println(io, "  values: $(dv.values)")
@@ -164,6 +174,7 @@ Alternatively, users can use the [`UniformDistributedVariation`](@ref) and [`Nor
 - `target::XMLPath`: The target of the variation. The target is a vector of strings that represent the XML path to the element being varied. See [`XMLPath`](@ref) for more information.
 - `distribution::Distribution`: The distribution of the variation.
 - `flip::Bool=false`: Whether to flip the distribution, i.e., when asked for the iCDF of `x`, return the iCDF of `1-x`. Useful for [`CoVariation`](@ref)'s.
+- `name::String`: Optional user-facing name for reporting outputs. If omitted, defaults to [`shortVariationName`](@ref).
 
 # Examples
 ```jldoctest
@@ -172,6 +183,7 @@ d = Uniform(1, 2)
 DistributedVariation(PhysiCellModelManager.apoptosisPath("default", "death_rate"), d)
 # output
 DistributedVariation:
+  name: default: apop death rate
   location: config
   target: cell_definitions/cell_definition:name:default/phenotype/death/model:code:100/death_rate
   distribution: Distributions.Uniform{Float64}(a=1.0, b=2.0)
@@ -183,6 +195,7 @@ flip = true # the cdf on this variation will decrease from 1 to 0 as the value i
 DistributedVariation(PhysiCellModelManager.necrosisPath("default", "death_rate"), d; flip=flip)
 # output
 DistributedVariation (flipped):
+  name: default: necr death rate
   location: config
   target: cell_definitions/cell_definition:name:default/phenotype/death/model:code:101/death_rate
   distribution: Distributions.Uniform{Float64}(a=1.0, b=2.0)
@@ -193,13 +206,16 @@ struct DistributedVariation <: ElementaryVariation
     target::XMLPath
     distribution::Distribution
     flip::Bool
+    name::String
 
-    function DistributedVariation(target::Vector{<:AbstractString}, distribution::Distribution; flip::Bool=false)
-        return DistributedVariation(XMLPath(target), distribution; flip=flip)
+    function DistributedVariation(target::Vector{<:AbstractString}, distribution::Distribution; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing)
+        return DistributedVariation(XMLPath(target), distribution; flip=flip, name=name)
     end
-    function DistributedVariation(target::XMLPath, distribution::Distribution; flip::Bool=false)
+    function DistributedVariation(target::XMLPath, distribution::Distribution; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing)
         location = variationLocation(target)
-        return new(location, target, distribution, flip)
+        default_name = shortVariationName(location, columnName(target))
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new(location, target, distribution, flip, variation_name)
     end
 end
 
@@ -218,12 +234,21 @@ Can also pass in an [`XMLPath`](@ref) object.
 """
 variationLocation(ev::ElementaryVariation) = ev.location
 
+"""
+    variationName(av::AbstractVariation)
+
+Get the user-facing name of a variation used in reports and sensitivity scheme headers.
+If no explicit name was provided to the constructor, this is a convention-based default.
+"""
+variationName(ev::ElementaryVariation) = ev.name
+
 columnName(ev::ElementaryVariation) = variationTarget(ev) |> columnName
 
 Base.length(::DistributedVariation) = -1 #! set to -1 to be a convention
 
 function Base.show(io::IO, dv::DistributedVariation)
     println(io, "DistributedVariation" * (dv.flip ? " (flipped)" : "") * ":")
+    println(io, "  name: $(variationName(dv))")
     println(io, "  location: $(dv.location)")
     println(io, "  target: $(columnName(dv))")
     println(io, "  distribution: $(dv.distribution)")
@@ -234,8 +259,8 @@ end
 
 Create a distributed variation with a uniform distribution.
 """
-function UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T; flip::Bool=false) where {T<:Real}
-    return DistributedVariation(xml_path, Uniform(lb, ub); flip=flip)
+function UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing) where {T<:Real}
+    return DistributedVariation(xml_path, Uniform(lb, ub); flip=flip, name=name)
 end
 
 """
@@ -243,8 +268,8 @@ end
 
 Create a (possibly truncated) distributed variation with a normal distribution.
 """
-function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf, flip::Bool=false) where {T<:Real}
-    return DistributedVariation(xml_path, truncated(Normal(mu, sigma), lb, ub); flip=flip)
+function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf, flip::Bool=false, name::Union{Nothing,AbstractString}=nothing) where {T<:Real}
+    return DistributedVariation(xml_path, truncated(Normal(mu, sigma), lb, ub); flip=flip, name=name)
 end
 
 """
@@ -373,6 +398,7 @@ Each must be of the same type, either `DiscreteVariation` or `DistributedVariati
 
 # Fields
 - `variations::Vector{T}`: The variations that make up the co-variation.
+- `name::String`: Optional user-facing name for the co-variation. Defaults to joining child names with `" AND "`.
 
 # Constructors
 - `CoVariation(inputs::Vararg{Tuple{Vector{<:AbstractString},Distribution},N}) where {N}`: Create a co-variation from a vector of XML paths and distributions.
@@ -396,17 +422,20 @@ CoVariation(distributed_1, distributed_2, ...) # all distributed variations
 """
 struct CoVariation{T<:ElementaryVariation} <: AbstractVariation
     variations::Vector{T}
+    name::String
 
-    function CoVariation(inputs::Vararg{Tuple{Vector{<:AbstractString},Distribution},N}) where {N}
+    function CoVariation(inputs::Vararg{Tuple{Vector{<:AbstractString},Distribution},N}; name::Union{Nothing,AbstractString}=nothing) where {N}
         variations = DistributedVariation[]
         for (xml_path, distribution) in inputs
             @assert xml_path isa Vector{<:AbstractString} "xml_path must be a vector of strings"
             push!(variations, DistributedVariation(xml_path, distribution))
         end
-        return new{DistributedVariation}(variations)
+        default_name = join(variationName.(variations), " AND ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{DistributedVariation}(variations, variation_name)
     end
 
-    function CoVariation(inputs::Vararg{Tuple{Vector{<:AbstractString},Vector},N}) where {N}
+    function CoVariation(inputs::Vararg{Tuple{Vector{<:AbstractString},Vector},N}; name::Union{Nothing,AbstractString}=nothing) where {N}
         variations = DiscreteVariation[]
         n_discrete = -1
         for (xml_path, val) in inputs
@@ -418,23 +447,32 @@ struct CoVariation{T<:ElementaryVariation} <: AbstractVariation
             end
             push!(variations, DiscreteVariation(xml_path, val))
         end
-        return new{DiscreteVariation}(variations)
+        default_name = join(variationName.(variations), " AND ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{DiscreteVariation}(variations, variation_name)
     end
 
-    CoVariation(evs::Vector{DistributedVariation}) = return new{DistributedVariation}(evs)
+    function CoVariation(evs::Vector{DistributedVariation}; name::Union{Nothing,AbstractString}=nothing)
+        default_name = join(variationName.(evs), " AND ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{DistributedVariation}(evs, variation_name)
+    end
 
-    function CoVariation(evs::Vector{<:DiscreteVariation})
+    function CoVariation(evs::Vector{<:DiscreteVariation}; name::Union{Nothing,AbstractString}=nothing)
         @assert (length.(evs) |> unique |> length) == 1 "All DiscreteVariations in a CoVariation must have the same length."
-        return new{DiscreteVariation}(evs)
+        default_name = join(variationName.(evs), " AND ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{DiscreteVariation}(evs, variation_name)
     end
 
-    function CoVariation(inputs::Vararg{T}) where {T<:ElementaryVariation}
-        return CoVariation(Vector{T}([inputs...]))
+    function CoVariation(inputs::Vararg{T}; name::Union{Nothing,AbstractString}=nothing) where {T<:ElementaryVariation}
+        return CoVariation(Vector{T}([inputs...]); name=name)
     end
 end
 
 variationTarget(cv::CoVariation) = variationTarget.(cv.variations)
 variationLocation(cv::CoVariation) = variationLocation.(cv.variations)
+variationName(cv::CoVariation) = cv.name
 columnName(cv::CoVariation) = columnName.(cv.variations) |> x -> join(x, " AND ")
 
 function Base.length(cv::CoVariation)
@@ -447,6 +485,7 @@ function Base.show(io::IO, cv::CoVariation)
     title_str = "CoVariation ($(data_type_str)):"
     println(io, title_str)
     println(io, "-"^length(title_str))
+    println(io, "  Name: $(variationName(cv))")
     locations = variationLocation(cv)
     unique_locations = unique(locations)
     for location in unique_locations
@@ -945,6 +984,7 @@ If the user does not provide names for the latent parameters, default names are 
 - `targets::Vector{XMLPath}`: The target parameters to vary.
 - `maps::Vector{<:Function}`: The mapping functions that take in the latent parameters (as a vector) and output the target parameter value.
 - `types::Vector{DataType}`: The data types of the target parameters.
+- `name::String`: Optional user-facing name for the latent variation as a whole.
 
 Note:
 - The length of `latent_parameters` and `latent_parameter_names` must be the same, one per latent parameter.
@@ -965,6 +1005,7 @@ LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 # output
 LatentVariation (Distribution), 2 -> 3:
 ---------------------------------------
+  Name: stem: custom:alpha increases asymmetric division to type1 half max | stem: custom:alpha decreases asymmetric division to type1 half max | stem: custom:alpha increases asymmetric division to type2 half max
   Latent Parameters (n = 2):
     lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
     lp#2. threshold_gap (Truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
@@ -987,36 +1028,41 @@ struct LatentVariation{T<:Union{Vector{<:Real},<:Distribution}} <: AbstractVaria
     targets::Vector{XMLPath}
     maps::Vector{<:Function}
     types::Vector{DataType}
+    name::String
 
-    function LatentVariation(latent_parameters::Vector{<:Vector{T}}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets)) where T<:Real
-        @assert length(targets) == length(maps) "LatentVariation requires the number of locations, targets, and maps to be the same. Found $(length(locations)), $(length(targets)), $(length(maps)), respectively."
+    function LatentVariation(latent_parameters::Vector{<:Vector{T}}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets); name::Union{Nothing,AbstractString}=nothing) where T<:Real
+        @assert length(targets) == length(maps) "LatentVariation requires the number of targets and maps to be the same. Found $(length(targets)) and $(length(maps)), respectively."
         locations = variationLocation.(targets)
         types = map(maps) do fn
             sample_input = [lp[1] for lp in latent_parameters]
             sample_output = fn(sample_input)
             eltype(sample_output)
         end
-        return new{Vector{T}}(latent_parameters, lp_names, locations, targets, maps, types)
+        default_name = join(shortVariationName.(locations, columnName.(targets)), " | ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{Vector{T}}(latent_parameters, lp_names, locations, targets, maps, types, variation_name)
     end
     
-    function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets)) where T<:Distribution
-        @assert length(targets) == length(maps) "LatentVariation requires the number of locations, targets, and maps to be the same. Found $(length(locations)), $(length(targets)), $(length(maps)), respectively."
+    function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=defaultLatentParameterNames(latent_parameters, targets); name::Union{Nothing,AbstractString}=nothing) where T<:Distribution
+        @assert length(targets) == length(maps) "LatentVariation requires the number of targets and maps to be the same. Found $(length(targets)) and $(length(maps)), respectively."
         locations = variationLocation.(targets)
         types = map(maps) do fn
             sample_input = [quantile(lp, 0.5) for lp in latent_parameters]
             sample_output = fn(sample_input)
             eltype(sample_output)
         end
-        return new{T}(latent_parameters, lp_names, locations, targets, maps, types)
+        default_name = join(shortVariationName.(locations, columnName.(targets)), " | ")
+        variation_name = isnothing(name) ? default_name : String(name)
+        return new{T}(latent_parameters, lp_names, locations, targets, maps, types, variation_name)
     end
 end
 
-function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{<:AbstractVector{<:AbstractString}}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=String[]) where T<:Union{Vector{<:Real},<:Distribution}
+function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{<:AbstractVector{<:AbstractString}}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=String[]; name::Union{Nothing,AbstractString}=nothing) where T<:Union{Vector{<:Real},<:Distribution}
     targets = XMLPath.(targets)
     if isempty(lp_names)
         lp_names = defaultLatentParameterNames(latent_parameters, targets)
     end
-    return LatentVariation(latent_parameters, targets, maps, lp_names)
+    return LatentVariation(latent_parameters, targets, maps, lp_names; name=name)
 end
 
 """
@@ -1030,7 +1076,8 @@ For each latent parameter, the name is constructed as:
 - `Vector{String}`: A vector of default names for the latent parameters.
 """
 function defaultLatentParameterNames(latent_parameters::Vector, targets::Vector{XMLPath})
-    par_names = join(columnName.(targets), " | ")
+    locations = variationLocation.(targets)
+    par_names = join(shortVariationName.(locations, columnName.(targets)), " | ")
     return [par_names * " | lp#$(i)" for i in 1:length(latent_parameters)]
 end
 
@@ -1038,21 +1085,21 @@ function LatentVariation(dv::T) where T<:DiscreteVariation
     latent_parameters = [dv.values]
     targets = [variationTarget(dv)]
     maps = [first]
-    return LatentVariation(latent_parameters, targets, maps, [columnName(dv)])
+    return LatentVariation(latent_parameters, targets, maps, [variationName(dv)]; name=variationName(dv))
 end
 
 function LatentVariation(dv::T) where T<:DistributedVariation
     latent_parameters = [Uniform(0,1)]
     targets = [variationTarget(dv)]
     maps = [dv.flip ? us -> quantile(dv.distribution, 1 - us[1]) : us -> quantile(dv.distribution, us[1])] #! us is the vector of uniform samples (one per latent parameter)
-    return LatentVariation(latent_parameters, targets, maps, [columnName(dv)])
+    return LatentVariation(latent_parameters, targets, maps, [variationName(dv)]; name=variationName(dv))
 end
 
 function LatentVariation(cv::CoVariation{T}) where T<:DiscreteVariation
     latent_parameters = [collect(1:length(cv))]
     targets = variationTarget(cv)
     maps = [I -> cv.variations[i].values[I[1]] for i in 1:length(cv.variations)]
-    return LatentVariation(latent_parameters, targets, maps, [columnName(cv)])
+    return LatentVariation(latent_parameters, targets, maps, [variationName(cv)]; name=variationName(cv))
 end
 
 function LatentVariation(cv::CoVariation{T}) where T<:DistributedVariation
@@ -1061,7 +1108,7 @@ function LatentVariation(cv::CoVariation{T}) where T<:DistributedVariation
     maps = map(cv.variations) do dv
         dv.flip ? us -> quantile(dv.distribution, 1 - us[1]) : us -> quantile(dv.distribution, us[1]) #! us is the vector of uniform samples (one per latent parameter)
     end
-    return LatentVariation(latent_parameters, targets, maps, [columnName(cv)])
+    return LatentVariation(latent_parameters, targets, maps, [variationName(cv)]; name=variationName(cv))
 end
 
 LatentVariation(lv::LatentVariation) = lv
@@ -1075,6 +1122,7 @@ nTargetDims(lv::LatentVariation) = length(variationTarget(lv))
 columnName(lv::LatentVariation) = variationTarget(lv) .|> columnName
 
 variationLocation(lv::LatentVariation) = lv.locations
+variationName(lv::LatentVariation) = lv.name
 
 function Base.show(io::IO, lv::LatentVariation)
     data_type = lv.latent_parameters[1] isa Distribution ? "Distribution" : "Discrete"
@@ -1084,6 +1132,7 @@ function Base.show(io::IO, lv::LatentVariation)
     println(io, title_str)
     println(io, "-"^length(title_str))
     indent = "  "
+    println(io, indent, "Name: $(variationName(lv))")
 
     println(io, indent, "Latent Parameters (n = $n_latent):")
     all_latent_nums = ["lp#$(i)." for i in 1:nLatentDims(lv)]

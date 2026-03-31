@@ -92,4 +92,5 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 
 - [ ] Calibration parallelism — `SingleCoreSampler` is correct but slow; explore alternatives that don't require pickling Julia closures
 - [ ] Fix pre-existing test sequencing issue: `DeletionTests` de-initializes project causing `DepsTests` to fail
-- [ ] Support naming parameters / variations in parameter sweeps and sensitivity analyses in the same manner as calibration parameters
+- [x] Support naming parameters / variations in parameter sweeps and sensitivity analyses in the same manner as calibration parameters
+- [ ] Support showing snapshots from a monad/sampling/trial in a single figure. Support CairoMakie (as extension) to make a movie from the snapshots.

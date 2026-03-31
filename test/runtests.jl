@@ -7,7 +7,7 @@ include("./test-scripts/PrintHelpers.jl")
 let test_dir = @__DIR__
     for artifact in ["data", "PhysiCell", "scripts", "IntracellularTestExport",
                      "InvalidRulesetExport", "test-project-download",
-                     "pcmm_project_sans_template", "test.out"]
+                     "pcmm_project_sans_template"]
         path = joinpath(test_dir, artifact)
         if ispath(path)
             rm(path; recursive=true, force=true)

@@ -99,6 +99,10 @@ You can also use any `d::Distribution` to create a `DistributedVariation` direct
 dv = DistributedVariation(xml_path, d)
 ```
 
+All variation types support an optional `name=...` keyword.
+For sensitivity workflows, these names are used in the scheme DataFrame/CSV headers when applicable (for example, when using `CoVariation` or other variations converted through `LatentVariation`).
+You can inspect the effective name with [`variationName`](@ref).
+
 Currently, PhysiCellModelManager.jl only supports [`CoVariation`](@ref)s to correlate parameters in a sensitivity analysis.
 
 ### Sensitivity functions
@@ -123,6 +127,12 @@ method = MOAT(15)
 sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates)
 ```
 
+Named example:
+```julia
+evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-3, 1e-4; lb=0, name="Apoptosis rate"),
+       UniformDistributedVariation(configPath("cancer", "cycle", "duration", 0), 720, 2880; name="Cycle duration")]
+```
+
 ## Post-processing
 The object `sensitivity_sampling` is of type [`PhysiCellModelManager.GSASampling`](@ref), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
@@ -139,6 +149,7 @@ This, in turn, is used by `calculateGSA!` to determine how to compute the sensit
 
 Likewise, the `method` will determine how the sensitivity scheme is saved.
 After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling)` folder named based on the `method`.
+Parameter columns in this CSV use the latent parameter names for the sampling design, which include user-specified variation names when provided.
 This can later be used to reload the `GSASampling` and continue doing analysis.
 The simplest way to do that in a new Julia session is to re-run the code that generated the `GSASampling` object.
 So long as the `use_previous` keyword argument is set to `true`, the previous results will be reused.

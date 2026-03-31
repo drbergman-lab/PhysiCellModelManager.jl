@@ -63,3 +63,20 @@ These existed before this feature branch and should be tracked separately:
 - `PhysiCellStudioTests` — likely same network dependency.
 - `DeletionTests` — intermittent; de-initializes the project, causing `DepsTests` to fail on `assertInitialized`.
 - `DepsTests` — depends on project state left by `DeletionTests`; sequencing issue.
+
+---
+
+## 2026-03-31 — Optional names for variations
+
+### Decisions made
+
+- Added optional `name` fields to all concrete `AbstractVariation` subtypes: `DiscreteVariation`, `DistributedVariation`, `CoVariation`, and `LatentVariation`.
+- Introduced `variationName(::AbstractVariation subtype)` as the unified accessor for display labels.
+- Chose keyword argument `name=...` for constructors to preserve existing positional APIs.
+- For omitted names, defaults follow `shortVariationName(location, columnName(target))` conventions so labels align with existing summary table naming.
+- `CoVariation` stores a single name for the combined variation; child variation names remain on each entry in `cv.variations`.
+- Sensitivity scheme headers now naturally inherit variation names because `LatentVariation(dv|cv)` uses `variationName(...)` for `latent_parameter_names`.
+
+### Notes
+
+- This change is metadata-only for display and reporting; it does not alter variation keys in SQLite tables, which remain XML-path-based.

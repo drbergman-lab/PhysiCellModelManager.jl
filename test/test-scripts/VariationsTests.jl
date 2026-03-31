@@ -80,6 +80,27 @@ add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManage
 @test ElementaryVariation(xml_path, [0.0, 1.0]) isa DiscreteVariation
 @test ElementaryVariation(xml_path, Uniform(0.0, 1.0)) isa DistributedVariation
 
+# variation naming tests
+dv_named = DiscreteVariation(configPath("max_time"), [12.0, 24.0]; name="Max time")
+@test PhysiCellModelManager.variationName(dv_named) == "Max time"
+
+dv_default_name = DiscreteVariation(configPath("max_time"), [12.0, 24.0])
+@test PhysiCellModelManager.variationName(dv_default_name) == PhysiCellModelManager.shortVariationName(:config, PhysiCellModelManager.columnName(dv_default_name))
+
+dist_default_name = UniformDistributedVariation(rulePath("default", "cycle entry", "decreasing_signals", "max_response"), 0.0, 1.0)
+@test PhysiCellModelManager.variationName(dist_default_name) == PhysiCellModelManager.shortVariationName(:rulesets_collection, PhysiCellModelManager.columnName(dist_default_name))
+
+cv_named = CoVariation(dv_default_name, DiscreteVariation(configPath(cell_type, "apoptosis", "death_rate"), [1.0e-7, 2.0e-7]); name="Sweep pair")
+@test PhysiCellModelManager.variationName(cv_named) == "Sweep pair"
+
+cv_default_name = CoVariation(DiscreteVariation(configPath("max_time"), [12.0, 24.0]; name="A"),
+                              DiscreteVariation(configPath(cell_type, "apoptosis", "death_rate"), [1.0e-7, 2.0e-7]; name="B"))
+@test PhysiCellModelManager.variationName(cv_default_name) == "A AND B"
+
+lv_from_cv_name = LatentVariation(cv_named)
+@test lv_from_cv_name.latent_parameter_names == ["Sweep pair"]
+@test PhysiCellModelManager.variationName(lv_from_cv_name) == "Sweep pair"
+
 # CoVariation tests
 config_folder = "0_template"
 custom_code_folder = "0_template"

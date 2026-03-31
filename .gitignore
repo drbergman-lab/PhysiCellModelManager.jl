@@ -16,3 +16,4 @@ studio_debug.log
 
 # PythonCall.jl artifacts
 .CondaPkg/
+CondaPkg.toml

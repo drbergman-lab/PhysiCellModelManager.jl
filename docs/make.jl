@@ -40,6 +40,7 @@ makedocs(;
             "Database upgrades" => "misc/database_upgrades.md",
         ],
     ],
+    checkdocs=:exports,
 )
 
 deploydocs(;

@@ -57,10 +57,9 @@ and how to compare simulated to observed output.
   (default 1). Values > 1 reduce stochastic noise in each particle evaluation at the cost
   of N× more compute. pyabc handles stochasticity inherently across generations even with
   `n_replicates = 1`.
-- `reference_variation_id::Union{Missing,VariationID}`: Optional base variation ID
+- `reference_variation_id::VariationID`: Base variation ID
   establishing fixed parameter values (e.g. `max_time`, save intervals) that apply to
-  every particle evaluation. If `missing`, the default base variation ID is used.
-  Obtain from a reference monad: `createTrial(inputs, fixed_dvs...; n_replicates=0).variation_id`.
+  every particle evaluation. Obtain from a reference monad: `createTrial(inputs, fixed_dvs...; n_replicates=0).variation_id`.
 
 # Examples
 ```julia
@@ -69,12 +68,11 @@ ref = createTrial(inputs, DiscreteVariation(["overall","max_time"], 12.0); n_rep
 
 observed = Dict("default" => 100.0)
 problem = CalibrationProblem(
-    inputs,
+    ref,
     [CalibrationParameter("death_rate", xml_path, Uniform(1e-7, 1e-4))],
     observed,
     monad_id -> endpointPopulationCounts(monad_id),
-    mseDistance;
-    reference_variation_id=ref.variation_id
+    mseDistance
 )
 ```
 """
@@ -85,7 +83,7 @@ struct CalibrationProblem
     summary_statistic::Function
     distance::Function
     n_replicates::Int
-    reference_variation_id::Union{Missing,VariationID}
+    reference_variation_id::VariationID
 end
 
 function CalibrationProblem(inputs::InputFolders, parameters, observed_data::Dict{String,<:Any},

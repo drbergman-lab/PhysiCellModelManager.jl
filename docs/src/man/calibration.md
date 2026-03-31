@@ -1,4 +1,4 @@
-# Calibration
+# Calibration(@id calibration_section_man)
 
 PhysiCellModelManager.jl supports Bayesian parameter calibration via the Approximate Bayesian Computation Sequential Monte Carlo (ABC-SMC) algorithm.
 ABC-SMC is a likelihood-free inference method that iteratively refines a population of parameter samples (particles) by accepting only those whose simulated outputs are within a shrinking tolerance (epsilon) of the observed data.
@@ -6,15 +6,17 @@ It is well-suited to agent-based models where an explicit likelihood function is
 
 ## Python environment setup
 
-The ABC-SMC backend is provided by [pyabc](https://pyabc.readthedocs.io/), a Python library.
-PhysiCellModelManager.jl calls pyabc through [PythonCall.jl](https://github.com/cjdoris/PythonCall.jl),
-which manages a per-project Python environment via [CondaPkg.jl](https://github.com/cjdoris/CondaPkg.jl).
-**No manual Python setup is required.** When PythonCall is first loaded in your project, CondaPkg
-used to install pyabc into an isolated environment inside the project directory.
+The ABC-SMC backend is provided by pyabc, a Python library.
+PhysiCellModelManager.jl calls pyabc through PythonCall.jl, which uses CondaPkg.jl to manage a project-local Python environment.
 
-!!! note "First-time install"
-    The first time you load `PythonCall` in a fresh environment with a `CondaPkg.toml` file, CondaPkg will download and
-    install a minimal Python and pyabc. This takes a few minutes; subsequent loads are instant.
+In practice, first-time users may need to install pyabc explicitly in the active Julia project environment.
+
+!!! note "First-time setup"
+    In a fresh Julia project environment, install pyabc with CondaPkg (one-time per environment):
+    ```julia
+    pkg> conda pip_add pyabc
+    ```
+    This takes a few minutes; subsequent loads are instant.
 
 ## Activating the extension
 

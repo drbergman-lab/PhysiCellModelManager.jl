@@ -77,7 +77,7 @@ end
 
     prob = CalibrationProblem(inputs, [p], observed, endpointPopulationCounts, mseDistance)
     @test prob.n_replicates == 1
-    @test ismissing(prob.reference_variation_id)
+    @test prob.reference_variation_id == PhysiCellModelManager.VariationID(inputs)
 
     prob_with_ref = CalibrationProblem(inputs, [p], observed, endpointPopulationCounts, mseDistance;
         n_replicates=3, reference_variation_id=ref.variation_id)
@@ -245,5 +245,11 @@ end
         @test "phase_dur" in names(post_df)
         @test length(weights) == nrow(post_df)
         @test sum(weights) ≈ 1.0 atol=1e-6
+        post_df, weights = PhysiCellModelManager.posterior(result; generation=0)
+        @test post_df isa DataFrame
+        post_df, weights = PhysiCellModelManager.posterior(result; generation=:final)
+        @test post_df isa DataFrame
+        post_df, weights = PhysiCellModelManager.posterior(result; generation=1)
+        @test post_df isa DataFrame
     end
 end

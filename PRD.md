@@ -121,11 +121,14 @@
 - `DistributedVariation` — sample from a probability distribution.
 - `LatentVariation` — parameterize multiple XML paths through a single latent scalar.
 - `CoVariation` — link multiple parameters so they vary together.
+- Variation objects accept an optional `name` field for user-defined display names in parameter DataFrames and sensitivity scheme outputs.
+- If `name` is omitted, defaults follow `shortVariationName` conventions based on location + target XML path.
 - Variations are passed to `run()` to generate a `Monad`/`Sampling`/`Trial` hierarchy.
 
 **Acceptance criteria:**
 - A `GridVariation` over N×M discrete values produces exactly N×M distinct `Monad`s.
 - `xml_path` helpers (`configPath`, `behaviorPath`, etc.) produce valid XPath-like strings accepted by variation constructors.
+- Sensitivity scheme CSV/DataFrame headers use variation names (user-specified when present; convention-based defaults otherwise).
 
 **Edge cases:**
 - Duplicate parameter paths in a single variation → error.

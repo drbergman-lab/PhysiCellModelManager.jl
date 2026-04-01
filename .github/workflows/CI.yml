@@ -85,7 +85,7 @@ jobs:
       if: matrix.os == 'windows-latest'
       run: echo "C:\\hostedtoolcache\\windows\\julia\\${{ matrix.julia-version }}\\${{ matrix.arch }}\\bin" >> $GITHUB_PATH
 
-    - uses: julia-actions/cache@v2
+    - uses: julia-actions/cache@v3
 
     - name: Add BergmanLabRegistry (Windows)
       if: matrix.os == 'windows-latest'
@@ -139,7 +139,7 @@ jobs:
         with:
           version: '1'
 
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
 
       - name: Add BergmanLabRegistry
         run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'

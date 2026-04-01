@@ -62,6 +62,15 @@ jobs:
         brew install ghostscript
         brew install imagemagick
         brew install ffmpeg
+        mkdir -p ~/.config/ImageMagick
+        cat <<EOF > ~/.config/ImageMagick/type.xml
+        <?xml version="1.0" encoding="UTF-8"?>
+        <typemap>
+          <type name="Arial" fullname="Arial" family="Arial" weight="400" style="normal" stretch="normal" glyphs="/System/Library/Fonts/Supplemental/Arial.ttf"/>
+          <type name="Arial-Bold" fullname="Arial Bold" family="Arial" weight="700" style="normal" stretch="normal" glyphs="/System/Library/Fonts/Supplemental/Arial Bold.ttf"/>
+        </typemap>
+        EOF
+        # Verification: This should now return the Arial path instead of "no arial"
 
     - name: Set fake paths for non-macOS
       if: matrix.os != 'macOS-latest'

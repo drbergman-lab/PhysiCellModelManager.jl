@@ -358,14 +358,15 @@ function runSensitivitySampling(method::Sobolʼ, inputs::InputFolders, pv::Parse
 
     A = cdfs[:,1,:] #! cdfs is of size (d, 2, n), i.e., d = # parameters, 2 design matrices, and n = # samples
     B = cdfs[:,2,:]
-    Aᵦ = [i => copy(A) for i in focus_indices] |> Dict
     variation_ids_Aᵦ = stack(focus_indices) do i
-        Aᵦ[i][i,:] .= B[i,:]
-        addCDFVariations(inputs, pv, reference_variation_id, Aᵦ[i])
+        Aᵦ = copy(A)
+        Aᵦ[i,:] .= B[i,:]
+        addCDFVariations(inputs, pv, reference_variation_id, Aᵦ)
     end
     monads = variationsToMonads(inputs, hcat(variation_ids, variation_ids_Aᵦ))
     monad_ids = [monad.id for monad in monads]
-    perturb_headers = mapreduce(lv -> lv.latent_parameter_names, vcat, pv.latent_variations[focus_indices])
+    all_latent_names = mapreduce(lv -> lv.latent_parameter_names, vcat, pv.latent_variations)
+    perturb_headers = all_latent_names[focus_indices]
     header_line = ["A"; "B"; perturb_headers]
     monad_ids_df = DataFrame(monad_ids, header_line)
     sampling = Sampling(unique(monads); n_replicates=n_replicates, use_previous=use_previous)

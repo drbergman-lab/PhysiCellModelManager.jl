@@ -35,6 +35,7 @@ include("loader.jl")
 
 include("analysis/analysis.jl")
 include("sensitivity.jl")
+include("calibration/calibration.jl")
 include("import.jl")
 include("movie.jl")
 

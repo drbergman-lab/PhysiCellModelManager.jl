@@ -298,7 +298,7 @@ function resetDatabase(; force_reset::Bool=false, force_continue::Bool=false)
             return
         end
     end
-    for folder in ["simulations", "monads", "samplings", "trials"]
+    for folder in ["simulations", "monads", "samplings", "trials", "calibrations"]
         rm_hpc_safe(joinpath(dataDir(), "outputs", folder); force=true, recursive=true)
     end
 

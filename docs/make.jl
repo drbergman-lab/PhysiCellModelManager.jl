@@ -26,6 +26,7 @@ makedocs(;
             "Known limitations" => "man/known_limitations.md",
             "PhysiCell Studio" => "man/physicell_studio.md",
             "Sensitivity analysis" => "man/sensitivity_analysis.md",
+            "Calibration" => "man/calibration.md",
             "Analyzing output" => "man/analyzing_output.md",
             "Developer guide" => "man/developer_guide.md",
             "Project configuration" => "man/project_configuration.md",
@@ -39,6 +40,7 @@ makedocs(;
             "Database upgrades" => "misc/database_upgrades.md",
         ],
     ],
+    checkdocs=:exports,
 )
 
 deploydocs(;

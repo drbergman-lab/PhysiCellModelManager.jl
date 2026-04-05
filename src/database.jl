@@ -98,6 +98,9 @@ function createSchema()
     createPCMMTable("trials", trials_schema)
 
     createDefaultStatusCodesTable()
+
+    #! initialize calibrations table
+    createPCMMTable("calibrations", calibrationsSchema())
 end
 
 """
@@ -200,6 +203,20 @@ function samplingsSchema()
     physicell_version_id INTEGER,
     $(inputIDsSubSchema()),
     $(abstractSamplingForeignReferenceSubSchema())
+    """
+end
+
+"""
+    calibrationsSchema()
+
+Create the schema for the calibrations table.
+"""
+function calibrationsSchema()
+    return """
+    calibration_id INTEGER PRIMARY KEY,
+    datetime TEXT,
+    description TEXT,
+    method TEXT
     """
 end
 

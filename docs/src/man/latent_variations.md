@@ -11,6 +11,7 @@ Thus, to construct a `LatentVariation`, you need to provide:
 - Target parameters provided as a vector of XML paths as done for other `ElementaryVariation`'s
 - Mapping functions that map the latent parameters to each target parameter
 - (Optional) Human-interpretable names for the latent parameters
+- (Optional) A user-facing name for the latent variation itself via `name=...`
 
 ## Mappings
 For each target parameter, you must provide a mapping function that **takes as input a vector of latent parameter values** and returns the corresponding target parameter value.
@@ -23,7 +24,17 @@ You can optionally provide human-interpretable names for the latent parameters.
 These names will be used in the display of the `LatentVariation` to help identify the latent parameters.
 This can be especially useful when looking over results of sensitivity analyses or optimization runs that use `LatentVariation`'s.
 If none are provided, the latent parameters will be named according to the target parameters and their index in the latent parameter vector.
+The target-parameter portion of the default names follows PhysiCellModelManager.jl short variation naming conventions.
 See [`defaultLatentParameterNames`](@ref PhysiCellModelManager.defaultLatentParameterNames) for the default naming scheme.
+
+## Variation Names
+You can optionally name a `LatentVariation` using the `name` keyword argument:
+
+```julia
+lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; name="Threshold regime")
+```
+
+When latent variations are constructed automatically from [`DiscreteVariation`](@ref), [`DistributedVariation`](@ref), or [`CoVariation`](@ref), those variation names are propagated into latent parameter names used by sensitivity sampling outputs.
 
 ## `LatentVariation{Vector{<:Real}}`
 If the latent parameters are provided as vectors of discrete values, then the `LatentVariation` is parameterized as `LatentVariation{Vector{<:Real}}`.
@@ -42,6 +53,7 @@ LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 # output
 LatentVariation (Discrete), 2 -> 2:
 -----------------------------------
+  Name: default: signal threshold low | default: signal threshold high
   Latent Parameters (n = 2):
     lp#1. bottom_threshold ([0.2, 0.4])
     lp#2. threshold_gap ([0.1, 0.2, 0.3])
@@ -70,6 +82,7 @@ LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 # output
 LatentVariation (Distribution), 2 -> 2:
 ---------------------------------------
+  Name: default: signal threshold low | default: signal threshold high
   Latent Parameters (n = 2):
     lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
     lp#2. threshold_gap (Truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))

@@ -126,7 +126,7 @@ jobs:
 
     - uses: julia-actions/julia-processcoverage@v1
       with:
-        directories: src,deps
+        directories: src,deps,ext
 
     - uses: codecov/codecov-action@v6
       with:

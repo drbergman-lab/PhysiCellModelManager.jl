@@ -3,6 +3,62 @@ using Downloads, JSON3, CSV
 export createProject
 
 """
+    createInputsTOMLTemplate(path_to_toml::String)
+
+Create a template `inputs.toml` file for a PhysiCell project at the specified path.
+"""
+function createInputsTOMLTemplate(path_to_toml::String)
+    s = """
+    [config]
+    required = true
+    varied = true
+    basename = "PhysiCell_settings.xml"
+
+    [custom_code]
+    required = true
+    varied = false
+
+    [rulesets_collection]
+    required = false
+    varied = true
+    basename = ["base_rulesets.csv", "base_rulesets.xml"]
+
+    [intracellular]
+    required = false
+    varied = true
+    basename = "intracellular.xml"
+
+    [ic_cell]
+    path_from_inputs = ["ics", "cells"]
+    required = false
+    varied = [false, true]
+    basename = ["cells.csv", "cells.xml"]
+
+    [ic_substrate]
+    path_from_inputs = ["ics", "substrates"]
+    required = false
+    varied = false
+    basename = "substrates.csv"
+
+    [ic_ecm]
+    path_from_inputs = ["ics", "ecms"]
+    required = false
+    varied = [false, true]
+    basename = ["ecm.csv", "ecm.xml"]
+
+    [ic_dc]
+    path_from_inputs = ["ics", "dcs"]
+    required = false
+    varied = false
+    basename = "dcs.csv"
+    """
+    open(path_to_toml, "w") do f
+        write(f, s)
+    end
+    return
+end
+
+"""
     createProject(project_dir::String="."; clone_physicell::Bool=true, template_as_default::Bool=true, terse::Bool=false)
 
 Create a new PhysiCellModelManager.jl project structure.
@@ -27,8 +83,7 @@ The names of the `data` and `PhysiCell` directories are fixed and cannot be chan
 The name of the `scripts` folder and the `GenerateData.jl` are just by convention and can be changed.
 """
 function createProject(project_dir::String="."; clone_physicell::Bool=true, template_as_default::Bool=true, terse::Bool=false)
-    global pcmm_globals
-    pcmm_globals.initialized = false #! in case the user is creating a project in an already-initialized directory
+    mm_globals().initialized = false #! in case the user is creating a project in an already-initialized directory
     mkpath(project_dir)
     physicell_dir = setUpPhysiCell(project_dir, clone_physicell)
     data_dir = joinpath(project_dir, "data")

@@ -6,7 +6,6 @@ hashBorderPrint(str)
 PhysiCellModelManager.constituentIDs(Trial, 1)
 sim_ids = simulationIDs()[1:2]
 simulationIDs(Simulation.(sim_ids))
-PhysiCellModelManager.trialMonads(1)
 monadIDs()
 monadIDs(Trial(1))
 

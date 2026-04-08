@@ -139,7 +139,7 @@ lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 dv_extra = UniformDistributedVariation(configPath("default", "apoptosis", "death_rate"), 1.0e-8, 1.0e-6)
 avs_latent = [lv, dv_extra]
 pv_latent = PhysiCellModelManager.ParsedVariations(avs_latent)
-@test PhysiCellModelManager.nLatentDims(pv_latent) == 3
+@test PhysiCellModelManager.ModelManager.nLatentDims(pv_latent) == 3
 
 sobol_ignore_sampling = run(Sobolʼ(3), reference, avs_latent; ignore_indices=[2])
 all_latent_names = mapreduce(lv_i -> lv_i.latent_parameter_names, vcat, pv_latent.latent_variations)

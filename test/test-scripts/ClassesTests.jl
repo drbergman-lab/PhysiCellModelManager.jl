@@ -58,12 +58,12 @@ monadIDs(samplings)
 @test PhysiCellModelManager.lowerClassString(samplings[1]) == "sampling"
 @test PhysiCellModelManager.lowerClassString(trial) == "trial"
 
-old_march_flag = PhysiCellModelManager.pcmm_globals.march_flag
+old_march_flag = PhysiCellModelManager.simulator().march_flag
 new_march_flag = "new_march_flag"
 PhysiCellModelManager.setMarchFlag(new_march_flag)
-@test PhysiCellModelManager.pcmm_globals.march_flag == new_march_flag
+@test PhysiCellModelManager.simulator().march_flag == new_march_flag
 PhysiCellModelManager.setMarchFlag(old_march_flag)
-@test PhysiCellModelManager.pcmm_globals.march_flag == old_march_flag #! make sure it is reset
+@test PhysiCellModelManager.simulator().march_flag == old_march_flag #! make sure it is reset
 
 #! you probably do not want to use integer variation IDs to initialize a Sampling object. this is just to test edge cases in the constructor
 location_variation_ids = Dict{Symbol,Union{Integer,AbstractArray{<:Integer}}}(:config => 0, :rulesets_collection => -1, :ic_cell => -1)

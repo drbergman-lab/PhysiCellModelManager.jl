@@ -32,7 +32,7 @@ Base.stdin = old_stdin
 
 deleteSimulationsByStatus(; user_check=false)
 
-PhysiCellModelManager.deleteAllSimulations()
+PhysiCellModelManager.ModelManager.deleteAllSimulations()
 resetDatabase(; force_reset=true)
 
 input_buffer = IOBuffer("y")

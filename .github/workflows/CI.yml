@@ -56,6 +56,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
+    - name: Setup Git authentication for private repos
+      run: |
+        git config --global url."https://x-access-token:${{ secrets.MM_ACCESS }}@github.com/".insteadOf "https://github.com/"
+
     - name: Install ImageMagick on macOS
       if: matrix.os == 'macOS-latest'
       run: |
@@ -144,6 +148,10 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup Git authentication for private repos
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.MM_ACCESS }}@github.com/".insteadOf "https://github.com/"
+
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
@@ -174,6 +182,8 @@ jobs:
           JULIA_DEBUG: Documenter
         run: |
           using Documenter: DocMeta, doctest
-          using PhysiCellModelManager, PairCorrelationFunction
-          DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager, PairCorrelationFunction); recursive=true)
+          using PhysiCellModelManager, ModelManager, PairCorrelationFunction
+          DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager, ModelManager, PairCorrelationFunction); recursive=true)
+          DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
           doctest(PhysiCellModelManager)
+          doctest(ModelManager)

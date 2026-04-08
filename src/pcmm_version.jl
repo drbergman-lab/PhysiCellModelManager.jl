@@ -1,90 +1,22 @@
-using Pkg
-
 """
     pcmmVersion()
 
-Returns the version of the PhysiCellModelManager.jl package.
+Return the runtime version of PhysiCellModelManager.jl.
 """
-function pcmmVersion()
-    proj = Pkg.project()
-    version = if proj.name == "PhysiCellModelManager"
-        proj.version
-    else
-        deps = Pkg.dependencies()
-        pcmm_uuid = findfirst(dep -> dep.name == "PhysiCellModelManager", deps)
-        isnothing(pcmm_uuid) && throw(ArgumentError("PhysiCellModelManager is not a dependency of the current project. How are you even running this?"))
-        deps[pcmm_uuid].version
-    end
-    return version
-end
+pcmmVersion() = getPackageVersion(simulator())
 
 """
     pcmmDBVersion()
 
-Returns the version of the PhysiCellModelManager.jl database. If the database does not exist, it creates a new one with the current PhysiCellModelManager.jl version.
+Return the version of the PhysiCellModelManager.jl database schema. If no version
+table exists yet, one is created and stamped with the current package version.
 """
-function pcmmDBVersion()
-    #! check if versions table exists
-    pcmm_version = versionFromTable("pcmm_version")
-    if !isnothing(pcmm_version)
-        return pcmm_version
-    end
-    #! if not, try looking for the old version table
-    pcvct_version = versionFromTable("pcvct_version")
-    if !isnothing(pcvct_version)
-        return pcvct_version
-    end
-    #! if neither exists, create a new version table with the current pcmm version
-    pcmm_version = pcmmVersion()
-    DBInterface.execute(centralDB(), "CREATE TABLE IF NOT EXISTS pcmm_version (version TEXT PRIMARY KEY);")
-    DBInterface.execute(centralDB(), "INSERT INTO pcmm_version (version) VALUES ('$(pcmm_version)');")
-
-    return pcmm_version
-end
-
-"""
-    versionFromTable(table_name::String; kwargs...)
-
-Returns the version from the specified table if it exists, otherwise returns nothing.
-The `kwargs...` are passed to the `tableExists` function to check if the table exists.
-"""
-function versionFromTable(table_name::String; kwargs...)
-    if !tableExists(table_name; kwargs...) #! important for helping upgrade to pcvct_version -> pcmm_version in db (can be removed at v0.2.0 or whenever we drop support for <0.30.0)
-        return nothing
-    end
-
-    return queryToDataFrame("SELECT * FROM $(table_name);") |> x -> x.version[1] |> VersionNumber
-end
+pcmmDBVersion() = getDBPackageVersion(simulator(), centralDB())
 
 """
     resolvePCMMVersion(auto_upgrade::Bool)
 
-Resolve differences between the PhysiCellModelManager.jl version and the database version.
-If the PhysiCellModelManager.jl version is lower than the database version, it returns false (upgrade your version of PhysiCellModelManager.jl to match what was already used for the database).
-If the PhysiCellModelManager.jl version is equal to the database version, it returns true.
-If the PhysiCellModelManager.jl version is higher than the database version, it upgrades the database to the current PhysiCellModelManager.jl version and returns true.
+Compare the package version against the database version and upgrade if needed.
+Returns `true` when the database is at the current package version, `false` otherwise.
 """
-function resolvePCMMVersion(auto_upgrade::Bool)
-    pcmm_version = pcmmVersion()
-    pcmm_db_version = pcmmDBVersion()
-
-    if pcmm_version < pcmm_db_version
-        msg = """
-        The PhysiCellModelManager.jl version is $(pcmm_version) but the database version is $(pcmm_db_version). \
-        Upgrade your PhysiCellModelManager.jl version to $(pcmm_db_version) or higher:
-            pkg> registry add https://github.com/drbergman-lab/BergmanLabRegistry
-            pkg> registry up BergmanLabRegistry
-        """
-        println(msg)
-        success = false
-        return success
-    end
-
-    if pcmm_version == pcmm_db_version
-        success = true
-        return success
-    end
-
-    success = upgradePCMM(pcmm_db_version, pcmm_version, auto_upgrade)
-    return success
-end
+resolvePCMMVersion(auto_upgrade::Bool) = resolvePackageVersion(simulator(), centralDB(); auto_upgrade=auto_upgrade)

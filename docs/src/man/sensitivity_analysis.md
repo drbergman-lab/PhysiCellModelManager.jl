@@ -59,7 +59,7 @@ Sobolʼ(9; skip_start=true) # skip to the odd multiples of 1/32 (smallest one wi
 
 The rasp symbol is used to avoid conflict with the Sobol module.
 To type it in VS Code, use `\\rasp` and then press `tab`.
-Alternatively, the constructor [`SobolPCMM`](@ref) is provided as an alias for convenience.
+Alternatively, the constructor [`SobolMM`](@ref) is provided as an alias for convenience.
 
 ### Random Balance Design (RBD)
 The RBD method uses a random design matrix (similar to the Sobol' method) and uses a Fourier transform (as in in the FAST method) to compute the sensitivity indices.

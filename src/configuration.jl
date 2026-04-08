@@ -128,16 +128,6 @@ function setSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractStrin
 end
 
 """
-    columnName(xml_path)
-
-Return the column name corresponding to the given XML path.
-
-Works on a vector of strings, an [`XMLPath`](@ref) object, or a [`ElementaryVariation`](@ref) object.
-Inverse of [`columnNameToXMLPath`](@ref).
-"""
-columnName(xml_path::Vector{<:AbstractString}) = join(xml_path, "/")
-
-"""
     columnNameToXMLPath(column_name::String)
 
 Return the XML path corresponding to the given column name.
@@ -214,6 +204,7 @@ Create XML file for the given location and variation_id in the given monad.
 The file is placed in `$(PhysiCellModelManager.locationVariationsFolder("\$(location)"))` and can be accessed from there to run the simulation(s).
 """
 function createXMLFile(location::Symbol, M::AbstractMonad)
+    @assert M.inputs[location].varied "Folder $(locationPath(location, M)) is not varied and should not have an XML file created for it."
     path_to_folder = locationPath(location, M)
     path_to_xml = joinpath(path_to_folder, locationVariationsFolder(location), "$(location)_variation_$(M.variation_id[location]).xml")
     if isfile(path_to_xml)
@@ -249,10 +240,13 @@ end
 Return the path to the base XML file for the given input folder.
 """
 function prepareBaseFile(input_folder::InputFolder)
-    if input_folder.location == :rulesets_collection
+    if !input_folder.varied
+        return nothing
+    elseif input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)
+    else
+        return joinpath(locationPath(input_folder), input_folder.basename)
     end
-    return joinpath(locationPath(input_folder), input_folder.basename)
 end
 
 """
@@ -1131,15 +1125,9 @@ end
 
 ################## Simplify Name Functions ##################
 
-"""
-    shortLocationVariationID(fieldname)
+import ModelManager: shortLocationVariationID, shortVariationName
 
-Return the short location variation ID name used in creating a DataFrame summary table.
-
-# Arguments
-- `fieldname`: The field name to get the short location variation ID for. This can be a symbol or a string.
-"""
-function shortLocationVariationID(fieldname::Symbol)
+function shortLocationVariationID(::PhysiCellSimulator, fieldname::Symbol)
     if fieldname == :config
         return :ConfigVarID
     elseif fieldname == :rulesets_collection
@@ -1155,23 +1143,7 @@ function shortLocationVariationID(fieldname::Symbol)
     end
 end
 
-shortLocationVariationID(fieldname::String) = shortLocationVariationID(Symbol(fieldname))
-
-"""
-    shortLocationVariationID(type::Type, fieldname::Union{String, Symbol})
-
-Return (as a `type`) the short location variation ID name used in creating a DataFrame summary table.
-"""
-function shortLocationVariationID(type::Type, fieldname::Union{String, Symbol})
-    return type(shortLocationVariationID(fieldname))
-end
-
-"""
-    shortVariationName(location::Symbol, name::String)
-
-Return the short name of the varied parameter for the given location and name used in creating a DataFrame summary table.
-"""
-function shortVariationName(location::Symbol, name::String)
+function shortVariationName(::PhysiCellSimulator, location::Symbol, name::String)
     if location == :config
         return shortConfigVariationName(name)
     elseif location == :rulesets_collection

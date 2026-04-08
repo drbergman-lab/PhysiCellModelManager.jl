@@ -536,7 +536,7 @@ function _loadCells!(cells::DataFrame, filepath_base::String, cell_type_to_name_
         println("When loading cells, could not find file $mat_file. Returning missing.")
         return missing
     end
-    A = matread(mat_file)["cells"]
+    A = _safe_matread(mat_file, "cells", length(labels))
     conversion_dict = Dict("ID" => Int, "dead" => Bool, "cell_type" => Int)
     for (label, row) in zip(labels, eachrow(A))
         if label in keys(conversion_dict)
@@ -547,6 +547,19 @@ function _loadCells!(cells::DataFrame, filepath_base::String, cell_type_to_name_
     end
     cells[!, :cell_type_name] = [cell_type_to_name_dict[ct] for ct in cells[!, :cell_type]]
     return
+end
+
+function _safe_matread(mat_file::String, variable::String, expected_length::Int)
+    try
+        return matread(mat_file)[variable]
+    catch e
+        if e isa EOFError
+            #! known bug in MAT.jl if zero columns, i.e. no cells (https://github.com/JuliaIO/MAT.jl/issues/240)
+            return zeros(expected_length, 0)
+        end
+        println("Unknown error reading $mat_file: $e. Rethrowing error.")
+        rethrow(e)
+    end
 end
 
 """

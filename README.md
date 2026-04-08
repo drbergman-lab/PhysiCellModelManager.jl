@@ -59,3 +59,34 @@ julia> new_apoptosis_rates = [1e-5, 1e-4, 1e-3]
 julia> dv = DiscreteVariation(xml_path, new_apoptosis_rates)
 julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate => 9 simulations total
 ```
+
+---
+
+## Implementation Status
+
+> For Claude Code sessions: this section is the authoritative record of what has been built. Update it as features are completed. See [PRD.md](PRD.md) for behavioral specifications and [progress.md](progress.md) for decision rationale.
+
+### Completed
+
+- [x] Project initialization (`createProject`, `initializeModelManager`)
+- [x] Model import from PhysiCell project folders (`importProject`, `InputFolders`)
+  - [ ] Wizard for guiding users through the import process and recording their input folders
+- [x] Parameter variation — discrete, grid, distributed, latent, co-variation
+- [x] Space-filling designs — LHS, Sobol, RBD
+- [x] Simulation execution — local multi-process runner
+- [x] HPC job script generation and submission
+- [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
+- [x] Sensitivity analysis — MOAT, Sobol, and RBD
+- [x] Calibration — PhysiCell-specific summary statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for use with ModelManager's `CalibrationProblem`; ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
+  - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
+  - [ ] Bayesian optimization
+  - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
+- [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
+- [x] Export and pruning of simulation outputs
+- [x] Intracellular model support (custom data, rules)
+- [x] IC cell and IC ECM file management
+
+### Remaining
+
+- [ ] Support showing snapshots from a monad/sampling/trial in a single figure. Support CairoMakie (as extension) to make a movie from the snapshots.
+- [ ] GP-accelerated ABC and additional calibration methods (see Calibration bullet above)

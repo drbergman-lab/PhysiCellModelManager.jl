@@ -88,7 +88,7 @@ signal = PhysiCellModelManager.retrieveElement(xml_doc, ["behavior_ruleset:name:
 set_attribute(signal, "type", "invalid_type")
 save_file(xml_doc, path_to_xml)
 free(xml_doc)
-PhysiCellModelManager.reinitializeDatabase()
+PhysiCellModelManager.ModelManager.reinitializeDatabase()
 
 inputs = InputFolders("0_template", "0_template"; rulesets_collection=basename(invalid_ruleset_folder))
 sim = Simulation(inputs)

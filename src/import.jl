@@ -449,7 +449,7 @@ So, the printed Julia code should be used to add to scripts that prepare inputs 
 function processSuccessfulImport(path_to_project::AbstractString, import_dest_folders::ImportDestFolders)
     printNewFolders!(path_to_project, import_dest_folders)
     println("Re-initializing the database to include these new entries...\n")
-    reinitializeDatabase()
+    ModelManager.reinitializeDatabase()
 
     kwargs = Dict{Symbol, String}()
     for (loc, folder) in pairs(import_dest_folders.import_dest_folders)

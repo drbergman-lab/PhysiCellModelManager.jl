@@ -227,7 +227,7 @@ function physicellVersion(physicell_version_id::Int)
     return lines[1]
 end
 
-physicellVersion() = physicellVersion(pcmm_globals.current_physicell_version_id)
+physicellVersion() = physicellVersion(simulator().current_version_id)
 
 function physicellVersion(simulation::Simulation)
     query = constructSelectQuery("simulations", "WHERE simulation_id = $(simulation.id)"; selection="physicell_version_id")
@@ -241,7 +241,7 @@ end
 Return a string representing the PhysiCell version information to display on initializing the model manager.
 """
 function physicellInfo()
-    query = constructSelectQuery("physicell_versions", "WHERE physicell_version_id = $(pcmm_globals.current_physicell_version_id)")
+    query = constructSelectQuery("physicell_versions", "WHERE physicell_version_id = $(simulator().current_version_id)")
     df = queryToDataFrame(query; is_row=true)
     str_begin = ismissing(df.repo_owner[1]) ? "" : "($(df.repo_owner[1])) "
     str_middle = ismissing(df.tag[1]) ? df.commit_hash[1] : df.tag[1]
@@ -255,7 +255,7 @@ end
 Get the commit hash for the current PhysiCell version.
 """
 function physiCellCommitHash()
-    query = constructSelectQuery("physicell_versions", "WHERE physicell_version_id = $(pcmm_globals.current_physicell_version_id)"; selection="commit_hash")
+    query = constructSelectQuery("physicell_versions", "WHERE physicell_version_id = $(simulator().current_version_id)"; selection="commit_hash")
     df = queryToDataFrame(query; is_row=true)
     return df.commit_hash[1]
 end
@@ -265,4 +265,4 @@ end
 
 Get the current PhysiCell version ID.
 """
-currentPhysiCellVersionID() = pcmm_globals.current_physicell_version_id
+currentPhysiCellVersionID() = simulator().current_version_id

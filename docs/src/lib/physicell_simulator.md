@@ -9,13 +9,13 @@ The `PhysiCellSimulator` type and its implementations of the `AbstractSimulator`
 ## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["simulator_interface.jl"]
+Pages = ["physicell_simulator.jl", "simulator_interface.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["simulator_interface.jl"]
+Pages = ["physicell_simulator.jl", "simulator_interface.jl"]
 Public = false
 ```

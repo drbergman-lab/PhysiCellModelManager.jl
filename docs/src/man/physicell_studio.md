@@ -39,7 +39,7 @@ First, launch julia in a new shell session and make sure the project is initiali
 ```julia
 using PhysiCellModelManager
 ```
-> Note: If you have already loaded the package in this session, run `initializeModelManager` if you need to initialize the project.
+> Note: If you have already loaded the package in this session, run [`initializeModelManager`](@ref) if you need to initialize the project.
 
 As soon as the simulation has begun (so that its PhysiCell-generated `output` folder is created and populated), you can launch PhysiCell Studio.
 If you set the environment variables, you can run the following command for a simulation with id `sim_id::Integer`:

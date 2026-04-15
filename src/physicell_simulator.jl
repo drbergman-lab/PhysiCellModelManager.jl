@@ -40,7 +40,7 @@ end
     PhysiCellSimulator()
 
 Construct a default `PhysiCellSimulator` with placeholder values. Fields are
-populated during `__init__` and `initializeModelManager`.
+populated during `__init__` and [`initializeModelManager`](@ref).
 """
 function PhysiCellSimulator()
     run_on_hpc = isRunningOnHPC()

@@ -78,7 +78,7 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_cell_variation_id=CASE WHEN ic_cell_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         #! drop the previous unique constraint on monads
         #! insert from monads_temp all values except ic_cell_variation_id (set that to -1 if ic_cell_id is -1 and to 0 if ic_cell_id is not -1)
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
@@ -133,7 +133,7 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
         return false
     end
 
-    createPCMMTable("physicell_versions", physicellVersionsSchema())
+    createMMTable("physicell_versions", physicellVersionsSchema())
     simulator().current_version_id = resolvePhysiCellVersionID()
 
     println("\t\tPhysiCell version: $(physicellInfo())")
@@ -149,7 +149,7 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET physicell_version_id=$(currentPhysiCellVersionID());")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -226,7 +226,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_ecm_variation_id=CASE WHEN ic_ecm_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -241,7 +241,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_dc_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -269,7 +269,7 @@ function upgradeToV0_0_16(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_id=-1;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_variation_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -404,7 +404,7 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
                 if !isempty(col_inserts)
                     schema *= "," * join(col_inserts, ',')
                 end
-                createPCMMTable(table_name, schema; db=db)
+                createMMTable(table_name, schema; db=db)
 
                 stmt_str = "INSERT INTO $(table_name) ($(location_variation_id_name), par_key"
                 if !isempty(par_names)

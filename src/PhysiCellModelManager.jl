@@ -147,7 +147,7 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         println("Project configuration file parsing failed.")
         return false
     end
-    initializeDatabase()
+    ModelManager.initializeDatabase()
     if !isInitialized()
         mm_globals().db = SQLite.DB()
         println("Database initialization failed.")
@@ -159,7 +159,7 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     flush(stdout)
 
     try
-        databaseDiagnostics()
+        ModelManager.databaseDiagnostics()
     catch e
         """
         Database diagnostics failed during initialization with error: $(e).

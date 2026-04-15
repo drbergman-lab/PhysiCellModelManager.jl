@@ -51,7 +51,7 @@ test_order = [
     for test_file in test_order
         @testset "$test_file" begin
             include("./test-scripts/$(test_file)")
-            @test_nowarn PhysiCellModelManager.databaseDiagnostics()
+            @test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()
         end
     end
 

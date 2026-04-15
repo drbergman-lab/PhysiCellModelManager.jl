@@ -30,7 +30,7 @@ function runSimulation(::PhysiCellSimulator, simulation::Simulation, monad_id::I
     end
 
     path_to_simulation_folder = trialFolder(simulation)
-    DBInterface.execute(centralDB(), "UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);")
+    DBInterface.execute(centralDB(), "UPDATE simulations SET status_code_id=$(ModelManager.statusCodeID("Running")) WHERE simulation_id=$(simulation.id);")
     println("\tRunning simulation: $(simulation.id)...")
     flush(stdout)
     if mm_globals().run_on_hpc

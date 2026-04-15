@@ -200,7 +200,7 @@ end
 Add columns to the variations database for the given location and folder_id.
 """
 function addColumns(location::Symbol, folder_id::Int, loc_types::Vector{DataType}, loc_targets::Vector{XMLPath})
-    folder = inputFolderName(location, folder_id)
+    folder = ModelManager.inputFolderName(location, folder_id)
     db_columns = locationVariationsDatabase(location, folder)
     basenames = inputsDict()[location]["basename"]
     basenames = basenames isa Vector ? basenames : [basenames] #! force basenames to be a vector to handle all the same way

@@ -18,9 +18,9 @@ runtime3 = simulationRuntime(out)
 @test runtime1 == runtime3
 
 #! runtime intervals
-intervals1 = simulationRuntimeIntervals(simulation)
-intervals2 = simulationRuntimeIntervals(1)
-intervals3 = simulationRuntimeIntervals(out)
+intervals1 = PhysiCellModelManager.simulationRuntimeIntervals(simulation)
+intervals2 = PhysiCellModelManager.simulationRuntimeIntervals(1)
+intervals3 = PhysiCellModelManager.simulationRuntimeIntervals(out)
 
 @test length(intervals1.time) == length(intervals1.runtime)
 @test intervals1.runtime == intervals2.runtime

@@ -4,7 +4,7 @@ str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
 # diagnostics
-@test_nowarn PhysiCellModelManager.databaseDiagnostics()
+@test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()
 
 # make a few more sims to test deletion
 out = run(Monad(1; n_replicates=3))
@@ -54,4 +54,4 @@ resetDatabase()
 Base.stdin = old_stdin
 
 # diagnostics again
-@test_nowarn PhysiCellModelManager.databaseDiagnostics()
+@test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()

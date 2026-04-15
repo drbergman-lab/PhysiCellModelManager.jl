@@ -50,13 +50,13 @@ trial = Trial(samplings)
 inputs = InputFolders(; config="0_template", custom_code="0_template")
 simulation = Simulation(Monad(1))
 
-@test_throws ArgumentError PhysiCellModelManager.constituentType(Simulation)
+@test_throws ArgumentError PhysiCellModelManager.ModelManager.constituentType(Simulation)
 
 monadIDs(samplings)
-@test PhysiCellModelManager.lowerClassString(simulation) == "simulation"
-@test PhysiCellModelManager.lowerClassString(Monad(1)) == "monad"
-@test PhysiCellModelManager.lowerClassString(samplings[1]) == "sampling"
-@test PhysiCellModelManager.lowerClassString(trial) == "trial"
+@test PhysiCellModelManager.ModelManager.lowerClassString(simulation) == "simulation"
+@test PhysiCellModelManager.ModelManager.lowerClassString(Monad(1)) == "monad"
+@test PhysiCellModelManager.ModelManager.lowerClassString(samplings[1]) == "sampling"
+@test PhysiCellModelManager.ModelManager.lowerClassString(trial) == "trial"
 
 old_march_flag = PhysiCellModelManager.simulator().march_flag
 new_march_flag = "new_march_flag"

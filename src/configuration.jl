@@ -2,7 +2,8 @@ using PhysiCellXMLRules, PhysiCellCellCreator, PhysiCellECMCreator, LightXML
 
 export configPath, rulePath, icCellsPath, icECMPath
 
-@compat public domainPath, timePath, fullSavePath, svgSavePath, substratePath,
+@compat public attackPath, attackRatesPath, deathPath, domainPath,
+               timePath, fullSavePath, svgSavePath, substratePath,
                cellDefinitionPath, phenotypePath, cyclePath,
                apoptosisPath, necrosisPath, volumePath, mechanicsPath,
                motilityPath, secretionPath, cellInteractionsPath,

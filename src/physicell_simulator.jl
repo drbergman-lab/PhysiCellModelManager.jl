@@ -7,7 +7,7 @@ export PhysiCellSimulator
 """
     PhysiCellSimulator <: AbstractSimulator
 
-The PhysiCell backend for [`AbstractSimulator`](@ref). Holds all PhysiCell-specific
+The PhysiCell backend for [`AbstractSimulator`](@ref ModelManager.AbstractSimulator). Holds all PhysiCell-specific
 state (paths, compiler, version ID) so that the generic infrastructure in
 [`ModelManagerGlobals`](@ref) remains simulator-agnostic.
 
@@ -24,7 +24,7 @@ Interface methods are implemented in `src/physicell_simulator.jl`.
 - `path_to_magick::Union{Missing,String}`: ImageMagick binary path for movie creation.
 - `path_to_ffmpeg::Union{Missing,String}`: FFmpeg binary path for movie creation.
 """
-mutable struct PhysiCellSimulator <: AbstractSimulator
+mutable struct PhysiCellSimulator <: ModelManager.AbstractSimulator
     dir::String
     compiler::String
     strict_check::Bool

@@ -99,7 +99,10 @@ You can also use any `d::Distribution` to create a `DistributedVariation` direct
 dv = DistributedVariation(xml_path, d)
 ```
 
-Currently, PhysiCellModelManager.jl only supports [`CoVariation`](@ref)s to correlate parameters in a sensitivity analysis.
+[`CoVariation`](@ref)s can be used to draw all parameters using the same CDF value.
+For a negative correlation between co-varied parameters, use the the `flip` keyword argument to flip the CDF value for some of the parameters.
+
+To build more complex relationships between parameters, you can use [`LatentVariations`](@ref) to define a set of latent variables that are then transformed into the parameters of interest via a user-defined function.
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.
@@ -120,7 +123,8 @@ n_replicates = 3
 evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-3, 1e-4; lb=0),
        UniformDistributedVariation(configPath("cancer", "cycle", "duration", 0), 720, 2880)]
 method = MOAT(15)
-sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates)
+f(sim_id) = finalPopulationCount(sim_id)["cancer"]
+sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates, functions=[f])
 ```
 
 ## Post-processing
@@ -138,7 +142,7 @@ The exact concrete type of `sensitivity_sampling` will depend on the `method` us
 This, in turn, is used by `calculateGSA!` to determine how to compute the sensitivity indices.
 
 Likewise, the `method` will determine how the sensitivity scheme is saved.
-After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling)` folder named based on the `method`.
+After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling.id)` folder named based on the `method`.
 This can later be used to reload the `GSASampling` and continue doing analysis.
 The simplest way to do that in a new Julia session is to re-run the code that generated the `GSASampling` object.
 So long as the `use_previous` keyword argument is set to `true`, the previous results will be reused.

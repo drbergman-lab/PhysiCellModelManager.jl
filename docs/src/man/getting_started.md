@@ -96,7 +96,8 @@ If the `intracellular` key is not provided and `config/intracellular.xml` is not
 ### Post-processing
 If you use `importProject`, then the GenerateData.jl script must be updated to reflect the new project folders.
 By default, the folder names are taken from the name of the project with an integer appended if it already exists.
-If you want to use a different name, you can pass a `dest` dictionary to `importProject` with the keys tkaen from the table below.
+If you want to use a different name, you can pass a `dest` dictionary to `importProject` with the keys taken from the table below.
+
 | Output | Key |
 | --- | --- |
 | config | `config` |

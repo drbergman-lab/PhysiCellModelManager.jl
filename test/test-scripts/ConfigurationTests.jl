@@ -203,9 +203,9 @@ out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 
 @test isnothing(PhysiCellModelManager.prepareVariedInputFolder(:custom_code, Sampling(1))) #! returns nothing because custom codes is not varied
 @test_throws ArgumentError PhysiCellModelManager.shortLocationVariationID(:not_a_location)
-@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "not_a_var")
-@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
-@test_throws ArgumentError PhysiCellModelManager.shortVariationName(:not_a_location, "not_a_var")
+@test_nowarn PhysiCellModelManager.ModelManager.shortVariationName(:intracellular, "not_a_var")
+@test_nowarn PhysiCellModelManager.ModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
+@test_throws ArgumentError PhysiCellModelManager.ModelManager.shortVariationName(:not_a_location, "not_a_var")
 
 xml_doc = parse_file(path_to_xml)
 xml_path = ["not", "a", "path"]

@@ -1,7 +1,7 @@
 #! PhysiCell-specific database logic.
 
-#! All generic database infrastructure (initializeDatabase, createSchema,
-#! createMMTable / createPCMMTable, tableIDName, insertFolder, queryToDataFrame,
+#! All generic database infrastructure (initializeDatabase,
+#! tableIDName, insertFolder, queryToDataFrame,
 #! stmtToDataFrame, inputFolderName, inputFolderID, tableExists, columnsExist,
 #! tableColumns, buildWhereClause, databaseDiagnostics, etc.) is now defined in
 #! ModelManager/src/database.jl.  This file provides only what is PhysiCell-specific.
@@ -68,7 +68,7 @@ function getParameterValue(M::AbstractMonad, xp::XMLPath)
     db = locationVariationsDatabase(location, M)
     @assert !isnothing(db) "XMLPath $(xp.xml_path) corresponds to location $(location), but that location is not being varied in this $(nameof(typeof(M)))."
     @assert !ismissing(db) "Variations database for location $(location) not found in folder $(M.inputs[location].folder)."
-    if columnsExist([columnName(xp)], locationVariationsTableName(location); db=db)
+    if ModelManager.columnsExist([columnName(xp)], locationVariationsTableName(location); db=db)
         query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])"; selection="\"" * columnName(xp) * "\"")
         df = queryToDataFrame(query; db=db, is_row=true)
         v = df[1, columnName(xp)]

@@ -15,7 +15,7 @@ cell_type = "default"
 
 xml_path = configPath(cell_type, "apoptosis", "death_rate")
 dv = UniformDistributedVariation(xml_path, 0.0, 1.0)
-@test_throws ErrorException PhysiCellModelManager.variationValues(dv)
+@test_throws ErrorException PhysiCellModelManager.ModelManager.variationValues(dv)
 
 discrete_variation = DiscreteVariation(xml_path, [0.0, 1.0])
 @test_throws ErrorException cdf(discrete_variation, 0.5)
@@ -124,8 +124,8 @@ cv = CoVariation((apoptosis_rate_path, d_1), (cycle_rate_path, d_2))
 sampling = createTrial(LHSVariation(5), inputs, cv; n_replicates=3)
 @test length(PhysiCellModelManager.constituentIDs(sampling)) == 5
 @test length(sampling) == 15
-@test PhysiCellModelManager.variationLocation(cv) == [:config, :config]
-@test PhysiCellModelManager.variationTarget(cv) == PhysiCellModelManager.XMLPath.([apoptosis_rate_path, cycle_rate_path])
+@test PhysiCellModelManager.ModelManager.variationLocation(cv) == [:config, :config]
+@test PhysiCellModelManager.ModelManager.variationTarget(cv) == PhysiCellModelManager.XMLPath.([apoptosis_rate_path, cycle_rate_path])
 
 cv = CoVariation(cv.variations[1], cv.variations[2]) #! CoVariation(ev1, ev2, ...)
 sampling = createTrial(SobolVariation(7), inputs, cv; n_replicates=2)
@@ -164,10 +164,10 @@ lv = LatentVariation(latent_parameters, targets, maps) # using default latent pa
 @test [target.xml_path for target in lv.targets] == targets
 
 cdfs = [rand(2) for _ in 1:7] # 7 random cdf values for the 2 latent parameters
-PhysiCellModelManager.variationValues(lv, cdfs)
-PhysiCellModelManager.variationValues(lv, hcat(cdfs...))
+PhysiCellModelManager.ModelManager.variationValues(lv, cdfs)
+PhysiCellModelManager.ModelManager.variationValues(lv, hcat(cdfs...))
 pv = PhysiCellModelManager.ParsedVariations([lv])
-@test PhysiCellModelManager.nTargetDims(pv) == 3
+@test PhysiCellModelManager.ModelManager.nTargetDims(pv) == 3
 
 latent_parameters = [[1e-8, 1e-7, 1e-6], [0.5, 0.6, 0.7, 0.8, 1.0]] # discrete version of the above
 lv = LatentVariation(latent_parameters, targets, maps)

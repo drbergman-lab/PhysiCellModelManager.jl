@@ -415,3 +415,16 @@ Set the march flag to `flag`. Used for compiling the PhysiCell code.
 function setMarchFlag(flag::String)
     simulator().march_flag = flag
 end
+
+"""
+    baseToExecutable(s::String)
+
+Convert a string to an executable name based on the operating system.
+If the operating system is Windows, append ".exe" to the string.
+"""
+function baseToExecutable end
+if Sys.iswindows()
+    baseToExecutable(s::String) = "$(s).exe"
+else
+    baseToExecutable(s::String) = s
+end

@@ -1,9 +1,5 @@
 #! PhysiCell-specific database logic.
 
-# Import non-exported ModelManager stubs so these methods extend them.
-import ModelManager: getInputFolderDescription, initializeInputFolder
-
-#!
 #! All generic database infrastructure (initializeDatabase, createSchema,
 #! createMMTable / createPCMMTable, tableIDName, insertFolder, queryToDataFrame,
 #! stmtToDataFrame, inputFolderName, inputFolderID, tableExists, columnsExist,
@@ -53,25 +49,6 @@ function metadataDescription(path_to_folder::AbstractString)
     return description
 end
 
-################## ModelManager interface hooks ##################
-
-"""
-    getInputFolderDescription(::PhysiCellSimulator, path::AbstractString)
-
-Return the description from `metadata.xml` inside `path`.
-Called by `insertFolder` in ModelManager when registering a new input folder.
-"""
-getInputFolderDescription(::PhysiCellSimulator, path::String) = metadataDescription(path)
-
-"""
-    initializeInputFolder(::PhysiCellSimulator, input_folder::InputFolder)
-
-Call `prepareBaseFile` for `input_folder` when it is first registered in the database.
-"""
-function initializeInputFolder(::PhysiCellSimulator, input_folder::InputFolder)
-    prepareBaseFile(input_folder)
-end
-
 ################## PhysiCell-specific: getParameterValue ##################
 
 """
@@ -87,7 +64,7 @@ the column exists, otherwise fall back to the base XML file.
 - Everything else is returned as-is.
 """
 function getParameterValue(M::AbstractMonad, xp::XMLPath)
-    location = variationLocation(xp)
+    location = inferVariationLocation(xp)
     db = locationVariationsDatabase(location, M)
     @assert !isnothing(db) "XMLPath $(xp.xml_path) corresponds to location $(location), but that location is not being varied in this $(nameof(typeof(M)))."
     @assert !ismissing(db) "Variations database for location $(location) not found in folder $(M.inputs[location].folder)."

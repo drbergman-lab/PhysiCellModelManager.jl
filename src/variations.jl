@@ -1,7 +1,7 @@
 #! PhysiCell-specific variation infrastructure.
 
 # Extend the addVariationRows stub from ModelManager.
-import ModelManager: addVariationRows, variationLocation, DiscreteVariation, DistributedVariation,
+import ModelManager: addVariationRows, DiscreteVariation, DistributedVariation,
                      UniformDistributedVariation, NormalDistributedVariation,
                      ElementaryVariation, LatentVariation
 
@@ -9,26 +9,26 @@ import ModelManager: addVariationRows, variationLocation, DiscreteVariation, Dis
 #! Generic types (XMLPath, DiscreteVariation, DistributedVariation, CoVariation,
 #! LatentVariation, ParsedVariations, AddVariationMethod subtypes, addVariations, etc.)
 #! are now defined in ModelManager.  This file provides:
-#!   • variationLocation(xp::XMLPath) — PhysiCell-specific location inference
+#!   • inferVariationLocation(xp::XMLPath) — PhysiCell-specific location inference
 #!   • Backward-compat constructors (no location arg) for all variation types
 #!   • addVariationRows(::PhysiCellSimulator, ...) + its helpers
 #!   • Deprecated PhysiCell-specific dimension helpers
 
 export addDomainVariationDimension!, addCustomDataVariationDimension!, addAttackRateVariationDimension!
 
-################## PhysiCell-specific: variationLocation(::XMLPath) ##################
+################## inferVariationLocation(::XMLPath) ##################
 
 """
-    variationLocation(xp::XMLPath)
+    inferVariationLocation(xp::XMLPath)
 
 Infer the PhysiCell input-folder location symbol for `xp` based on the first path element.
 
 Returns one of `:rulesets_collection`, `:intracellular`, `:ic_cell`, `:ic_ecm`, or `:config`.
 
 This is a PhysiCell-specific function.  The generic ModelManager infrastructure does NOT
-call `variationLocation`; callers are responsible for supplying the location explicitly.
+call `inferVariationLocation`; callers are responsible for supplying the location explicitly.
 """
-function variationLocation(xp::XMLPath)
+function inferVariationLocation(xp::XMLPath)
     if startswith(xp.xml_path[1], "behavior_ruleset:name:")
         return :rulesets_collection
     elseif xp.xml_path[1] == "intracellulars"
@@ -48,13 +48,13 @@ end
 # from the XMLPath.  The explicit-location constructors are defined in ModelManager.
 
 function DiscreteVariation(target::XMLPath, values::Vector{T}) where T
-    return DiscreteVariation(variationLocation(target), target, values)
+    return DiscreteVariation(inferVariationLocation(target), target, values)
 end
 DiscreteVariation(target::XMLPath, value::T) where T = DiscreteVariation(target, Vector{T}([value]))
 DiscreteVariation(target::Vector{<:AbstractString}, values) = DiscreteVariation(XMLPath(target), values)
 
 function DistributedVariation(target::XMLPath, distribution::Distribution; flip::Bool=false)
-    return DistributedVariation(variationLocation(target), target, distribution; flip=flip)
+    return DistributedVariation(inferVariationLocation(target), target, distribution; flip=flip)
 end
 DistributedVariation(target::Vector{<:AbstractString}, dist::Distribution; flip::Bool=false) =
     DistributedVariation(XMLPath(target), dist; flip=flip)
@@ -76,7 +76,7 @@ function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, s
 end
 
 function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=ModelManager.defaultLatentParameterNames(latent_parameters, targets)) where T<:Union{Vector{<:Real},<:Distribution}
-    locations = variationLocation.(targets)
+    locations = inferVariationLocation.(targets)
     return LatentVariation(latent_parameters, targets, maps, lp_names, locations)
 end
 function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{<:AbstractVector{<:AbstractString}}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=String[]) where T<:Union{Vector{<:Real},<:Distribution}

@@ -6,7 +6,6 @@ using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistic
 using PhysiCellXMLRules, PhysiCellCellCreator
 
 export initializeModelManager
-export getSimulationIDs, getMonadIDs #! deprecated aliases
 
 # Backward-compatibility alias: PCMMOutput was the old name for MMOutput
 const PCMMOutput = MMOutput
@@ -21,7 +20,7 @@ include("physicell_simulator.jl")
 include("utilities.jl")
 include("globals.jl")              # simulator(), findCentralDB(), physicellDir()
 include("pruner.jl")
-include("variations.jl")           # PhysiCell-specific: variationLocation, addVariationRows, addColumns, etc.
+include("variations.jl")           # PhysiCell-specific: addVariationRows, addColumns, etc.
 
 include("compilation.jl")
 include("configuration.jl")
@@ -29,7 +28,7 @@ include("creation.jl")
 include("database.jl")
 include("ic_cell.jl")
 include("ic_ecm.jl")
-include("physicell_runner.jl")
+include("simulator_interface.jl")
 include("up.jl")
 include("pcmm_version.jl")
 include("physicell_version.jl")
@@ -46,20 +45,6 @@ include("movie.jl")
 
 include("physicell_studio.jl")
 include("export.jl")
-
-
-"""
-    baseToExecutable(s::String)
-
-Convert a string to an executable name based on the operating system.
-If the operating system is Windows, append ".exe" to the string.
-"""
-function baseToExecutable end
-if Sys.iswindows()
-    baseToExecutable(s::String) = "$(s).exe"
-else
-    baseToExecutable(s::String) = s
-end
 
 """
     PCMMMissingProject
@@ -192,27 +177,5 @@ function initializeModelManager(path_to_project::AbstractString; kwargs...)
 end
 
 initializeModelManager(; kwargs...) = initializeModelManager("PhysiCell", "data"; kwargs...)
-
-################## Deprecated aliases ##################
-
-"""
-    getSimulationIDs(args...)
-
-Deprecated alias for [`simulationIDs`](@ref). Use `simulationIDs` instead.
-"""
-function getSimulationIDs(args...)
-    Base.depwarn("`getSimulationIDs` is deprecated. Use `simulationIDs` instead.", :getSimulationIDs; force=true)
-    return simulationIDs(args...)
-end
-
-"""
-    getMonadIDs(args...)
-
-Deprecated alias for [`monadIDs`](@ref). Use `monadIDs` instead.
-"""
-function getMonadIDs(args...)
-    Base.depwarn("`getMonadIDs` is deprecated. Use `monadIDs` instead.", :getMonadIDs; force=true)
-    return monadIDs(args...)
-end
 
 end

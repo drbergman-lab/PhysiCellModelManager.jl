@@ -9,9 +9,6 @@ simulationIDs(Simulation.(sim_ids))
 monadIDs()
 monadIDs(Trial(1))
 
-@test_warn "`getSimulationIDs` is deprecated. Use `simulationIDs` instead." getSimulationIDs(Trial(1))
-@test_warn "`getMonadIDs` is deprecated. Use `monadIDs` instead." getMonadIDs(Trial(1))
-
 path_to_inputs      = joinpath(PhysiCellModelManager.dataDir(), "inputs", "inputs.toml")
 path_to_fake_inputs = joinpath(PhysiCellModelManager.dataDir(), "inputs", "not_inputs.toml")
 

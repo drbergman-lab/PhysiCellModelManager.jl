@@ -47,7 +47,7 @@ dv1 = UniformDistributedVariation(timing_1_path, 100.0, 200.0)
 dv2 = UniformDistributedVariation(timing_2_path, 100.0, 200.0; flip=true)
 covariation = CoVariation(dv1, dv2)
 cdf = 0.1
-PhysiCellModelManager.variationValues.(covariation.variations, cdf) # PhysiCellModelManager.jl internal for getting values for an ElementaryVariation
+PhysiCellModelManager.ModelManager.variationValues.(covariation.variations, cdf) # ModelManager.jl internal for getting values for an ElementaryVariation
 # output
 2-element Vector{Vector{Float64}}:
  [110.0]

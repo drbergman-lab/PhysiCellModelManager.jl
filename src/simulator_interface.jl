@@ -7,7 +7,8 @@ import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
                      packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
                      postSimulationProcessing, initializeInputFolder, getInputFolderDescription,
-                     clearSimulatorArtifacts
+                     clearSimulatorArtifacts, shortLocationVariationID, shortVariationName,
+                     getInputFolderDescription, initializeInputFolder
 
 """
     runSimulation(::PhysiCellSimulator, simulation::Simulation, monad_id::Int; do_full_setup::Bool=true, force_recompile::Bool=false)
@@ -107,24 +108,6 @@ packageName(::PhysiCellSimulator) = "PhysiCellModelManager"
 Return `"pcmm_version"` — the SQLite table that tracks the PCMM database version.
 """
 dbVersionTableName(::PhysiCellSimulator) = "pcmm_version"
-
-"""
-    upgradeMilestones(::PhysiCellSimulator)
-
-Return the sorted list of PCMM milestone versions that have associated DB migrations.
-"""
-upgradeMilestones(::PhysiCellSimulator) = pcmm_milestones
-
-"""
-    upgradeToMilestone(::PhysiCellSimulator, version::VersionNumber, auto_upgrade::Bool)
-
-Dispatch to the PCMM-specific migration function for `version`.
-"""
-function upgradeToMilestone(::PhysiCellSimulator, version::VersionNumber, auto_upgrade::Bool)
-    up_fn = get(upgrade_fns, version, nothing)
-    @assert !isnothing(up_fn) "No PCMM upgrade function registered for version $(version)."
-    return up_fn(auto_upgrade)
-end
 
 """
     simulatorVersionIDName(::PhysiCellSimulator)
@@ -282,4 +265,71 @@ function postSimulationProcessing(::PhysiCellSimulator, simulation_process::Simu
     end
     pruneSimulationOutput(simulation, prune_options)
     return
+end
+
+function shortLocationVariationID(::PhysiCellSimulator, fieldname::Symbol)
+    if fieldname == :config
+        return :ConfigVarID
+    elseif fieldname == :rulesets_collection
+        return :RulesVarID
+    elseif fieldname == :intracellular
+        return :IntraVarID
+    elseif fieldname == :ic_cell
+        return :ICCellVarID
+    elseif fieldname == :ic_ecm
+        return :ICECMVarID
+    else
+        throw(ArgumentError("Got fieldname $(fieldname). However, it must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
+    end
+end
+
+function shortVariationName(::PhysiCellSimulator, location::Symbol, name::String)
+    if location == :config
+        return shortConfigVariationName(name)
+    elseif location == :rulesets_collection
+        return shortRulesetsVariationName(name)
+    elseif location == :intracellular
+        return shortIntracellularVariationName(name)
+    elseif location == :ic_cell
+        return shortICCellVariationName(name)
+    elseif location == :ic_ecm
+        return shortICECMVariationName(name)
+    else
+        throw(ArgumentError("location must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
+    end
+end
+
+"""
+    getInputFolderDescription(::PhysiCellSimulator, path::AbstractString)
+
+Return the description from `metadata.xml` inside `path`.
+Called by `insertFolder` in ModelManager when registering a new input folder.
+"""
+getInputFolderDescription(::PhysiCellSimulator, path::String) = metadataDescription(path)
+
+"""
+    initializeInputFolder(::PhysiCellSimulator, input_folder::InputFolder)
+
+Call `prepareBaseFile` for `input_folder` when it is first registered in the database.
+"""
+function initializeInputFolder(::PhysiCellSimulator, input_folder::InputFolder)
+    prepareBaseFile(input_folder)
+end
+
+"""
+    upgradeMilestones(::PhysiCellSimulator)
+
+Return the sorted list of PCMM milestone versions that have associated DB migrations.
+"""
+upgradeMilestones(::PhysiCellSimulator) = pcmm_milestones
+
+"""
+    upgradeToMilestone(::PhysiCellSimulator, version::VersionNumber, auto_upgrade::Bool)
+
+Dispatch to the PCMM-specific migration function for `version`.
+"""
+function upgradeToMilestone(::PhysiCellSimulator, version::VersionNumber, auto_upgrade::Bool)
+    up_fn = get(upgrade_fns, version, nothing)
+    @assert !isnothing(up_fn) "No PCMM upgrade function registered for version $(version)."
+    return up_fn(auto_upgrade)
 end

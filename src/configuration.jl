@@ -1125,40 +1125,6 @@ end
 
 ################## Simplify Name Functions ##################
 
-import ModelManager: shortLocationVariationID, shortVariationName
-
-function shortLocationVariationID(::PhysiCellSimulator, fieldname::Symbol)
-    if fieldname == :config
-        return :ConfigVarID
-    elseif fieldname == :rulesets_collection
-        return :RulesVarID
-    elseif fieldname == :intracellular
-        return :IntraVarID
-    elseif fieldname == :ic_cell
-        return :ICCellVarID
-    elseif fieldname == :ic_ecm
-        return :ICECMVarID
-    else
-        throw(ArgumentError("Got fieldname $(fieldname). However, it must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
-    end
-end
-
-function shortVariationName(::PhysiCellSimulator, location::Symbol, name::String)
-    if location == :config
-        return shortConfigVariationName(name)
-    elseif location == :rulesets_collection
-        return shortRulesetsVariationName(name)
-    elseif location == :intracellular
-        return shortIntracellularVariationName(name)
-    elseif location == :ic_cell
-        return shortICCellVariationName(name)
-    elseif location == :ic_ecm
-        return shortICECMVariationName(name)
-    else
-        throw(ArgumentError("location must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
-    end
-end
-
 """
     shortConfigVariationName(name::String)
 

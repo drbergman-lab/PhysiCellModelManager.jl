@@ -1,5 +1,7 @@
 using Distributions
 
+using ModelManager: addVariations
+
 filename = @__FILE__
 filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
@@ -30,51 +32,51 @@ vals = [1.0, 2.0]
 push!(discrete_variations, DiscreteVariation(xml_path, vals))
 
 # Test edge cases of addGrid
-add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
+add_variations_result = addVariations(GridVariation(), inputs, discrete_variations)
 
 # Test edge cases of addLHS
-add_variations_result = PhysiCellModelManager.addVariations(LHSVariation(4), inputs, discrete_variations)
+add_variations_result = addVariations(LHSVariation(4), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 push!(discrete_variations, DiscreteVariation(xml_path, [1.0, 2.0]))
-add_variations_result = PhysiCellModelManager.addVariations(LHSVariation(; n=4), inputs, discrete_variations)
+add_variations_result = addVariations(LHSVariation(; n=4), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = icCellsPath("default", "disc", 1, "x0")
 vals = [0.0, -100.0]
 push!(discrete_variations, DiscreteVariation(xml_path, vals))
-add_variations_result = PhysiCellModelManager.addVariations(LHSVariation(4), inputs, discrete_variations)
+add_variations_result = addVariations(LHSVariation(4), inputs, discrete_variations)
 
 # Test edge cases of addSobol
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.SobolVariation(5), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.SobolVariation(5), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 push!(discrete_variations, DiscreteVariation(xml_path, [1.0, 2.0]))
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.SobolVariation(5; skip_start=false), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.SobolVariation(5; skip_start=false), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = rulePath("default", "cycle entry", "decreasing_signals", "max_response")
 vals = [1.0, 2.0]
 push!(discrete_variations, DiscreteVariation(xml_path, vals))
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.SobolVariation(5; skip_start=4, include_one=true), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.SobolVariation(5; skip_start=4, include_one=true), inputs, discrete_variations)
 
 # Test edge cases of addRBD
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.RBDVariation(1), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.RBDVariation(1), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = icCellsPath("default", "disc", 1, "x0")
 vals = [0.0, -100.0]
 push!(discrete_variations, DiscreteVariation(xml_path, vals))
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.RBDVariation(2), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.RBDVariation(2), inputs, discrete_variations)
 
 discrete_variations = DiscreteVariation[]
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
 push!(discrete_variations, DiscreteVariation(xml_path, [1.0, 2.0]))
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.RBDVariation(3), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.RBDVariation(3), inputs, discrete_variations)
 
-add_variations_result = PhysiCellModelManager.addVariations(PhysiCellModelManager.RBDVariation(3; use_sobol=false), inputs, discrete_variations)
+add_variations_result = addVariations(PhysiCellModelManager.RBDVariation(3; use_sobol=false), inputs, discrete_variations)
 
 # test ElementaryVariation to initialize both DiscreteVariation and DistributedVariation
 @test ElementaryVariation(xml_path, [0.0, 1.0]) isa DiscreteVariation
@@ -166,7 +168,7 @@ lv = LatentVariation(latent_parameters, targets, maps) # using default latent pa
 cdfs = [rand(2) for _ in 1:7] # 7 random cdf values for the 2 latent parameters
 PhysiCellModelManager.ModelManager.variationValues(lv, cdfs)
 PhysiCellModelManager.ModelManager.variationValues(lv, hcat(cdfs...))
-pv = PhysiCellModelManager.ParsedVariations([lv])
+pv = PhysiCellModelManager.ModelManager.ParsedVariations([lv])
 @test PhysiCellModelManager.ModelManager.nTargetDims(pv) == 3
 
 latent_parameters = [[1e-8, 1e-7, 1e-6], [0.5, 0.6, 0.7, 0.8, 1.0]] # discrete version of the above

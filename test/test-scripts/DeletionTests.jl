@@ -15,7 +15,7 @@ simulation_id = simulationIDs(out.trial)[1]
 deleteSimulation(simulation_id:simulation_id)
 @test !isdir(joinpath(PhysiCellModelManager.dataDir(), "outputs", "simulations", string(simulation_id)))
 
-PhysiCellModelManager.eraseSimulationIDFromConstituents(simulationIDs(out.trial)[2])
+PhysiCellModelManager.ModelManager.eraseSimulationIDFromConstituents(simulationIDs(out.trial)[2])
 
 PhysiCellModelManager.deleteMonad(1:4)
 PhysiCellModelManager.deleteSampling(1)

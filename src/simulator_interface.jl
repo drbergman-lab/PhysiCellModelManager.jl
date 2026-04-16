@@ -1,13 +1,16 @@
 #! PhysiCellSimulator interface implementations.
 
-# Import ModelManager interface stubs so PCMM's method definitions
-# extend them (rather than creating new PhysiCellModelManager-local functions).
+#! Import ModelManager interface stubs so PCMM's method definitions
+#! extend them (rather than creating new PhysiCellModelManager-local functions).
 import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
                      simulatorVersionTableName, simulatorVersionIDName, resolveSimulatorVersionID,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
                      packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
                      postSimulationProcessing, initializeInputFolder, getInputFolderDescription,
                      clearSimulatorArtifacts, shortLocationVariationID, shortVariationName
+
+#! Bring ModelManager functions into scope without extending them, so we can call them from PCMM implementations when needed.
+using ModelManager: simulationFailed, SimulationProcess, updateDatabaseOnCompletion
 
 """
     runSimulation(::PhysiCellSimulator, simulation::Simulation, monad_id::Int; do_full_setup::Bool=true, force_recompile::Bool=false)
@@ -16,7 +19,7 @@ PhysiCell implementation of [`runSimulation`](@ref).
 
 Prepares the PhysiCell command via [`prepareSimulationCommand`](@ref), launches the
 process (wrapping in an `sbatch` invocation when running on HPC), and updates the
-database with the result. Returns a [`SimulationProcess`](@ref) describing the
+database with the result. Returns a [`SimulationProcess`](@ref ModelManager.SimulationProcess) describing the
 outcome; if command construction fails, the returned process has `process == nothing`
 and `success == false`.
 """
@@ -33,7 +36,7 @@ function runSimulation(::PhysiCellSimulator, simulation::Simulation, monad_id::I
     println("\tRunning simulation: $(simulation.id)...")
     flush(stdout)
     if mm_globals().run_on_hpc
-        cmd = prepareHPCCommand(cmd, simulation.id)
+        cmd = ModelManager.prepareHPCCommand(cmd, simulation.id)
         the_pipeline = pipeline(ignorestatus(cmd);
                                 stdout=joinpath(path_to_simulation_folder, "hpc.out"),
                                 stderr=joinpath(path_to_simulation_folder, "hpc.err"))

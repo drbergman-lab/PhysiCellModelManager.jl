@@ -13,7 +13,7 @@ monad = Monad(simulation)
 cmd_local = PhysiCellModelManager.prepareSimulationCommand(simulation, monad.id, true, false)
 cmd_local_str = string(Cmd(cmd_local.exec))
 cmd_local_str = strip(cmd_local_str, '`')
-cmd_hpc = PhysiCellModelManager.prepareHPCCommand(cmd_local, simulation.id)
+cmd_hpc = PhysiCellModelManager.ModelManager.prepareHPCCommand(cmd_local, simulation.id)
 
 cmd_string = string(cmd_hpc)
 cmd_string = strip(cmd_string, '`')
@@ -24,7 +24,7 @@ cmd_string = strip(cmd_string, '`')
 
 # test prep of command
 # gh actions runners not expected to have `sbatch` installed
-simulation_process = PhysiCellModelManager.dispatchSimulation(simulation)
+simulation_process = PhysiCellModelManager.ModelManager.dispatchSimulation(simulation)
 @test isnothing(simulation_process.process)
 @test !simulation_process.success
 
@@ -63,7 +63,7 @@ new_hpc_options = Dict("cpus-per-task" => "2",
                        "job-name" => simulation_id -> "test_$(simulation_id)")
 PhysiCellModelManager.setJobOptions(new_hpc_options)
 @test PhysiCellModelManager.mm_globals().sbatch_options["cpus-per-task"] == "2"
-hpc_command = PhysiCellModelManager.prepareHPCCommand(cmd_local, 78)
+hpc_command = PhysiCellModelManager.ModelManager.prepareHPCCommand(cmd_local, 78)
 
 cmd_string = string(hpc_command)
 cmd_string = strip(cmd_string, '`')

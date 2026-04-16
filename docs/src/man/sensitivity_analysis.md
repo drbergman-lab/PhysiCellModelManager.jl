@@ -128,7 +128,7 @@ sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates, funct
 ```
 
 ## Post-processing
-The object `sensitivity_sampling` is of type [`PhysiCellModelManager.GSASampling`](@ref), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
+The object `sensitivity_sampling` is of type [`GSASampling`](@ref PhysiCellModelManager.ModelManager.GSASampling), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
 f = simulation_id -> finalPopulationCount(simulation_id)["default"] # count the final population of cell type "default"
 calculateGSA!(sensitivity_sampling, f)

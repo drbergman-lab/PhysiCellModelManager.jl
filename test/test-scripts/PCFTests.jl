@@ -38,7 +38,8 @@ println(stdout, result)
 #! test 3d
 dvs = DiscreteVariation[]
 domain = (z_min=-20.0, z_max=20.0)
-addDomainVariationDimension!(dvs, domain)
+domain_dvs = domainVariations(z_min=-20.0, z_max=20.0)
+append!(dvs, domain_dvs)
 push!(dvs, DiscreteVariation(["domain", "use_2D"], false))
 out = run(simulation, dvs)
 simulation_id = out.trial |> simulationIDs |> first

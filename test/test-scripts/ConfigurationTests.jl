@@ -142,24 +142,26 @@ reference_monad = out.trial.monads[1]
 
 monads = Monad[]
 discrete_variations = DiscreteVariation[]
-addDomainVariationDimension!(discrete_variations, (x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
+domain_dvs = domainVariations((x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
+append!(discrete_variations, domain_dvs)
 monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
 push!(monads, monad)
 
 discrete_variations = DiscreteVariation[]
-addDomainVariationDimension!(discrete_variations, (min_x=-78.2, maxy=30.2))
+append!(discrete_variations, domainVariations((min_x=[-78.2, -78.3], maxy=[30.2, 30.3]), covary=true))
 monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
 push!(monads, monad)
 
-@test_throws ArgumentError addDomainVariationDimension!(discrete_variations, (x=70, ))
-@test_throws AssertionError addDomainVariationDimension!(discrete_variations, (u_min=70, ))
+@test_throws ArgumentError domainVariations((x=70, ))
+@test_throws AssertionError domainVariations((u_min=70, ))
+@test_throws AssertionError domainVariations((x_min=[-78.2, -78.3, -78.4], maxy=[30.2, 30.3], covary=true))
 
 sampling_1 = Sampling(monads)
 
 discrete_variations = DiscreteVariation[]
 xml_path = configPath(cell_type, "speed")
 push!(discrete_variations, DiscreteVariation(xml_path, [0.1, 1.0]))
-addCustomDataVariationDimension!(discrete_variations, cell_type, "sample", [0.1, 1.0])
+push!(discrete_variations, DiscreteVariation(configPath(cell_type, "custom", "sample"), [0.1, 1.0]))
 sampling_2 = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
 
 trial = Trial([sampling_1, sampling_2])
@@ -195,8 +197,7 @@ hashBorderPrint("SUCCESSFULLY VARIED CONFIG AND RULESETS PARAMETERS!")
 
 # one last set of tests for coverage
 discrete_variations = DiscreteVariation[]
-
-addAttackRateVariationDimension!(discrete_variations, cell_type, cell_type, [0.1])
+push!(discrete_variations, DiscreteVariation(configPath(cell_type, "attack", cell_type), [0.1]))
 
 out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 @test out.n_success == length(out.trial)

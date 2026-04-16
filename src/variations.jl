@@ -14,7 +14,7 @@ import ModelManager: addVariationRows, DiscreteVariation, DistributedVariation,
 #!   • addVariationRows(::PhysiCellSimulator, ...) + its helpers
 #!   • Deprecated PhysiCell-specific dimension helpers
 
-export addDomainVariationDimension!, addCustomDataVariationDimension!, addAttackRateVariationDimension!
+export domainVariations
 
 ################## inferVariationLocation(::XMLPath) ##################
 
@@ -85,29 +85,50 @@ function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{<
     return LatentVariation(latent_parameters, targets_xp, maps, lp_names)
 end
 
-################## Variation Dimension Functions (deprecated) ##################
+################## Variation Dimension Functions ##################
 
 """
-    addDomainVariationDimension!(evs::Vector{<:ElementaryVariation}, domain::NamedTuple)
+    domainVariations(domain::NamedTuple; covary::Bool=false)
+    domainVariations(; covary::Bool=false, kwargs...)
 
-Deprecated function that pushes variations onto `evs` for each domain boundary named in `domain`.
+Create a set of `DiscreteVariation`s for the domain boundaries based on the provided named tuple.
 
 The names in `domain` can be flexibly named as long as they contain either `min` or `max` and one of `x`, `y`, or `z` (other than the the `x` in `max`).
 It is not required to include all three dimensions and their boundaries.
-The values for each boundary can be a single value or a vector of values.
 
-Instead of using this function, use `configPath("x_min")`, `configPath("x_max")`, etc. to create the XML paths and then use `DiscreteVariation` to create the variations.
-Use a [`CoVariation`](@ref) if you want to vary any of these together.
+The values for each boundary can be a single value or a vector of values.
+If any boundary has a vector of values, then the `covary` flag determines how the variations are created:
+- If `covary=false` (the default), then the variations will be created as a full factorial combination of all the provided values for each boundary.
+- If `covary=true`, then the variations will be created by covarying the values for each boundary together (i.e. the first value for each boundary will be combined together, the second value for each boundary will be combined together, etc.). In this case, all boundaries with more than one value must have the same number of values.
 
 # Examples:
+```julia
+domainVariations((x_min=-78, xmax=78, min_y=-30, maxy=[30, 60], z_max=10))
 ```
-evs = ElementaryVariation[]
-addDomainVariationDimension!(evs, (x_min=-78, xmax=78, min_y=-30, maxy=[30, 60], z_max=10))
+Equivalently:
+```julia
+domainVariations(x_min=-78, xmax=78, min_y=-30, maxy=[30, 60], z_max=10)
+```
+
+The following produces four different domain sizes:
+```julia
+domainVariations((x_min=[-78, -70], xmax=[78, 70], min_y=-30, maxy=30, z_max=10))
+```
+while this produces two domain sizes by covarying the x boundaries together and keeping the y and z boundaries fixed:
+```julia
+domainVariations((x_min=[-78, -70], xmax=[78, 70], min_y=-30, maxy=30, z_max=10); covary=true)
 ```
 """
-function addDomainVariationDimension!(evs::Vector{<:ElementaryVariation}, domain::NamedTuple)
-    Base.depwarn("`addDomainVariationDimension!` is deprecated. Use `configPath(\"x_min\")` etc. to create the XML paths and then use `DiscreteVariation` to create the variations.", :addDomainVariationDimension!, force=true)
+function domainVariations(domain::NamedTuple; covary::Bool=false)::Vector{<:AbstractVariation}
     dim_chars = ["z", "y", "x"] #! put x at the end to avoid prematurely matching with "max"
+    evs = DiscreteVariation[]
+    cv_length = 0 #! store the length of the vectors if covary=true
+    if covary
+        all_variable_value_lengths = [length(value) for value in values(domain) if length(value) > 1]
+        cv_length = first(all_variable_value_lengths)
+        @assert all(==(cv_length), all_variable_value_lengths) "All boundaries with multiple values must have the same number of values when covary=true"
+    end
+
     for (tag, value) in pairs(domain)
         tag = String(tag)
         if contains(tag, "min")
@@ -128,44 +149,18 @@ function addDomainVariationDimension!(evs::Vector{<:ElementaryVariation}, domain
         dim_char = dim_chars[ind]
         tag = "$(dim_char)_$(dim_side)"
         xml_path = ["domain", tag]
-        push!(evs, DiscreteVariation(xml_path, value)) #! do this to make sure that singletons and vectors are converted to vectors
+        push!(evs, DiscreteVariation(xml_path, covary && length(value) == 1 ? fill(value, cv_length) : value))
+    end
+
+    if covary
+        return [CoVariation(evs)]
+    else
+        return evs
     end
 end
 
-"""
-    addAttackRateVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, target_name::String, values::Vector{T} where T)
-
-Deprecated function that pushes a variation onto `evs` for the attack rate of a cell type against a target cell type.
-
-Instead of using this function, use `configPath(<attacker_cell_type>, "attack", <target_cell_type>)` to create the XML path and then use `DiscreteVariation` to create the variation.
-
-# Examples:
-```
-addAttackRateVariationDimension!(evs, "immune", "cancer", [0.1, 0.2, 0.3])
-```
-"""
-function addAttackRateVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, target_name::String, values::Vector{T} where T)
-    Base.depwarn("`addAttackRateVariationDimension!` is deprecated. Use `configPath(<attacker_cell_type>, \"attack\", <target_cell_type>)` to create the XML path and then use `DiscreteVariation` to create the variation.", :addAttackRateVariationDimension!, force=true)
-    xml_path = attackRatePath(cell_definition, target_name)
-    push!(evs, DiscreteVariation(xml_path, values))
-end
-
-"""
-    addCustomDataVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, field_name::String, values::Vector{T} where T)
-
-Deprecated function that pushes a variation onto `evs` for a custom data field of a cell type.
-
-Instead of using this function, use `configPath(<cell_definition>, "custom", <tag>)` to create the XML path and then use `DiscreteVariation` to create the variation.
-
-# Examples:
-```
-addCustomDataVariationDimension!(evs, "immune", "perforin", [0.1, 0.2, 0.3])
-```
-"""
-function addCustomDataVariationDimension!(evs::Vector{<:ElementaryVariation}, cell_definition::String, field_name::String, values::Vector{T} where T)
-    Base.depwarn("`addCustomDataVariationDimension!` is deprecated. Use `configPath(<cell_definition>, \"custom\", <tag>)` to create the XML path and then use `DiscreteVariation` to create the variation.", :addCustomDataVariationDimension!, force=true)
-    xml_path = customDataPath(cell_definition, field_name)
-    push!(evs, DiscreteVariation(xml_path, values))
+function domainVariations(; covary::Bool=false, kwargs...)
+    return domainVariations(NamedTuple{keys(kwargs)}(values(kwargs)); covary=covary)
 end
 
 ################## Simulator dispatch: addVariationRows ##################

@@ -1,5 +1,7 @@
 using Distributions
 
+using ModelManager: addVariations
+
 filename = @__FILE__
 filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
@@ -20,7 +22,7 @@ dv_save_full_data_interval = DiscreteVariation(configPath("full_data"), 6.0)
 dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
-add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
+add_variations_result = addVariations(GridVariation(), inputs, discrete_variations)
 reference_variation_id = add_variations_result.variation_ids[1]
 
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
@@ -68,7 +70,7 @@ dv_save_full_data_interval = DiscreteVariation(configPath("full_data"), 6.0)
 dv_save_svg_data_interval = DiscreteVariation(configPath("svg_save"), 6.0)
 discrete_variations = [dv_max_time, dv_save_full_data_interval, dv_save_svg_data_interval]
 
-add_variations_result = PhysiCellModelManager.addVariations(GridVariation(), inputs, discrete_variations)
+add_variations_result = addVariations(GridVariation(), inputs, discrete_variations)
 reference_variation_id = add_variations_result.variation_ids[1]
 
 xml_path = PhysiCellModelManager.cyclePath(cell_type, "phase_durations", "duration:index:0")
@@ -138,7 +140,7 @@ maps = [lp -> 24.0 + lp[1],
 lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names)
 dv_extra = UniformDistributedVariation(configPath("default", "apoptosis", "death_rate"), 1.0e-8, 1.0e-6)
 avs_latent = [lv, dv_extra]
-pv_latent = PhysiCellModelManager.ParsedVariations(avs_latent)
+pv_latent = PhysiCellModelManager.ModelManager.ParsedVariations(avs_latent)
 @test PhysiCellModelManager.ModelManager.nLatentDims(pv_latent) == 3
 
 sobol_ignore_sampling = run(Sobolʼ(3), reference, avs_latent; ignore_indices=[2])

@@ -1,13 +1,6 @@
 using SQLite
 
 """
-    simulator()
-
-Get the `PhysiCellSimulator` backend from the global state.
-"""
-simulator() = mm_globals().simulator
-
-"""
     findCentralDB()
 
 Locate the central SQLite database file and connect to it, updating the global state.

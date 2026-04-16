@@ -7,8 +7,7 @@ import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
                      packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
                      postSimulationProcessing, initializeInputFolder, getInputFolderDescription,
-                     clearSimulatorArtifacts, shortLocationVariationID, shortVariationName,
-                     getInputFolderDescription, initializeInputFolder
+                     clearSimulatorArtifacts, shortLocationVariationID, shortVariationName
 
 """
     runSimulation(::PhysiCellSimulator, simulation::Simulation, monad_id::Int; do_full_setup::Bool=true, force_recompile::Bool=false)

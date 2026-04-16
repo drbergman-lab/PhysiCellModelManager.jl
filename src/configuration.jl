@@ -241,10 +241,10 @@ end
 Return the path to the base XML file for the given input folder.
 """
 function prepareBaseFile(input_folder::InputFolder)
-    if !input_folder.varied
-        return nothing
-    elseif input_folder.location == :rulesets_collection
+    if input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)
+    elseif ismissing(input_folder.basename)
+        return nothing
     else
         return joinpath(locationPath(input_folder), input_folder.basename)
     end

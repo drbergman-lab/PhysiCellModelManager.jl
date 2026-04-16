@@ -18,7 +18,7 @@ export SobolPCMM
 #! PhysiCell-specific files only — generic infrastructure is now in ModelManager
 include("physicell_simulator.jl")
 include("utilities.jl")
-include("globals.jl")              # simulator(), findCentralDB(), physicellDir()
+include("globals.jl")              # findCentralDB(), physicellDir()
 include("pruner.jl")
 include("variations.jl")           # PhysiCell-specific: addVariationRows, addColumns, etc.
 

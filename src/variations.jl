@@ -88,8 +88,8 @@ end
 ################## Variation Dimension Functions ##################
 
 """
-    domainVariations(domain::NamedTuple; covary::Bool=false)
-    domainVariations(; covary::Bool=false, kwargs...)
+    domainVariations(domain::NamedTuple; covary::Bool=false)::Vector{<:AbstractVariation}
+    domainVariations(; covary::Bool=false, kwargs...)::Vector{<:AbstractVariation}
 
 Create a set of `DiscreteVariation`s for the domain boundaries based on the provided named tuple.
 

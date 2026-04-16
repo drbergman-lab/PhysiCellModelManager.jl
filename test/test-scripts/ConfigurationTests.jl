@@ -141,15 +141,13 @@ out = run(inputs, discrete_variations; n_replicates=n_replicates)
 reference_monad = out.trial.monads[1]
 
 monads = Monad[]
-discrete_variations = DiscreteVariation[]
-domain_dvs = domainVariations((x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
-append!(discrete_variations, domain_dvs)
-monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
+avs = AbstractVariation[]
+avs = domainVariations((x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
+monad = createTrial(reference_monad, avs; n_replicates=n_replicates)
 push!(monads, monad)
 
-discrete_variations = DiscreteVariation[]
-append!(discrete_variations, domainVariations((min_x=[-78.2, -78.3], maxy=[30.2, 30.3]), covary=true))
-monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
+avs = domainVariations((min_x=[-78.2, -78.3], maxy=[30.2, 30.3]), covary=true)
+monad = createTrial(reference_monad, avs; n_replicates=n_replicates)
 push!(monads, monad)
 
 @test_throws ArgumentError domainVariations((x=70, ))

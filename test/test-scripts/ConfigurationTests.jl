@@ -147,8 +147,8 @@ monad = createTrial(reference_monad, avs; n_replicates=n_replicates)
 push!(monads, monad)
 
 avs = domainVariations((min_x=[-78.2, -78.3], maxy=[30.2, 30.3]), covary=true)
-monad = createTrial(reference_monad, avs; n_replicates=n_replicates)
-push!(monads, monad)
+sampling = createTrial(reference_monad, avs; n_replicates=n_replicates)
+append!(monads, sampling.monads)
 
 @test_throws ArgumentError domainVariations((x=70, ))
 @test_throws AssertionError domainVariations((u_min=70, ))

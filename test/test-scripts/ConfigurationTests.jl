@@ -152,7 +152,7 @@ append!(monads, sampling.monads)
 
 @test_throws ArgumentError domainVariations((x=70, ))
 @test_throws AssertionError domainVariations((u_min=70, ))
-@test_throws AssertionError domainVariations((x_min=[-78.2, -78.3, -78.4], maxy=[30.2, 30.3], covary=true))
+@test_throws AssertionError domainVariations((x_min=[-78.2, -78.3, -78.4], maxy=[30.2, 30.3]); covary=true)
 
 sampling_1 = Sampling(monads)
 

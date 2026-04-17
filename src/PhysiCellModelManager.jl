@@ -20,7 +20,7 @@ include("physicell_simulator.jl")
 include("utilities.jl")
 include("globals.jl")              # findCentralDB(), physicellDir()
 include("pruner.jl")
-include("variations.jl")           # PhysiCell-specific: addVariationRows, addColumns, etc.
+include("variations.jl")
 
 include("compilation.jl")
 include("configuration.jl")

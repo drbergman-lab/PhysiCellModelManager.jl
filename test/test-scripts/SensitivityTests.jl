@@ -148,7 +148,7 @@ all_latent_names = mapreduce(lv_i -> lv_i.latent_parameter_names, vcat, pv_laten
 expected_headers = ["A"; "B"; all_latent_names[[1, 3]]]
 @test names(sobol_ignore_sampling.monad_ids_df) == expected_headers
 
-PhysiCellModelManager.deleteMonad(reference.id)
+PhysiCellModelManager.ModelManager.deleteMonad(reference.id)
 
 # print tests
 println(stdout, moat_sampling)

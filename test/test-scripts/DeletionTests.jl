@@ -17,9 +17,9 @@ deleteSimulation(simulation_id:simulation_id)
 
 PhysiCellModelManager.ModelManager.eraseSimulationIDFromConstituents(simulationIDs(out.trial)[2])
 
-PhysiCellModelManager.deleteMonad(1:4)
-PhysiCellModelManager.deleteSampling(1)
-PhysiCellModelManager.deleteTrial(1)
+PhysiCellModelManager.ModelManager.deleteMonad(1:4)
+PhysiCellModelManager.ModelManager.deleteSampling(1)
+PhysiCellModelManager.ModelManager.deleteTrial(1)
 
 deleteSimulations(1:78; filters=Dict("config_id" => 2))
 @test_throws AssertionError deleteSimulations(1:78; filters=Dict("bad filter; --" => 2))

@@ -1,9 +1,10 @@
-using Documenter, PhysiCellModelManager
+using Documenter, PhysiCellModelManager, ModelManager
 
 DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true)
+DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
 
 makedocs(;
-    modules=[PhysiCellModelManager],
+    modules=[PhysiCellModelManager, ModelManager],
     authors="Daniel Bergman <danielrbergman@gmail.com> and contributors",
     sitename="PhysiCellModelManager.jl",
     format=Documenter.HTML(;

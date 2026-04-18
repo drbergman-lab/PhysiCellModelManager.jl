@@ -1,7 +1,9 @@
 using PhysiCellXMLRules
 
+using ModelManager: continueMilestoneUpgrade, populateTableOnFeatureSubset
+
 const pcmm_milestones = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0"]
-const upgrade_fns = Dict{VersionNumber, Function}()
+const upgrade_fns = Dict{VersionNumber,Function}()
 
 macro up_fns()
     pairs_exprs = Expr[]
@@ -15,90 +17,13 @@ macro up_fns()
 end
 
 """
-    upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
-
-Upgrade the PhysiCellModelManager.jl database from one version to another.
-
-The upgrade process is done in steps, where each step corresponds to a milestone version.
-The function will apply all necessary upgrades until the target version is reached.
-If `auto_upgrade` is true, the function will automatically apply all upgrades without prompting.
-Otherwise, it will prompt the user for confirmation before large upgrades.
-"""
-function upgradePCMM(from_version::VersionNumber, to_version::VersionNumber, auto_upgrade::Bool)
-    println("Upgrading PhysiCellModelManager.jl from version $(from_version) to $(to_version)...")
-    @assert issorted(pcmm_milestones) "Milestone versions must be sorted in ascending order. Got $(pcmm_milestones)."
-    next_milestone_inds = findall(x -> from_version < x, pcmm_milestones) #! this could be simplified to take advantage of this list being sorted, but who cares? It's already so fast
-    next_milestones = pcmm_milestones[next_milestone_inds]
-    success = true
-    for next_milestone in next_milestones
-        up_fn = get(upgrade_fns, next_milestone, nothing)
-        @assert !isnothing(up_fn) "No upgrade function found for version $(next_milestone)."
-        success = up_fn(auto_upgrade)
-        if !success
-            break
-        else
-            DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(next_milestone)) SET version='$(next_milestone)';")
-        end
-    end
-    if success && to_version > pcmm_milestones[end]
-        println("\t- Upgrading to version $(to_version)...")
-        DBInterface.execute(centralDB(), "UPDATE $(pcmmVersionTableName(to_version)) SET version='$(to_version)';")
-    end
-    return success
-end
-
-"""
-    populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String, String}=Dict{String,String}())
-
-Populate a target table with data from a source table, using a column mapping if provided.
-"""
-function populateTableOnFeatureSubset(db::SQLite.DB, source_table::String, target_table::String; column_mapping::Dict{String,String}=Dict{String,String}())
-    @assert tableExists(source_table; db=db) "Source table $(source_table) does not exist in the database."
-    @assert tableExists(target_table; db=db) "Target table $(target_table) does not exist in the database."
-    source_columns = tableColumns(source_table; db=db)
-    target_columns = [haskey(column_mapping, c) ? column_mapping[c] : c for c in source_columns]
-    @assert columnsExist(target_columns, target_table; db=db) "One or more target columns do not exist in the target table."
-    insert_into_cols = "(" * join(target_columns, ",") * ")"
-    select_cols = join(source_columns, ",")
-    query = "INSERT INTO $(target_table) $(insert_into_cols) SELECT $(select_cols) FROM $(source_table);"
-    DBInterface.execute(db, query)
-end
-
-"""
     pcmmVersionTableName(version::VersionNumber)
 
 Returns the name of the version table based on the given version number.
 Before version 0.0.30, the table name is "pcvct_version". Version 0.0.30 and later use "pcmm_version".
+Used internally by legacy upgrade functions (v0.0.30 transition).
 """
 pcmmVersionTableName(version::VersionNumber) = version < v"0.0.30" ? "pcvct_version" : "pcmm_version"
-
-"""
-    upgradeToX_Y_Z(auto_upgrade::Bool)
-
-Upgrade the database to PhysiCellModelManager.jl version X.Y.Z. Each milestone version has its own upgrade function.
-"""
-function upgradeToVX_Y_Z end
-
-function continueMilestoneUpgrade(version::VersionNumber, auto_upgrade::Bool)
-    warning_msg = """
-    \t- Upgrading to version $(version)...
-
-    WARNING: Upgrading to version $(version) will change the database schema.
-    See info at https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/misc/database_upgrades/
-
-    ------IF ANOTHER INSTANCE OF PhysiCellModelManager.jl IS USING THIS DATABASE, PLEASE CLOSE IT BEFORE PROCEEDING.------
-
-    Continue upgrading to version $(version)? (y/n):
-    """
-    println(warning_msg)
-    response = auto_upgrade ? "y" : readline()
-    if response != "y"
-        println("Upgrade to version $(version) aborted.")
-        return false
-    end
-    println("\t- Upgrading to version $(version)...")
-    return true
-end
 
 function upgradeToV0_0_1(::Bool)
     println("\t- Upgrading to version 0.0.1...")
@@ -155,7 +80,7 @@ function upgradeToV0_0_3(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_cell_variation_id=CASE WHEN ic_cell_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         #! drop the previous unique constraint on monads
         #! insert from monads_temp all values except ic_cell_variation_id (set that to -1 if ic_cell_id is -1 and to 0 if ic_cell_id is not -1)
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
@@ -210,8 +135,8 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
         return false
     end
 
-    createPCMMTable("physicell_versions", physicellVersionsSchema())
-    pcmm_globals.current_physicell_version_id = resolvePhysiCellVersionID()
+    createMMTable("physicell_versions", physicellVersionsSchema())
+    simulator().current_version_id = resolvePhysiCellVersionID()
 
     println("\t\tPhysiCell version: $(physicellInfo())")
     println("\n\t\tAssuming all output has been generated with this version...")
@@ -226,7 +151,7 @@ function upgradeToV0_0_10(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET physicell_version_id=$(currentPhysiCellVersionID());")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -303,7 +228,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_ecm_variation_id=CASE WHEN ic_ecm_id=-1 THEN -1 ELSE 0 END;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -318,7 +243,7 @@ function upgradeToV0_0_15(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "CREATE TABLE monads_temp AS SELECT * FROM monads;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET ic_dc_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -346,7 +271,7 @@ function upgradeToV0_0_16(auto_upgrade::Bool)
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_id=-1;")
         DBInterface.execute(centralDB(), "UPDATE monads_temp SET intracellular_variation_id=-1;")
         DBInterface.execute(centralDB(), "DROP TABLE monads;")
-        createPCMMTable("monads", monadsSchema())
+        createMMTable("monads", monadsSchema())
         populateTableOnFeatureSubset(centralDB(), "monads_temp", "monads")
         DBInterface.execute(centralDB(), "DROP TABLE monads_temp;")
     end
@@ -439,7 +364,7 @@ function upgradeToV0_1_3(auto_upgrade::Bool)
     if isfile(old_path)
         close(centralDB())
         mv(old_path, new_path)
-        pcmm_globals.db = SQLite.DB(new_path)
+        mm_globals().db = SQLite.DB(new_path)
     else
         println("While upgrading to version 0.1.3, the vct.db file was not found. This is unexpected.")
         return false
@@ -481,7 +406,7 @@ function upgradeToV0_2_0(auto_upgrade::Bool)
                 if !isempty(col_inserts)
                     schema *= "," * join(col_inserts, ',')
                 end
-                createPCMMTable(table_name, schema; db=db)
+                createMMTable(table_name, schema; db=db)
 
                 stmt_str = "INSERT INTO $(table_name) ($(location_variation_id_name), par_key"
                 if !isempty(par_names)

@@ -1,8 +1,13 @@
 using PhysiCellXMLRules, PhysiCellCellCreator, PhysiCellECMCreator, LightXML
+using ModelManager: getChildByAttribute, getChildByChildContent, retrieveElement,
+                    retrieveElementError, elementIsTerminal, getSimpleContent, setSimpleContent,
+                    columnNameToXMLPath, createXMLFile, prepareVariedInputFolder
+import ModelManager: prepareBaseFile, postVariationXMLProcessing
 
 export configPath, rulePath, icCellsPath, icECMPath
 
-@compat public domainPath, timePath, fullSavePath, svgSavePath, substratePath,
+@compat public attackPath, attackRatesPath, deathPath, domainPath,
+               timePath, fullSavePath, svgSavePath, substratePath,
                cellDefinitionPath, phenotypePath, cyclePath,
                apoptosisPath, necrosisPath, volumePath, mechanicsPath,
                motilityPath, secretionPath, cellInteractionsPath,
@@ -10,141 +15,10 @@ export configPath, rulePath, icCellsPath, icECMPath
                transformationPath, integrityPath, customDataPath,
                initialParameterDistributionPath, userParameterPath
 
-################## XML Functions ##################
-
-"""
-    getChildByAttribute(parent_element::XMLElement, path_element_split::Vector{<:AbstractString})
-
-Get the child element of `parent_element` that matches the given tag and attribute.
-"""
-function getChildByAttribute(parent_element::XMLElement, path_element_split::Vector{<:AbstractString})
-    path_element_name, attribute_name, attribute_value = path_element_split
-    candidate_elements = get_elements_by_tagname(parent_element, path_element_name)
-    for ce in candidate_elements
-        if attribute(ce, attribute_name) == attribute_value
-            return ce
-        end
-    end
-    return nothing
-end
-
-"""
-    getChildByChildContent(current_element::XMLElement, path_element::AbstractString)
-
-Get the child element of `current_element` that matches the given tag and child content.
-"""
-function getChildByChildContent(current_element::XMLElement, path_element::AbstractString)
-    tag, child_scheme = split(path_element, "::")
-    tokens = split(child_scheme, ":")
-    @assert length(tokens) == 2 "Invalid child scheme for $(path_element). Expected format: <tag>::<child_tag>:<child_content>"
-    child_tag, child_content = tokens
-    candidate_elements = get_elements_by_tagname(current_element, tag)
-    for ce in candidate_elements
-        child_element = find_element(ce, child_tag)
-        if !isnothing(child_element) && content(child_element) == child_content
-            return ce, true
-        end
-    end
-    return current_element, false
-end
-
-"""
-    retrieveElement(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-
-Retrieve the element in the XML document that matches the given path.
-
-If `required` is `true`, an error is thrown if the element is not found.
-Otherwise, `nothing` is returned if the element is not found.
-"""
-function retrieveElement(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    current_element = root(xml_doc)
-    for path_element in xml_path
-        if contains(path_element, "::")
-            current_element, success = getChildByChildContent(current_element, path_element)
-            if !success
-                current_element = nothing
-            end
-        else
-            current_element = contains(path_element, ":") ?
-                getChildByAttribute(current_element, split(path_element, ":"; limit=3)) :
-                find_element(current_element, path_element)
-        end
-
-        if isnothing(current_element)
-            required ? retrieveElementError(xml_path, path_element) : return nothing
-        end
-    end
-    return current_element
-end
-
-"""
-    retrieveElementError(xml_path::Vector{<:AbstractString}, path_element::String)
-
-Throw an error if the element defined by `xml_path` is not found in the XML document, including the path element that caused the error.
-"""
-function retrieveElementError(xml_path::Vector{<:AbstractString}, path_element::String)
-    error_msg = "Element not found: $(join(xml_path, " -> "))"
-    error_msg *= "\n\tFailed at: $(path_element)"
-    throw(ArgumentError(error_msg))
-end
-
-"""
-    getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-
-Get the content of the element in the XML document that matches the given path. See [`retrieveElement`](@ref).
-
-Validates that the element is terminal (has no child elements) and contains non-empty text content.
-Throws AssertionError if either condition is not met.
-"""
-function getSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}; required::Bool=true)
-    e = retrieveElement(xml_doc, xml_path; required=required)
-    @assert elementIsTerminal(e) "Element at path $(join(xml_path, " -> ")) has child elements and cannot have simple content extracted."
-    ret_val = content(e)
-    @assert !isempty(ret_val) "Element at path $(join(xml_path, " -> ")) has no text content."
-    return ret_val
-end
-
-"""
-    elementIsTerminal(e::XMLElement)
-
-Check if an XML element is terminal (i.e., has no child elements).
-Returns `true` if the element has no children, `false` otherwise.
-"""
-elementIsTerminal(e::XMLElement) = isempty(child_elements(e))
-
-"""
-    setSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
-
-Update the content of the element in the XML document that matches the given path with the new value. See [`retrieveElement`](@ref).
-
-Update the content of the element in the XML document that matches the given path with the new value. 
-Validates that the element is terminal (has no child elements) before setting content. Throws AssertionError if the element has child elements.
-"""
-function setSimpleContent(xml_doc::XMLDocument, xml_path::Vector{<:AbstractString}, new_value::Union{Int,Real,String})
-    e = retrieveElement(xml_doc, xml_path; required=true)
-    @assert elementIsTerminal(e) "Element at path $(join(xml_path, " -> ")) is not a terminal element and has child elements. Cannot set content."
-    set_content(e, string(new_value))
-    return nothing
-end
-
-"""
-    columnName(xml_path)
-
-Return the column name corresponding to the given XML path.
-
-Works on a vector of strings, an [`XMLPath`](@ref) object, or a [`ElementaryVariation`](@ref) object.
-Inverse of [`columnNameToXMLPath`](@ref).
-"""
-columnName(xml_path::Vector{<:AbstractString}) = join(xml_path, "/")
-
-"""
-    columnNameToXMLPath(column_name::String)
-
-Return the XML path corresponding to the given column name.
-
-Inverse of [`columnName`](@ref).
-"""
-columnNameToXMLPath(column_name::String) = split(column_name, "/")
+################## XML Functions (PCMM-specific) ##################
+#
+# Generic XML utilities (getChildByAttribute, retrieveElement, getSimpleContent, etc.)
+# now live in ModelManager/src/xml_utilities.jl and are imported above.
 
 """
     makeXMLPath(current_element::XMLElement, xml_path::AbstractVector{<:AbstractString})
@@ -205,60 +79,31 @@ end
 makeXMLPath(x, xml_path::AbstractString) = makeXMLPath(x, [xml_path])
 
 ################## Configuration Functions ##################
+#
+# createXMLFile and prepareVariedInputFolder now live in ModelManager/src/project_configuration.jl.
+# They are imported above.
 
 """
-    createXMLFile(location::Symbol, M::AbstractMonad)
+    prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
 
-Create XML file for the given location and variation_id in the given monad.
-
-The file is placed in `$(PhysiCellModelManager.locationVariationsFolder("\$(location)"))` and can be accessed from there to run the simulation(s).
+Return the path to the base XML file for `input_folder`.
+Handles `:rulesets_collection` specially; all other locations use the generic MM default.
 """
-function createXMLFile(location::Symbol, M::AbstractMonad)
-    path_to_folder = locationPath(location, M)
-    path_to_xml = joinpath(path_to_folder, locationVariationsFolder(location), "$(location)_variation_$(M.variation_id[location]).xml")
-    if isfile(path_to_xml)
-        return path_to_xml
-    end
-    mkpath(dirname(path_to_xml))
-
-    path_to_base_xml = prepareBaseFile(M.inputs[location])
-    @assert endswith(path_to_base_xml, ".xml") "Base XML file for $(location) must end with .xml. Got $(path_to_base_xml)"
-    @assert isfile(path_to_base_xml) "Base XML file not found: $(path_to_base_xml)"
-
-    xml_doc = parse_file(path_to_base_xml)
-    if M.variation_id[location] != 0 #! only update if not using the base variation for the location
-        query = constructSelectQuery(locationVariationsTableName(location), "WHERE $(locationVariationIDName(location))=$(M.variation_id[location])")
-        variation_row = queryToDataFrame(query; db=locationVariationsDatabase(location, M), is_row=true)
-        for column_name in names(variation_row)
-            if column_name == locationVariationIDName(location) || column_name == "par_key"
-                continue
-            end
-            xml_path = columnNameToXMLPath(column_name)
-            setSimpleContent(xml_doc, xml_path, variation_row[1, column_name])
-        end
-    end
-    save_file(xml_doc, path_to_xml)
-    free(xml_doc)
-    postVariationXMLProcessing(location, path_to_xml)
-    return path_to_xml
-end
-
-"""
-    prepareBaseFile(input_folder::InputFolder)
-
-Return the path to the base XML file for the given input folder.
-"""
-function prepareBaseFile(input_folder::InputFolder)
+function prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
     if input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)
+    elseif ismissing(input_folder.basename)
+        return nothing
+    else
+        return joinpath(locationPath(input_folder), input_folder.basename)
     end
-    return joinpath(locationPath(input_folder), input_folder.basename)
 end
 
 """
     prepareBaseRulesetsCollectionFile(input_folder::InputFolder)
 
-Return the path to the base XML file for the given input folder.
+Return the path to the base rulesets XML file for `input_folder`, generating it from
+`base_rulesets.csv` if it does not yet exist.
 """
 function prepareBaseRulesetsCollectionFile(input_folder::InputFolder)
     path_to_rulesets_collection_folder = locationPath(:rulesets_collection, input_folder.folder)
@@ -271,42 +116,17 @@ function prepareBaseRulesetsCollectionFile(input_folder::InputFolder)
 end
 
 """
-    postVariationXMLProcessing(location::Symbol, path_to_xml::String)
+    postVariationXMLProcessing(::PhysiCellSimulator, location::Symbol, path_to_xml::String)
 
-Perform any post-processing needed after creating the XML file for the given location.
+PhysiCell post-processing hook: splits out intracellular SBML files to avoid race conditions
+across concurrent simulation runs.
 """
-function postVariationXMLProcessing(location::Symbol, path_to_xml::String)
+function postVariationXMLProcessing(::PhysiCellSimulator, location::Symbol, path_to_xml::String)
     if location == :intracellular
         #! split back out the intracellular SBMLs to avoid PhysiCell doing it concurrently across multiple runs
         disassembleIntracellular(path_to_xml)
     end
     return
-end
-
-"""
-    prepareVariedInputFolder(location::Symbol, M::AbstractMonad)
-
-Create the XML file for the location in the monad.
-"""
-function prepareVariedInputFolder(location::Symbol, M::AbstractMonad)
-    if !M.inputs[location].varied #! this input is not being varied (either unused or static)
-        return
-    end
-    createXMLFile(location, M)
-end
-
-"""
-    prepareVariedInputFolder(location::Symbol, sampling::Sampling)
-
-Create the XML file for each monad in the sampling for the given location.
-"""
-function prepareVariedInputFolder(location::Symbol, sampling::Sampling)
-    if !sampling.inputs[location].varied #! this input is not being varied (either unused or static)
-        return
-    end
-    for monad in Monad.(constituentIDs(sampling))
-        prepareVariedInputFolder(location, monad)
-    end
 end
 
 """
@@ -1130,62 +950,6 @@ function icECMPath(layer_id, patch_type::AbstractString, patch_id, path_elements
 end
 
 ################## Simplify Name Functions ##################
-
-"""
-    shortLocationVariationID(fieldname)
-
-Return the short location variation ID name used in creating a DataFrame summary table.
-
-# Arguments
-- `fieldname`: The field name to get the short location variation ID for. This can be a symbol or a string.
-"""
-function shortLocationVariationID(fieldname::Symbol)
-    if fieldname == :config
-        return :ConfigVarID
-    elseif fieldname == :rulesets_collection
-        return :RulesVarID
-    elseif fieldname == :intracellular
-        return :IntraVarID
-    elseif fieldname == :ic_cell
-        return :ICCellVarID
-    elseif fieldname == :ic_ecm
-        return :ICECMVarID
-    else
-        throw(ArgumentError("Got fieldname $(fieldname). However, it must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
-    end
-end
-
-shortLocationVariationID(fieldname::String) = shortLocationVariationID(Symbol(fieldname))
-
-"""
-    shortLocationVariationID(type::Type, fieldname::Union{String, Symbol})
-
-Return (as a `type`) the short location variation ID name used in creating a DataFrame summary table.
-"""
-function shortLocationVariationID(type::Type, fieldname::Union{String, Symbol})
-    return type(shortLocationVariationID(fieldname))
-end
-
-"""
-    shortVariationName(location::Symbol, name::String)
-
-Return the short name of the varied parameter for the given location and name used in creating a DataFrame summary table.
-"""
-function shortVariationName(location::Symbol, name::String)
-    if location == :config
-        return shortConfigVariationName(name)
-    elseif location == :rulesets_collection
-        return shortRulesetsVariationName(name)
-    elseif location == :intracellular
-        return shortIntracellularVariationName(name)
-    elseif location == :ic_cell
-        return shortICCellVariationName(name)
-    elseif location == :ic_ecm
-        return shortICECMVariationName(name)
-    else
-        throw(ArgumentError("location must be 'config', 'rulesets_collection', 'intracellular', 'ic_cell', or 'ic_ecm'."))
-    end
-end
 
 """
     shortConfigVariationName(name::String)

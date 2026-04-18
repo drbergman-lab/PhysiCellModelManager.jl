@@ -56,6 +56,10 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v6
 
+    - name: Setup Git authentication for private repos
+      run: |
+        git config --global url."https://x-access-token:${{ secrets.MM_ACCESS }}@github.com/".insteadOf "https://github.com/"
+
     - name: Install ImageMagick on macOS
       if: matrix.os == 'macOS-latest'
       run: |
@@ -95,6 +99,10 @@ jobs:
       run: echo "C:\\hostedtoolcache\\windows\\julia\\${{ matrix.julia-version }}\\${{ matrix.arch }}\\bin" >> $GITHUB_PATH
 
     - uses: julia-actions/cache@v3
+      with: # seems to be necessary for the 1.13.0-beta3 release
+        cache-artifacts: true
+        cache-packages: true
+        cache-registries: false
 
     - name: Add BergmanLabRegistry (Windows)
       if: matrix.os == 'windows-latest'
@@ -144,11 +152,19 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
+      - name: Setup Git authentication for private repos
+        run: |
+          git config --global url."https://x-access-token:${{ secrets.MM_ACCESS }}@github.com/".insteadOf "https://github.com/"
+
       - uses: julia-actions/setup-julia@v2
         with:
           version: '1'
 
       - uses: julia-actions/cache@v3
+        with: # seems to be necessary for the 1.13.0-beta3 release
+          cache-artifacts: true
+          cache-packages: true
+          cache-registries: false
 
       - name: Add BergmanLabRegistry
         run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'
@@ -174,6 +190,8 @@ jobs:
           JULIA_DEBUG: Documenter
         run: |
           using Documenter: DocMeta, doctest
-          using PhysiCellModelManager, PairCorrelationFunction
-          DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager, PairCorrelationFunction); recursive=true)
+          using PhysiCellModelManager, ModelManager, PairCorrelationFunction
+          DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager, ModelManager, PairCorrelationFunction); recursive=true)
+          DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
           doctest(PhysiCellModelManager)
+          doctest(ModelManager)

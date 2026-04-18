@@ -36,9 +36,10 @@ println(stdout, result)
 @test_throws ArgumentError plot([result]; distance_unit=:not_a_unit)
 
 #! test 3d
-dvs = DiscreteVariation[]
+dvs = AbstractVariation[]
 domain = (z_min=-20.0, z_max=20.0)
-addDomainVariationDimension!(dvs, domain)
+avs = domainVariations(z_min=-20.0, z_max=20.0)
+append!(dvs, avs)
 push!(dvs, DiscreteVariation(["domain", "use_2D"], false))
 out = run(simulation, dvs)
 simulation_id = out.trial |> simulationIDs |> first

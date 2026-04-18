@@ -13,8 +13,8 @@ fake_studio_path = "fake_studio_path"
 
 @test_throws Base.IOError runStudio(sim_id; python_path=fake_python_path, studio_path=fake_studio_path)
 
-@test PhysiCellModelManager.pcmm_globals.path_to_python == fake_python_path
-@test PhysiCellModelManager.pcmm_globals.path_to_studio == fake_studio_path
+@test PhysiCellModelManager.simulator().path_to_python == fake_python_path
+@test PhysiCellModelManager.simulator().path_to_studio == fake_studio_path
 
 #! test that the studio launches even when the rules file cannot be found
 simulation_output_folder = PhysiCellModelManager.pathToOutputFolder(sim_id)

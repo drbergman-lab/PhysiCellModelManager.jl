@@ -1,17 +1,24 @@
 module PhysiCellModelManager
 
+using Reexport
+@reexport using ModelManager
 using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
 using PhysiCellXMLRules, PhysiCellCellCreator
 
-export initializeModelManager, simulationIDs, setNumberOfParallelSims, monadIDs
-export getSimulationIDs, getMonadIDs #! deprecated aliases
+export initializeModelManager
 
-#! put these first as they define classes the rest rely on
+# Backward-compatibility alias: PCMMOutput was the old name for MMOutput
+const PCMMOutput = MMOutput
+export PCMMOutput
+
+# SobolPCMM was the old ASCII alias for Sobolʼ; SobolMM is the new generic name
+const SobolPCMM = SobolMM
+export SobolPCMM
+
+#! PhysiCell-specific files only — generic infrastructure is now in ModelManager
+include("physicell_simulator.jl")
 include("utilities.jl")
-include("classes.jl")
-include("project_configuration.jl")
-include("hpc.jl")
-include("globals.jl")
+include("globals.jl")              # findCentralDB(), physicellDir()
 include("pruner.jl")
 include("variations.jl")
 
@@ -19,11 +26,9 @@ include("compilation.jl")
 include("configuration.jl")
 include("creation.jl")
 include("database.jl")
-include("deletion.jl")
 include("ic_cell.jl")
 include("ic_ecm.jl")
-include("runner.jl")
-include("recorder.jl")
+include("simulator_interface.jl")
 include("up.jl")
 include("pcmm_version.jl")
 include("physicell_version.jl")
@@ -42,19 +47,6 @@ include("physicell_studio.jl")
 include("export.jl")
 
 """
-    baseToExecutable(s::String)
-
-Convert a string to an executable name based on the operating system.
-If the operating system is Windows, append ".exe" to the string.
-"""
-function baseToExecutable end
-if Sys.iswindows()
-    baseToExecutable(s::String) = "$(s).exe"
-else
-    baseToExecutable(s::String) = s
-end
-
-"""
     PCMMMissingProject
 
 An exception type for when a PhysiCellModelManager.jl project cannot be found during initialization.
@@ -67,14 +59,15 @@ struct PCMMMissingProject <: Exception
 end
 
 function __init__()
-    pcmm_globals.physicell_compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
+    sim = PhysiCellSimulator()
+    sim.compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
+    sim.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing
+    sim.path_to_studio = haskey(ENV, "PCMM_STUDIO_PATH") ? ENV["PCMM_STUDIO_PATH"] : missing
+    sim.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
+    sim.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
 
-    pcmm_globals.max_number_of_parallel_simulations = haskey(ENV, "PCMM_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCMM_NUM_PARALLEL_SIMS"]) : 1
-
-    pcmm_globals.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing
-    pcmm_globals.path_to_studio = haskey(ENV, "PCMM_STUDIO_PATH") ? ENV["PCMM_STUDIO_PATH"] : missing
-    pcmm_globals.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
-    pcmm_globals.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
+    n_parallel = haskey(ENV, "PCMM_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCMM_NUM_PARALLEL_SIMS"]) : 1
+    ModelManager.mm_globals_ref[] = ModelManagerGlobals(simulator=sim, max_number_of_parallel_simulations=n_parallel)
 
     try
         initializeModelManager()
@@ -129,19 +122,16 @@ If no arguments are provided, it assumes that the PhysiCell and data directories
 - `path_to_data::AbstractString`: Path to the data directory as either an absolute or relative path.
 """
 function initializeModelManager(path_to_physicell::AbstractString, path_to_data::AbstractString; auto_upgrade::Bool=false)
-    global pcmm_globals
     path_to_physicell, path_to_data = (path_to_physicell, path_to_data) .|> abspath .|> normpath
 
     if !isdir(path_to_physicell) || !isdir(path_to_data)
         throw(PCMMMissingProject("Could not find PhysiCell and/or data directories. Looked for them in: $path_to_physicell, $path_to_data"))
     end
 
-    #! print big logo of PhysiCellModelManager.jl here
     println(pcmmLogo())
-    pcmm_globals.physicell_dir = path_to_physicell
-    pcmm_globals.data_dir = path_to_data
+    simulator().dir = path_to_physicell
+    mm_globals().data_dir = path_to_data
     findCentralDB()
-    #! start with PhysiCellModelManager.jl version info
     if !resolvePCMMVersion(auto_upgrade)
         println("Could not successfully upgrade database. Please check the logs for more information.")
         return false
@@ -157,20 +147,19 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         println("Project configuration file parsing failed.")
         return false
     end
-    initializeDatabase()
+    ModelManager.initializeDatabase()
     if !isInitialized()
-        pcmm_globals.db = SQLite.DB()
+        mm_globals().db = SQLite.DB()
         println("Database initialization failed.")
         return false
     end
-    println(rpad("PhysiCell version:", 25, ' ') * physicellInfo())
-    println(rpad("Compiler:", 25, ' ') * pcmm_globals.physicell_compiler)
-    println(rpad("Running on HPC:", 25, ' ') * string(pcmm_globals.run_on_hpc))
-    println(rpad("Max parallel sims:", 25, ' ') * string(pcmm_globals.max_number_of_parallel_simulations))
+    postInitDisplay(mm_globals().simulator)
+    println(rpad("Running on HPC:", 25, ' ') * string(mm_globals().run_on_hpc))
+    println(rpad("Max parallel sims:", 25, ' ') * string(mm_globals().max_number_of_parallel_simulations))
     flush(stdout)
 
     try
-        databaseDiagnostics()
+        ModelManager.databaseDiagnostics()
     catch e
         """
         Database diagnostics failed during initialization with error: $(e).
@@ -188,231 +177,5 @@ function initializeModelManager(path_to_project::AbstractString; kwargs...)
 end
 
 initializeModelManager(; kwargs...) = initializeModelManager("PhysiCell", "data"; kwargs...)
-
-################## Selection Functions ##################
-
-"""
-    constituentType(T::Type{<:AbstractTrial})
-    constituentType(T::AbstractTrial)
-
-Return the type of the constituents of `T`. Used in the [`constituentIDs`](@ref) function.
-"""
-constituentType(::Type{Simulation}) = throw(ArgumentError("Type Simulation does not have constituents."))
-constituentType(::Type{Monad}) = Simulation
-constituentType(::Type{Sampling}) = Monad
-constituentType(::Type{Trial}) = Sampling
-
-constituentType(T::AbstractTrial) = constituentType(typeof(T))
-
-"""
-    constituentTypeFilename(T::Type{<:AbstractTrial})
-    constituentTypeFilename(T::AbstractTrial)
-
-Return the filename of the constituents of `T`. Used in the [`constituentIDs`](@ref) function.
-"""
-constituentTypeFilename(T) = "$(T |> constituentType |> lowerClassString)s.csv"
-
-"""
-    constituentIDs(T::AbstractTrial)
-    constituentIDs(::Type{T}, id::Int) where {T<:AbstractTrial}
-
-Read a CSV file containing constituent IDs from `T` and return them as a vector of integers.
-
-For a trial, this is the sampling IDs.
-For a sampling, this is the monad IDs.
-For a monad, this is the simulation IDs.
-
-# Examples
-```julia
-ids = constituentIDs(Sampling(1)) # read the IDs of the monads in sampling 1
-ids = constituentIDs(Sampling, 1) # identical to above but does not need to create the Sampling object
-
-ids = constituentIDs(Monad, 1) # read the IDs of the simulations in monad 1
-ids = constituentIDs(Trial, 1) # read the IDs of the samplings in trial 1
-```
-"""
-function constituentIDs(path_to_csv::String)
-    if !isfile(path_to_csv)
-        return Int[]
-    end
-    df = CSV.read(path_to_csv, DataFrame; header=false, silencewarnings=true, types=String, delim=",")
-    ids = Int[]
-    for i in axes(df,1)
-        s = df.Column1[i]
-        I = split(s,":") .|> x->parse(Int,x)
-        if length(I)==1
-            push!(ids,I[1])
-        else
-            append!(ids,I[1]:I[2])
-        end
-    end
-    return ids
-end
-
-constituentIDs(T::AbstractTrial) = constituentIDs(joinpath(trialFolder(T), constituentTypeFilename(T)))
-constituentIDs(::Type{T}, id::Int) where {T<:AbstractTrial} = constituentIDs(joinpath(trialFolder(T, id), constituentTypeFilename(T)))
-
-"""
-    samplingSimulationIDs(sampling_id::Int)
-
-Internal function to get the simulation IDs for a given sampling ID. Users should use [`simulationIDs`](@ref) instead.
-"""
-function samplingSimulationIDs(sampling_id::Int)
-    monad_ids = constituentIDs(Sampling, sampling_id)
-    return vcat([constituentIDs(Monad, monad_id) for monad_id in monad_ids]...)
-end
-
-"""
-    trialSimulationIDs(trial_id::Int)
-
-Internal function to get the simulation IDs for a given trial ID. Users should use [`simulationIDs`](@ref) instead.
-"""
-function trialSimulationIDs(trial_id::Int)
-    sampling_ids = constituentIDs(Trial, trial_id)
-    return vcat([samplingSimulationIDs(sampling_id) for sampling_id in sampling_ids]...)
-end
-
-"""
-    simulationIDs()
-
-Return a vector of all simulation IDs in the database.
-
-Alternate forms take a simulation, monad, sampling, or trial object (or an array of any combination of them) and return the corresponding simulation IDs.
-
-# Examples
-```julia
-simulationIDs() # all simulation IDs in the database
-simulationIDs(simulation) # just a vector with the simulation ID, i.e. [simulation.id]
-simulationIDs(monad) # all simulation IDs in a monad
-simulationIDs(sampling) # all simulation IDs in a sampling
-simulationIDs(trial) # all simulation IDs in a trial
-simulationIDs([trial1, trial2]) # all simulation IDs between trial1 and trial2
-```
-"""
-simulationIDs() = constructSelectQuery("simulations"; selection="simulation_id") |> queryToDataFrame |> x -> x.simulation_id
-simulationIDs(simulation::Simulation) = [simulation.id]
-simulationIDs(monad::Monad) = constituentIDs(monad)
-simulationIDs(sampling::Sampling) = samplingSimulationIDs(sampling.id)
-simulationIDs(trial::Trial) = trialSimulationIDs(trial.id)
-simulationIDs(Ts::AbstractArray{<:AbstractTrial}) = reduce(vcat, simulationIDs.(Ts))
-
-"""
-    getSimulationIDs(args...)
-
-Deprecated alias for [`simulationIDs`](@ref). Use `simulationIDs` instead.
-"""
-function getSimulationIDs(args...)
-    Base.depwarn("`getSimulationIDs` is deprecated. Use `simulationIDs` instead.", :getSimulationIDs; force=true)
-    return simulationIDs(args...)
-end
-
-"""
-    trialMonads(trial_id::Int)
-
-Internal function to get the monad IDs for a given trial ID. Users should use [`monadIDs`](@ref) instead.
-"""
-function trialMonads(trial_id::Int)
-    sampling_ids = constituentIDs(Trial, trial_id)
-    return vcat([constituentIDs(Sampling, sampling_id) for sampling_id in sampling_ids]...)
-end
-
-"""
-    monadIDs()
-
-Return a vector of all monad IDs in the database.
-
-Alternate forms take a monad, sampling, or trial object (or an array of any combination of them) and return the corresponding monad IDs.
-
-# Examples
-```julia
-monadIDs() # all monad IDs in the database
-monadIDs(monad) # just a vector with the monad ID, i.e. [monad.id]
-monadIDs(sampling) # all monad IDs in a sampling
-monadIDs(trial) # all monad IDs in a trial
-monadIDs([trial1, trial2]) # all monad IDs between trial1 and trial2
-```
-"""
-monadIDs() = constructSelectQuery("monads"; selection="monad_id") |> queryToDataFrame |> x -> x.monad_id
-monadIDs(monad::Monad) = [monad.id]
-monadIDs(sampling::Sampling) = constituentIDs(sampling)
-monadIDs(trial::Trial) = trialMonads(trial.id)
-monadIDs(Ts::AbstractArray{<:AbstractTrial}) = reduce(vcat, monadIDs.(Ts))
-
-"""
-    getMonadIDs(args...)
-
-Deprecated alias for [`monadIDs`](@ref). Use `monadIDs` instead.
-"""
-function getMonadIDs(args...)
-    Base.depwarn("`getMonadIDs` is deprecated. Use `monadIDs` instead.", :getMonadIDs; force=true)
-    return monadIDs(args...)
-end
-
-################## Miscellaneous Functions ##################
-
-"""
-    trialFolder(T::Type{<:AbstractTrial}, id::Int)
-
-Return the path to the folder for a given subtype of [`AbstractTrial`](@ref) and ID.
-
-# Examples
-```julia
-trialFolder(Simulation, 1)
-# output
-"abs/path/to/data/outputs/simulations/1"
-```
-"""
-trialFolder(T::Type{<:AbstractTrial}, id::Int) = joinpath(dataDir(), "outputs", "$(lowerClassString(T))s", string(id))
-
-"""
-    trialFolder(T::Type{<:AbstractTrial})
-
-Return the path to the folder for the [`AbstractTrial`](@ref) object, `T`.
-
-# Examples
-```julia
-simulation = Simulation(1)
-trialFolder(Simulation)
-# output
-"abs/path/to/data/outputs/simulations/1"
-```
-"""
-trialFolder(T::AbstractTrial) = trialFolder(typeof(T), T.id)
-
-"""
-    lowerClassString(T::AbstractTrial)
-    lowerClassString(T::Type{<:AbstractTrial})
-
-Return the lowercase string representation of the type of `T`, excluding the module name. Without this, it may return, e.g., Main.PhysiCellModelManager.Sampling.
-
-# Examples
-```julia
-lowerClassString(Simulation) # "simulation"
-lowerClassString(Simulation(1)) # "simulation"
-```
-"""
-function lowerClassString(::Type{T}) where {T<:AbstractTrial}
-    return nameof(T) |> String |> lowercase
-end
-
-lowerClassString(T::AbstractTrial) = lowerClassString(typeof(T))
-
-"""
-    setMarchFlag(flag::String)
-
-Set the march flag to `flag`. Used for compiling the PhysiCell code.
-"""
-function setMarchFlag(flag::String)
-    pcmm_globals.march_flag = flag
-end
-
-"""
-    setNumberOfParallelSims(n::Int)
-
-Set the maximum number of parallel simulations to `n`.
-"""
-function setNumberOfParallelSims(n::Int)
-    pcmm_globals.max_number_of_parallel_simulations = n
-end
 
 end

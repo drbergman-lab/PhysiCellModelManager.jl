@@ -4,7 +4,7 @@ str = "TESTING WITH $(filename)"
 hashBorderPrint(str)
 
 # diagnostics
-@test_nowarn PhysiCellModelManager.databaseDiagnostics()
+@test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()
 
 # make a few more sims to test deletion
 out = run(Monad(1; n_replicates=3))
@@ -15,11 +15,11 @@ simulation_id = simulationIDs(out.trial)[1]
 deleteSimulation(simulation_id:simulation_id)
 @test !isdir(joinpath(PhysiCellModelManager.dataDir(), "outputs", "simulations", string(simulation_id)))
 
-PhysiCellModelManager.eraseSimulationIDFromConstituents(simulationIDs(out.trial)[2])
+PhysiCellModelManager.ModelManager.eraseSimulationIDFromConstituents(simulationIDs(out.trial)[2])
 
-PhysiCellModelManager.deleteMonad(1:4)
-PhysiCellModelManager.deleteSampling(1)
-PhysiCellModelManager.deleteTrial(1)
+PhysiCellModelManager.ModelManager.deleteMonad(1:4)
+PhysiCellModelManager.ModelManager.deleteSampling(1)
+PhysiCellModelManager.ModelManager.deleteTrial(1)
 
 deleteSimulations(1:78; filters=Dict("config_id" => 2))
 @test_throws AssertionError deleteSimulations(1:78; filters=Dict("bad filter; --" => 2))
@@ -32,7 +32,7 @@ Base.stdin = old_stdin
 
 deleteSimulationsByStatus(; user_check=false)
 
-PhysiCellModelManager.deleteAllSimulations()
+PhysiCellModelManager.ModelManager.deleteAllSimulations()
 resetDatabase(; force_reset=true)
 
 input_buffer = IOBuffer("y")
@@ -54,4 +54,4 @@ resetDatabase()
 Base.stdin = old_stdin
 
 # diagnostics again
-@test_nowarn PhysiCellModelManager.databaseDiagnostics()
+@test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()

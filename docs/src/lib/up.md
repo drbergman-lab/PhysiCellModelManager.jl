@@ -8,14 +8,26 @@ Functionality for upgrading the database to match the current version of PhysiCe
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelManager]
+Modules = [PhysiCellModelManager, ModelManager]
 Pages = ["up.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelManager]
+Modules = [PhysiCellModelManager, ModelManager]
 Pages = ["up.jl"]
+Public = false
+```
+
+```@autodocs
+Modules = [ModelManager]
+Pages = ["package_version.jl"]
+Private = false
+```
+
+```@autodocs
+Modules = [ModelManager]
+Pages = ["package_version.jl"]
 Public = false
 ```

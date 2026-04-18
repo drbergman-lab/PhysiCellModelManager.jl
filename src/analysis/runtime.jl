@@ -1,6 +1,6 @@
 using Dates
 
-export simulationRuntime, simulationRuntimeIntervals
+export simulationRuntime
 
 """ 
     simulationRuntime(snapshot::PhysiCellSnapshot)

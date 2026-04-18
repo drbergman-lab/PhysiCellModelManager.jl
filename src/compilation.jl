@@ -42,7 +42,7 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
     end
 
     executable_name = baseToExecutable("project_ccid_$(S.inputs[:custom_code].id)")
-    cmd = Cmd(`make -j 8 CC=$(pcmm_globals.physicell_compiler) PROGRAM_NAME=$(executable_name) CFLAGS=$(cflags)`; env=ENV, dir=temp_physicell_dir) #! compile the custom code in the PhysiCell directory and return to the original directory
+    cmd = Cmd(`make -j 8 CC=$(simulator().compiler) PROGRAM_NAME=$(executable_name) CFLAGS=$(cflags)`; env=ENV, dir=temp_physicell_dir) #! compile the custom code in the PhysiCell directory and return to the original directory
 
     println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.")
 
@@ -92,10 +92,10 @@ If the required macros differ from a previous compilation (as stored in macros.t
 function compilerFlags(S::AbstractSampling)
     recompile = false #! only recompile if need is found
     clean = false #! only clean if need is found
-    cflags = "-march=$(pcmm_globals.march_flag) -O3 -fomit-frame-pointer -fopenmp -m64 -std=c++11"
+    cflags = "-march=$(simulator().march_flag) -O3 -fomit-frame-pointer -fopenmp -m64 -std=c++11"
     if Sys.isapple()
         if strip(read(`uname -s`, String)) == "Darwin"
-            cc_path = strip(read(`which $(pcmm_globals.physicell_compiler)`, String))
+            cc_path = strip(read(`which $(simulator().compiler)`, String))
             var = strip(read(`file $cc_path`, String))
             add_mfpmath = split(var)[end] != "arm64"
         end
@@ -405,4 +405,26 @@ function readMacrosFile(S::AbstractSampling)
         return []
     end
     return readlines(path_to_macros)
+end
+
+"""
+    setMarchFlag(flag::String)
+
+Set the march flag to `flag`. Used for compiling the PhysiCell code.
+"""
+function setMarchFlag(flag::String)
+    simulator().march_flag = flag
+end
+
+"""
+    baseToExecutable(s::String)
+
+Convert a string to an executable name based on the operating system.
+If the operating system is Windows, append ".exe" to the string.
+"""
+function baseToExecutable end
+if Sys.iswindows()
+    baseToExecutable(s::String) = "$(s).exe"
+else
+    baseToExecutable(s::String) = s
 end

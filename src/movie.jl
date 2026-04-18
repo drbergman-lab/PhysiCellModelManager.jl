@@ -1,7 +1,7 @@
 export makeMovie
 
 """
-    makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg)
+    makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg)
     makeMovie(T::AbstractTrial; kwargs...)
     makeMovie(out::PCMMOutput; kwargs...)
 
@@ -23,8 +23,8 @@ There are three ways to allow this function to find these dependencies:
 - `out::PCMMOutput`: Make movies for all simulations in the output, i.e., all simulations in the completed trial.
 
 # Keyword Arguments
-- `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses the global variable `pcmm_globals.path_to_magick`.
-- `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses the global variable `pcmm_globals.path_to_ffmpeg`.
+- `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses `simulator().path_to_magick`.
+- `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses `simulator().path_to_ffmpeg`.
 - `verbose::Bool`: If `true`, prints the output of the commands used to generate the movie. Default is `false`.
 
 # Example
@@ -39,7 +39,7 @@ out = run(sampling) # run the sampling
 makeMovie(out) # make movies for all simulations in the output
 ```
 """
-function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_globals.path_to_magick, ffmpeg_path::Union{Missing,String}=pcmm_globals.path_to_ffmpeg, verbose::Bool=false)
+function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg, verbose::Bool=false)
     assertInitialized()
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
     if isfile("$(path_to_output_folder)/out.mp4")
@@ -56,9 +56,9 @@ function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=pcmm_g
     if !ismissing(ffmpeg_path) && !(ffmpeg_path ∈ path_components) && ffmpeg_path != magick_path
         env["PATH"] = "$(ffmpeg_path)$(os_variable_separator)$(env["PATH"])"
     end
-    if !shellCommandExists("magick")
+    if !ModelManager.shellCommandExists("magick")
         throw(ErrorException("ImageMagick is not installed. Please install it to generate movies."))
-    elseif !shellCommandExists("ffmpeg")
+    elseif !ModelManager.shellCommandExists("ffmpeg")
         throw(ErrorException("FFmpeg is not installed. Please install it to generate movies."))
     end
     svgs = filter(f -> startswith(basename(f), "s") && endswith(f, ".svg"), readdir(path_to_output_folder))
@@ -87,10 +87,10 @@ Set the global variables `path_to_magick` and `path_to_ffmpeg` to the provided p
 """
 function resolveMovieGlobals(magick_path::Union{Missing,String}, ffmpeg_path::Union{Missing,String})
     if !ismissing(magick_path)
-        pcmm_globals.path_to_magick = magick_path
+        simulator().path_to_magick = magick_path
     end
     if !ismissing(ffmpeg_path)
-        pcmm_globals.path_to_ffmpeg = ffmpeg_path
+        simulator().path_to_ffmpeg = ffmpeg_path
     end
 end
 

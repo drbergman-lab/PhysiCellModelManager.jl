@@ -87,7 +87,7 @@ out = run(trial; force_recompile=false)
 # no new simulations should have been run
 @test out.n_success == 0
 
-@test_warn "`runAbstractTrial` is deprecated. Use `run` instead." runAbstractTrial(trial; force_recompile=false)
+@test_warn "`runAbstractTrial` is deprecated. Use `run` instead." PhysiCellModelManager.ModelManager.runAbstractTrial(trial; force_recompile=false)
 
 # run a sim that will produce an error
 dv = DiscreteVariation(rulePath("default", "cycle entry", "decreasing_signals", "max_response"), 100.0)

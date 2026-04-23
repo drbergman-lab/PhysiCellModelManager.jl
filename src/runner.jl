@@ -105,8 +105,6 @@ struct SimulationProcess
 
         path_to_simulation_folder = trialFolder(simulation)
         DBInterface.execute(centralDB(),"UPDATE simulations SET status_code_id=$(statusCodeID("Running")) WHERE simulation_id=$(simulation.id);" )
-        println("\tRunning simulation: $(simulation.id)...")
-        flush(stdout)
         if pcmm_globals.run_on_hpc
             cmd = prepareHPCCommand(cmd, simulation.id)
             the_pipeline = pipeline(ignorestatus(cmd); stdout=joinpath(path_to_simulation_folder, "hpc.out"), stderr=joinpath(path_to_simulation_folder, "hpc.err"))
@@ -199,27 +197,52 @@ function resolveSimulation(simulation_process::SimulationProcess, prune_options:
 end
 
 """
-    collectSimulationTasks(T::AbstractTrial[; force_recompile::Bool=false])
+    SimulationSpec
 
-Collect the simulation tasks for the given trial, sampling, monad, or simulation.
+Describes a pending simulation to be launched. Produced by [`collectPendingSimulations`](@ref)
+and consumed by [`run`](@ref), which wraps each spec in a `@task` that calls `SimulationProcess`.
+
+# Fields
+- `simulation::Simulation`: The simulation to run.
+- `monad_id::Union{Missing,Int}`: The enclosing monad's ID, or `missing` for a solo simulation.
+- `do_full_setup::Bool`: Whether to run full per-simulation setup (config prep, etc.).
+- `force_recompile::Bool`: Whether to force a PhysiCell recompile.
+"""
+struct SimulationSpec
+    simulation::Simulation
+    monad_id::Union{Missing,Int}
+    do_full_setup::Bool
+    force_recompile::Bool
+end
+
+"""
+    collectPendingSimulations(T::AbstractTrial[; force_recompile::Bool=false])
+
+Enumerate the simulations that still need to run for the given trial, sampling, monad, or
+simulation. Returns a `Vector{SimulationSpec}`. Side effects: creates the trial output
+folder, compiles custom code (for monads/samplings), and prepares varied input folders.
+
+Display/verbosity is handled by [`run`](@ref) — this function has no knowledge of
+console output.
 
 # Arguments
-- `T::AbstractTrial`: The trial, sampling, monad, or simulation to collect tasks for.
+- `T::AbstractTrial`: The trial, sampling, monad, or simulation to enumerate.
 
 # Keyword Arguments
 - `force_recompile::Bool=false`: If `true`, forces a recompilation of all files by removing all `.o` files in the PhysiCell directory.
 - `do_full_setup::Bool=true`: If `true`, performs a full setup of the simulation, including compiling code and preparing input files. Only used for [`AbstractMonad`](@ref) objects.
 """
-collectSimulationTasks(simulation::Simulation; force_recompile::Bool=false) =
-    isStarted(simulation; new_status_code="Queued") ? Task[] : [@task SimulationProcess(simulation; do_full_setup=true, force_recompile=force_recompile)]
+collectPendingSimulations(simulation::Simulation; force_recompile::Bool=false) =
+    isStarted(simulation; new_status_code="Queued") ? SimulationSpec[] :
+        [SimulationSpec(simulation, missing, true, force_recompile)]
 
-function collectSimulationTasks(monad::Monad; do_full_setup::Bool=true, force_recompile::Bool=false)
+function collectPendingSimulations(monad::Monad; do_full_setup::Bool=true, force_recompile::Bool=false)
     mkpath(trialFolder(monad))
 
     if do_full_setup
         compilation_success = loadCustomCode(monad; force_recompile=force_recompile)
         if !compilation_success
-            return Task[] #! do not delete simulations or the monad as these could have succeeded in the past (or on other nodes, etc.)
+            return SimulationSpec[] #! do not delete simulations or the monad as these could have succeeded in the past (or on other nodes, etc.)
         end
     end
 
@@ -227,44 +250,44 @@ function collectSimulationTasks(monad::Monad; do_full_setup::Bool=true, force_re
         prepareVariedInputFolder(loc, monad)
     end
 
-    simulation_tasks = Task[]
+    specs = SimulationSpec[]
     for simulation_id in simulationIDs(monad)
         if isStarted(simulation_id; new_status_code="Queued")
             continue #! if the simulation has already been started (or even completed), then don't run it again
         end
         simulation = Simulation(simulation_id)
 
-        push!(simulation_tasks, @task SimulationProcess(simulation; monad_id=monad.id, do_full_setup=false, force_recompile=false))
+        push!(specs, SimulationSpec(simulation, monad.id, false, false))
     end
 
-    return simulation_tasks
+    return specs
 end
 
-function collectSimulationTasks(sampling::Sampling; force_recompile::Bool=false)
+function collectPendingSimulations(sampling::Sampling; force_recompile::Bool=false)
     mkpath(trialFolder(sampling))
 
     compilation_success = loadCustomCode(sampling; force_recompile=force_recompile)
     if !compilation_success
-        return Task[] #! do not delete simulations, monads, or the sampling as these could have succeeded in the past (or on other nodes, etc.)
+        return SimulationSpec[] #! do not delete simulations, monads, or the sampling as these could have succeeded in the past (or on other nodes, etc.)
     end
 
-    simulation_tasks = []
+    specs = SimulationSpec[]
     for monad in Monad.(constituentIDs(sampling))
-        append!(simulation_tasks, collectSimulationTasks(monad, do_full_setup=false, force_recompile=false)) #! run the monad and add the number of new simulations to the total
+        append!(specs, collectPendingSimulations(monad, do_full_setup=false, force_recompile=false))
     end
 
-    return simulation_tasks
+    return specs
 end
 
-function collectSimulationTasks(trial::Trial; force_recompile::Bool=false)
+function collectPendingSimulations(trial::Trial; force_recompile::Bool=false)
     mkpath(trialFolder(trial))
 
-    simulation_tasks = []
+    specs = SimulationSpec[]
     for sampling in Sampling.(constituentIDs(trial))
-        append!(simulation_tasks, collectSimulationTasks(sampling; force_recompile=force_recompile)) #! run the sampling and add the number of new simulations to the total
+        append!(specs, collectPendingSimulations(sampling; force_recompile=force_recompile))
     end
 
-    return simulation_tasks
+    return specs
 end
 
 """
@@ -319,7 +342,7 @@ Get the ID of the trial from the output of the PhysiCellModelManager.jl run.
 trialID(output::PCMMOutput) = trialID(output.trial)
 
 """
-    run(T::AbstractTrial[; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions()])`
+    run(T::AbstractTrial[; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), quiet::Bool=false])`
 
 Run the given simulation, monad, sampling, or trial.
 
@@ -330,13 +353,31 @@ Also print out messages to the console to inform the user about the progress and
 - `T::AbstractTrial`: The trial, sampling, monad, or simulation to run.
 - `force_recompile::Bool=false`: If `true`, forces a recompilation of all files by removing all `.o` files in the PhysiCell directory.
 - `prune_options::PruneOptions=PruneOptions()`: Options for pruning simulations.
+- `quiet::Bool=false`: If `true`, suppresses per-simulation and per-trial console output. Used by ABC-SMC calibration to keep console output focused on generation-level progress.
 """
-function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions())
-    simulation_tasks = collectSimulationTasks(T; force_recompile=force_recompile)
-    n_simulation_tasks = length(simulation_tasks)
+function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::PruneOptions=PruneOptions(), quiet::Bool=false)
+    specs = collectPendingSimulations(T; force_recompile=force_recompile)
+    n_simulation_tasks = length(specs)
     n_success = 0
 
-    println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
+    quiet || println("Running $(typeof(T)) $(T.id) requiring $(n_simulation_tasks) simulation$(n_simulation_tasks == 1 ? "" : "s")...")
+
+    #! Build @task wrappers. The per-simulation println lives inside the @task body,
+    #! so it fires only when the task is scheduled (i.e. when the simulation actually
+    #! starts running) — not when the list comprehension constructs the tasks.
+    simulation_tasks = [
+        @task begin
+            if !quiet
+                println("\tRunning simulation: $(spec.simulation.id)...")
+                flush(stdout)
+            end
+            SimulationProcess(spec.simulation;
+                              monad_id=spec.monad_id,
+                              do_full_setup=spec.do_full_setup,
+                              force_recompile=spec.force_recompile)
+        end
+        for spec in specs
+    ]
 
     queue_channel = Channel{Task}(n_simulation_tasks)
     result_channel = Channel{SimulationProcess}(n_simulation_tasks)
@@ -357,36 +398,38 @@ function run(T::AbstractTrial; force_recompile::Bool=false, prune_options::Prune
         n_success += simulation_process.success
     end
 
-    n_asterisks = 1
-    asterisks = Dict{String, Int}()
-    size_T = length(T)
-    println("Finished $(typeof(T)) $(T.id).")
-    println("\t- Consists of $(size_T) simulations.")
-    print(  "\t- Scheduled $(n_simulation_tasks) simulations to complete this $(typeof(T)).")
-    print_low_schedule_message = n_simulation_tasks < size_T
-    if print_low_schedule_message
-        println(" ($(repeat("*", n_asterisks)))")
-        asterisks["low_schedule_message"] = n_asterisks
-        n_asterisks += 1
-    else
-        println()
+    if !quiet
+        n_asterisks = 1
+        asterisks = Dict{String, Int}()
+        size_T = length(T)
+        println("Finished $(typeof(T)) $(T.id).")
+        println("\t- Consists of $(size_T) simulations.")
+        print(  "\t- Scheduled $(n_simulation_tasks) simulations to complete this $(typeof(T)).")
+        print_low_schedule_message = n_simulation_tasks < size_T
+        if print_low_schedule_message
+            println(" ($(repeat("*", n_asterisks)))")
+            asterisks["low_schedule_message"] = n_asterisks
+            n_asterisks += 1
+        else
+            println()
+        end
+        print(  "\t- Successful completion of $(n_success) simulations.")
+        print_low_success_warning = n_success < n_simulation_tasks
+        if print_low_success_warning
+            println(" ($(repeat("*", n_asterisks)))")
+            asterisks["low_success_warning"] = n_asterisks
+            n_asterisks += 1 #! in case something gets added later
+        else
+            println()
+        end
+        if print_low_schedule_message
+            println("\n($(repeat("*", asterisks["low_schedule_message"]))) PhysiCellModelManager.jl found matching simulations and will save you time by not re-running them!")
+        end
+        if print_low_success_warning
+            println("\n($(repeat("*", asterisks["low_success_warning"]))) Some simulations did not complete successfully. Check the output.err files for more information.")
+        end
+        println("\n--------------------------------------------------\n")
     end
-    print(  "\t- Successful completion of $(n_success) simulations.")
-    print_low_success_warning = n_success < n_simulation_tasks
-    if print_low_success_warning
-        println(" ($(repeat("*", n_asterisks)))")
-        asterisks["low_success_warning"] = n_asterisks
-        n_asterisks += 1 #! in case something gets added later
-    else
-        println()
-    end
-    if print_low_schedule_message
-        println("\n($(repeat("*", asterisks["low_schedule_message"]))) PhysiCellModelManager.jl found matching simulations and will save you time by not re-running them!")
-    end
-    if print_low_success_warning
-        println("\n($(repeat("*", asterisks["low_success_warning"]))) Some simulations did not complete successfully. Check the output.err files for more information.")
-    end
-    println("\n--------------------------------------------------\n")
     return PCMMOutput(T, n_simulation_tasks, n_success)
 end
 

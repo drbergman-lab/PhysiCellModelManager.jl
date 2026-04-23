@@ -207,32 +207,56 @@
 
 ---
 
-## Feature: Calibration (ABC-SMC)
+## Feature: Calibration
 
-**One-line description:** Fit model parameters to observed data using Approximate Bayesian Computation Sequential Monte Carlo.
+**One-line description:** Fit model parameters to observed data via a pluggable family of Bayesian / optimization methods. ABC-SMC is the first implementation; the API is designed to extend to GP-accelerated ABC, Bayesian optimization, and others.
 
-**Priority:** Must-have (core functionality); Should-have (depth — extensible objective functions, robustness improvements)
+**Priority:** Must-have (core functionality); Should-have (depth — additional methods, surrogate emulation)
 
-**User story:** As a researcher, I want downstream calibration tooling so that I can connect my model to experimental data, estimate parameters, and extract quantitative biological insights.
+**User story:** As a researcher, I want downstream calibration tooling so that I can connect my model to experimental data, estimate parameters, and extract quantitative biological insights — without maintaining a Python environment.
+
+### Method framework
+
+- `AbstractCalibrationMethod` is the supertype for all calibration algorithms.
+- Concrete methods subtype it, e.g. `ABCSMC <: AbstractCalibrationMethod`.
+- `runCalibration(problem::CalibrationProblem, method::AbstractCalibrationMethod; description)` is the dispatch entry point.
+- `runABC(problem; kwargs...)` is a convenience wrapper that constructs `ABCSMC` from keywords and delegates to `runCalibration`.
+
+### Sub-feature: ABC-SMC (native Julia)
 
 **Behavioral specification:**
-- Requires loading both `PythonCall` and `PhysiCellModelManager` (in either order) to activate `PCMMCalibrationExt`.
-- `CalibrationProblem` holds: parameters (name, prior distribution), distance function, observed data reference, and number of populations.
-- `runABC(problem; ...)` runs ABC-SMC via `pyabc`, using `SingleCoreSampler` to avoid pickling Julia closures across Python processes.
-- `posterior(result)` → `(DataFrame, weights)` for the final or a specified intermediate generation.
-- CondaPkg manages the Python environment; `pyabc` is installed automatically from `CondaPkg.toml`.
+- Pure Julia implementation (Toni et al. 2009 / Beaumont et al. 2009) — no Python runtime required.
+- `CalibrationProblem` holds: parameters (name, prior distribution, XML path), summary-statistic function, distance function, observed data, reference variation, number of replicates per particle.
+- `ABCSMC` holds: population_size, max_nr_populations, minimum_epsilon, epsilon_quantile (default 0.5), perturbation_kernel (`:gaussian`).
+- Each generation:
+  - Generation 1 samples directly from the priors (no warm-start bias).
+  - Generations t>1 resample from the previous weighted generation and perturb via a Gaussian kernel whose covariance is twice the weighted sample covariance (Beaumont et al. 2009).
+  - Acceptance threshold (epsilon) adapts as a quantile of the previous generation's distances.
+- Each particle evaluation creates a `Monad(inputs, variation_id; use_previous=true)`, so exact-match parameter points are reused transparently.
+- Results are persisted per-generation to `data/outputs/calibrations/{id}/generations/generation_{t}.csv`.
+- Method settings are persisted to `method.toml` to support `resumeABC`.
+- `run()` is called with `quiet=true` during calibration to keep console output focused on per-generation progress.
+- `posterior(result; generation=:final)` → `(DataFrame, Vector{Float64})` of weighted parameter samples.
+- `resumeABC(calibration, problem)` loads saved generations and continues from the next one.
 
 **Acceptance criteria:**
-- Extension is not loaded unless `PythonCall` is also loaded; no runtime error in its absence.
+- `runABC` returns an `ABCResult` whose `generations` field has length ≥ 1.
+- Each `GenerationResult` has matching lengths for `particles`, `weights`, `distances`, `monad_ids`; weights sum to 1.
 - `posterior` returns a DataFrame with one column per calibrated parameter.
-- A smoke-test run with a trivial distance function completes without error.
-- `runABC` with `max_populations=1` produces a non-empty posterior.
+- Epsilon is non-increasing across generations.
+- On a toy Normal-mean recovery problem, the posterior mean converges near the observed value.
+- `resumeABC` preserves generation-1 particles exactly and continues the loop from the next generation.
 
 **Edge cases:**
-- `pyabc` not installed → descriptive error pointing to CondaPkg.
-- Parameter prior is improper (infinite support with no normalization) → delegate error to pyabc.
-- Distance function returns `NaN` → pyabc raises; surface the error clearly.
-- Monad referenced by distance function has no completed simulations → error before ABC starts.
+- Distance function returns `NaN` → propagates; first-gen collects it (all gen-1 proposals accepted); adaptive epsilon via `quantile` handles NaN gracefully if most distances are finite.
+- Monad has no completed simulations after `run` → user's summary statistic must error descriptively.
+- Perturbed particle falls outside prior support → rejected, proposal retried without counting as a failure.
+- Invalid `ABCSMC` settings (non-positive population, quantile outside (0,1), etc.) → `ArgumentError` at construction.
+
+### Sub-feature: Deprecated pyabc backend
+
+- The previous PythonCall-based backend is deprecated. Loading `PythonCall` alongside `PhysiCellModelManager` emits a one-time `Base.depwarn` and does not affect calibration behavior.
+- Scheduled for removal (along with `PythonCall` weakdep and `CondaPkg.toml`) once the native implementation is battle-tested.
 
 ---
 

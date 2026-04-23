@@ -157,3 +157,4 @@ Therefore:
 When setting you off on a task, check this list and assess if any of these should be done first.
 - Verify CondaPkg auto-installs `pyabc` correctly on a fresh checkout (the `CondaPkg.toml` is present; behavior on a clean machine is untested)
 - Fix pre-existing test sequencing issue: `DeletionTests` de-initializes the project, causing `DepsTests` (`assertInitialized`) to fail
+- ABC-SMC warm-start from prior simulations: find a way to reuse sims from sensitivity analyses or prior sweeps as gen-1 prior samples, *when the sampling distribution matches the ABC prior*. Requires distinguishing "sampled from distribution D" sims (valid prior draws) from "grid/LHS design points" (not prior draws). Without this distinction, warm-start biases gen 1. Tracking the sampling distribution in the DB or requiring the user to explicitly opt in via `warmStartABC(problem, monad_ids)` are two paths to consider.

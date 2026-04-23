@@ -76,11 +76,12 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Simulation execution — local multi-process runner
 - [x] HPC job script generation and submission
 - [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
-- [x] Sensitivity analysis — Sobol and RBD-FAST indices via SALib (Python/PythonCall)
-- [ ] Calibration 
-  - [x] ABC-SMC via pyabc (Python/PythonCall), activated as a Julia 1.9+ package extension (`PCMMCalibrationExt`)
-  - [ ] Bayesian optimization via BoTorch (Python/PythonCall), activated as a Julia 1.9+ package extension (`PCMMBayesOptExt`)
-  - [ ] Julia-native calibration algorithms (e.g., MCMC, Nelder-Mead)
+- [x] Sensitivity analysis — MOAT, Sobol, and RBD
+- [ ] Calibration
+  - [x] Native Julia ABC-SMC (no Python required); extensible `AbstractCalibrationMethod` hierarchy; `resumeABC` for interrupted runs
+  - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
+  - [ ] Bayesian optimization
+  - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
 - [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
 - [x] Export and pruning of simulation outputs
 - [x] Intracellular model support (custom data, rules)
@@ -90,7 +91,8 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 
 ### Remaining
 
-- [ ] Calibration parallelism — `SingleCoreSampler` is correct but slow; explore alternatives that don't require pickling Julia closures
+- [ ] Calibration parallelism — particles are currently evaluated sequentially (PhysiCell parallelizes within each particle). Batch-parallel particle evaluation via `Sampling` is a future optimization.
+- [ ] Warm-start ABC-SMC from existing simulations when they are valid prior samples (e.g., from a prior-matching sensitivity analysis). Requires tracking the sampling distribution per sim, or an opt-in API like `warmStartABC(problem, monad_ids)`. See CLAUDE.md for caveats.
 - [ ] Fix pre-existing test sequencing issue: `DeletionTests` de-initializes project causing `DepsTests` to fail
 - [x] Support naming parameters / variations in parameter sweeps and sensitivity analyses in the same manner as calibration parameters
 - [ ] Support showing snapshots from a monad/sampling/trial in a single figure. Support CairoMakie (as extension) to make a movie from the snapshots.

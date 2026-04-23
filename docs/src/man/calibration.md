@@ -4,53 +4,18 @@ PhysiCellModelManager.jl supports Bayesian parameter calibration via the Approxi
 ABC-SMC is a likelihood-free inference method that iteratively refines a population of parameter samples (particles) by accepting only those whose simulated outputs are within a shrinking tolerance (epsilon) of the observed data.
 It is well-suited to agent-based models where an explicit likelihood function is unavailable or intractable.
 
-## Python environment setup
+The implementation is native Julia — no Python or conda environment is required.
 
-The ABC-SMC backend is provided by pyabc, a Python library.
-PhysiCellModelManager.jl calls pyabc through PythonCall.jl, which uses CondaPkg.jl to manage a project-local Python environment.
-
-In practice, first-time users may need to install pyabc explicitly in the active Julia project environment.
-
-!!! note "First-time setup"
-    In a fresh Julia project environment, install pyabc with CondaPkg (one-time per environment):
-    ```julia
-    pkg> conda pip_add pyabc
-    ```
-    This takes a few minutes; subsequent loads are instant.
-
-## Activating the extension
-
-`runABC` and `posterior` are provided by a [package extension](https://pkgdocs.julialang.org/v1/creating-packages/#Conditional-loading-of-code-in-packages-(Extensions))
-that is activated whenever **both** PythonCall and PhysiCellModelManager.jl are loaded in the
-same Julia session. The order does not matter:
+## Quick start
 
 ```julia
-using PythonCall
-using PhysiCellModelManager
-```
-
-or equivalently:
-
-```julia
-using PhysiCellModelManager
-using PythonCall
-```
-
-As long as both are loaded, the extension is active and `runABC` / `posterior` are available.
-
-## Worked example
-
-The example below calibrates two parameters — a cell apoptosis rate and a cell cycle duration — against observed endpoint population counts.
-
-```julia
-using PythonCall
 using PhysiCellModelManager
 using Distributions
 
-# 1. Define inputs pointing to your model's configuration and custom codes.
+# 1. Model inputs
 inputs = InputFolders("default", "default")
 
-# 2. Define the parameters to infer, each with a prior distribution.
+# 2. Parameters to infer, with priors from Distributions.jl
 parameters = [
     CalibrationParameter(
         "apoptosis_rate",
@@ -64,30 +29,20 @@ parameters = [
     ),
 ]
 
-# 3. Provide observed data that the summary statistic will be compared against.
-#    Here, a Dict of observed endpoint cell counts by cell type.
+# 3. Observed data
 observed_data = Dict("cancer" => 3500.0, "immune" => 800.0)
 
-# 4. Choose a summary statistic.
-#    endpointPopulationCounts returns a Dict{String,Float64} of live cell counts
-#    at the end of the simulation for each cell type.
-summary_stat = endpointPopulationCounts
-
-# 5. Choose a distance function.
-#    mseDistance computes the mean squared error between simulated and observed values.
-distance = mseDistance
-
-# 6. Construct the CalibrationProblem.
+# 4. Build the problem: summary statistic + distance function
 problem = CalibrationProblem(
     inputs,
     parameters,
     observed_data,
-    summary_stat,
-    distance;
-    n_replicates = 3,           # number of simulation replicates per particle
+    endpointPopulationCounts,   # summary statistic
+    mseDistance;                # distance function
+    n_replicates = 3,
 )
 
-# 7. Run ABC-SMC.
+# 5. Run ABC-SMC
 result = runABC(
     problem;
     population_size    = 200,
@@ -96,18 +51,70 @@ result = runABC(
     description        = "apoptosis-cycle calibration",
 )
 
-# 8. Extract the posterior.
-df, weights = posterior(result)          # final generation by default
-println(df)                              # DataFrame with one column per parameter
-
-# Extract a specific earlier generation (1-indexed).
-df_gen3, weights_gen3 = posterior(result; generation = 3)
+# 6. Extract the posterior
+df, weights = posterior(result)           # final generation
+df3, w3     = posterior(result; generation=3)  # specific earlier generation
 ```
+
+## The ABC-SMC algorithm
+
+Each generation proceeds as follows:
+
+1. **Propose** `population_size` particles
+   - Generation 1: sample directly from the priors.
+   - Generation *t > 1*: resample a particle from the previous (weighted) generation and perturb it with a Gaussian kernel whose covariance is twice the weighted sample covariance of the previous generation (Beaumont et al. 2009).
+2. **Evaluate** each proposed particle
+   - Create a `Monad` at the proposed parameter values (reusing existing simulations where possible via `use_previous=true`).
+   - Run the simulations quietly (per-simulation output is suppressed during calibration).
+   - Apply the user's `summary_statistic` and `distance` to produce a scalar distance.
+3. **Accept** particles whose distance is below the current `epsilon`. In generation 1 all proposals are kept; in later generations a rejection step is used.
+4. **Reweight** using the standard ABC-SMC importance weights.
+5. **Adapt** the next generation's epsilon as a quantile (default: median) of the current accepted distances, never dropping below `minimum_epsilon`.
+6. **Save** the generation to disk (see below) and stop if epsilon has reached `minimum_epsilon` or `max_nr_populations` is exhausted.
+
+### Method type
+
+For extensibility (future support for GP-accelerated ABC, Bayesian optimization, etc.), calibration methods are represented as subtypes of [`AbstractCalibrationMethod`](@ref). ABC-SMC is [`ABCSMC`](@ref):
+
+```julia
+method = ABCSMC(population_size=200, max_nr_populations=10, minimum_epsilon=0.05)
+result = runCalibration(problem, method)
+```
+
+[`runABC`](@ref) is a convenience wrapper that constructs an `ABCSMC` from keyword arguments and delegates to [`runCalibration`](@ref).
+
+### On warm-starting from existing simulations
+
+PCMM does **not** seed generation 1 with pre-existing simulations. Doing so would bias the gen-1 sample away from the prior distribution (e.g., if prior sweeps or sensitivity designs were clustered). Instead, every gen-1 particle is drawn fresh from the prior.
+
+However, `Monad(...; use_previous=true)` is used internally for every particle, so any exact-match parameter point that happens to already exist in the database (e.g., from a previous calibration at the same point) is reused for free.
+
+## Resuming a calibration
+
+If a calibration is interrupted (crash, user stop, HPC timeout), the completed generations are already saved on disk. Use [`resumeABC`](@ref) to continue:
+
+```julia
+# Previously: result = runABC(problem; max_nr_populations=10)
+# ... interrupted at generation 4 ...
+
+# Load the calibration by ID and continue
+calibration = Calibration(42)
+result = resumeABC(calibration, problem)
+```
+
+If no `method` is provided, the original settings are loaded from `method.toml` in the calibration output folder. Pass an explicit `method` to override settings (e.g., to increase `max_nr_populations`).
+
+## Output layout
+
+Each calibration run creates `data/outputs/calibrations/{id}/` with:
+
+- `monads.csv` — one line per monad evaluated, in order.
+- `method.toml` — the [`ABCSMC`](@ref) settings used (for `resumeABC`).
+- `generations/generation_{t}.csv` — one file per completed generation. Columns: each parameter name, plus `weight`, `distance`, `monad_id`.
 
 ## Built-in summary statistics
 
-PhysiCellModelManager.jl provides three built-in summary statistics that accept a monad ID and return a summary of simulation output.
-They are designed to be passed directly as the `summary_statistic` argument of [`CalibrationProblem`](@ref).
+Three built-in summary statistics accept a monad ID and return a summary suitable for the `summary_statistic` argument of [`CalibrationProblem`](@ref).
 
 ### `endpointPopulationCounts`
 
@@ -115,10 +122,7 @@ They are designed to be passed directly as the `summary_statistic` argument of [
 endpointPopulationCounts(monad_id; cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Float64}` mapping each cell type name to its population count at the final simulation time point.
-
-- `cell_types`: restrict output to a subset of cell type names; `nothing` includes all cell types.
-- `include_dead`: if `true`, dead cells are included in the count.
+Returns a `Dict{String,Float64}` mapping each cell type to its population count at the final simulation time point.
 
 ### `endpointPopulationFractions`
 
@@ -126,8 +130,7 @@ Returns a `Dict{String,Float64}` mapping each cell type name to its population c
 endpointPopulationFractions(monad_id; cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Float64}` mapping each cell type name to its **fraction** of the total cell population at the final time point.
-Keyword arguments have the same meaning as for `endpointPopulationCounts`.
+Returns a `Dict{String,Float64}` mapping each cell type to its **fraction** of the total live cell population at the final time point.
 
 ### `meanPopulationTimeSeries`
 
@@ -135,8 +138,7 @@ Keyword arguments have the same meaning as for `endpointPopulationCounts`.
 meanPopulationTimeSeries(monad_id; cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Vector{Float64}}` mapping each cell type name to a vector of mean population counts across all output time points.
-This is useful when the observed data is a time series rather than a single endpoint value.
+Returns a `Dict{String,Vector{Float64}}` mapping each cell type to a vector of mean population counts across all output time points. Useful when observed data is a time series rather than a single endpoint value.
 
 ## Built-in distance functions
 
@@ -146,7 +148,8 @@ This is useful when the observed data is a time series rather than a single endp
 mseDistance(simulated, observed)
 ```
 
-Computes the mean squared error (MSE) between `simulated` and `observed`.
-Both scalar and vector (time series) values are supported.
-When `simulated` and `observed` are `Dict`s (as produced by the built-in summary statistics), `mseDistance` computes the MSE across all key–value pairs.
+Computes the mean squared error between `simulated` and `observed`. Both scalar and vector values are supported; when the dicts contain a mix, the per-key contributions (squared error for scalars, mean squared error for vectors) are averaged across all keys in `observed`.
 
+## Deprecated: pyabc backend
+
+Earlier versions of PCMM provided ABC-SMC via pyabc (Python), accessed through a `PythonCall`-based extension. This backend has been replaced by the native Julia implementation described above. Loading `PythonCall` alongside `PhysiCellModelManager` now emits a one-time deprecation warning and does not affect calibration behavior.

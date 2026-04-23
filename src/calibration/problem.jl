@@ -1,6 +1,6 @@
 using Distributions
 
-export CalibrationParameter, CalibrationProblem, Calibration, ABCResult, posterior
+export CalibrationParameter, CalibrationProblem, Calibration, GenerationResult, ABCResult, posterior
 
 """
     CalibrationParameter
@@ -117,28 +117,53 @@ struct Calibration
 end
 
 """
+    GenerationResult
+
+Result of a single ABC-SMC generation.
+
+# Fields
+- `t::Int`: Generation index (1-based).
+- `particles::DataFrame`: One row per accepted particle; columns are parameter names.
+- `weights::Vector{Float64}`: Normalized importance weights (sum to 1).
+- `distances::Vector{Float64}`: Distance for each accepted particle.
+- `epsilon::Float64`: Acceptance threshold used for this generation.
+- `n_evaluations::Int`: Total model evaluations including rejected proposals.
+- `monad_ids::Vector{Int}`: PCMM monad IDs for each accepted particle.
+"""
+struct GenerationResult
+    t::Int
+    particles::DataFrame
+    weights::Vector{Float64}
+    distances::Vector{Float64}
+    epsilon::Float64
+    n_evaluations::Int
+    monad_ids::Vector{Int}
+end
+
+"""
     ABCResult
 
 Holds the result of an ABC-SMC calibration run.
 
 # Fields
 - `calibration::Calibration`: The PCMM calibration record (DB entry + folder).
-- `history`: The pyabc `History` object (Python, via PythonCall). Access posterior samples
-  with [`posterior`](@ref).
+- `generations::Vector{GenerationResult}`: Results per SMC generation, in order.
 - `parameters::Vector{CalibrationParameter}`: The calibrated parameters (same as in
   the `CalibrationProblem`).
+- `method::ABCSMC`: The settings used for this run.
 
 # Examples
 ```julia
 result = runABC(problem)
-df, weights = posterior(result)           # final generation
-df, weights = posterior(result; generation=2)  # specific generation
+df, weights = posterior(result)                # final generation
+df, weights = posterior(result; generation=2)   # specific generation
 ```
 """
 struct ABCResult
     calibration::Calibration
-    history::Any   # PyObject — typed as Any to avoid PythonCall at load time
+    generations::Vector{GenerationResult}
     parameters::Vector{CalibrationParameter}
+    method::ABCSMC
 end
 
 """
@@ -151,10 +176,21 @@ Extract posterior samples from an [`ABCResult`](@ref).
 - `weights::Vector{Float64}`: Importance weights (sum to 1).
 
 # Arguments
-- `generation`: Integer generation index (0-based) or `:final` for the last generation.
+- `generation`: Integer generation index (1-based) or `:final` for the last generation.
 
-!!! note "Requires PythonCall extension"
-    Both `PythonCall` and `PhysiCellModelManager` must be loaded (in any order) for this
-    function to be available.
+# Examples
+```julia
+result = runABC(problem)
+df, weights = posterior(result)                # final generation
+df, weights = posterior(result; generation=1)   # first generation
+```
 """
-function posterior end
+function posterior(result::ABCResult; generation::Union{Int,Symbol}=:final)
+    isempty(result.generations) && error("No generations in ABCResult — calibration may not have completed.")
+    t = generation === :final ? length(result.generations) : Int(generation)
+    1 <= t <= length(result.generations) || throw(ArgumentError(
+        "Generation $t is out of range [1, $(length(result.generations))]."
+    ))
+    gen = result.generations[t]
+    return gen.particles, gen.weights
+end

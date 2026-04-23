@@ -4,7 +4,7 @@ CollapsedDocStrings = true
 
 # Calibration(@id calibration_section_lib)
 
-Run ABC-SMC calibration on a model using pyabc (via PythonCall.jl).
+Native Julia ABC-SMC parameter calibration.
 
 ## Public API
 
@@ -15,17 +15,27 @@ CalibrationParameter
 CalibrationProblem
 ```
 
+### Calibration methods
+
+```@docs
+AbstractCalibrationMethod
+ABCSMC
+```
+
 ### Result types
 
 ```@docs
 Calibration
+GenerationResult
 ABCResult
 ```
 
 ### Running calibration
 
 ```@docs
+runCalibration
 runABC
+resumeABC
 posterior
 ```
 

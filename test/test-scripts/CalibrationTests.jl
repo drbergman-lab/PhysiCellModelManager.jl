@@ -1,4 +1,4 @@
-using DataFrames, Distributions, PythonCall
+using DataFrames, Distributions, Random
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -85,6 +85,30 @@ end
     @test !ismissing(prob_with_ref.reference_variation_id)
 end
 
+################## ABCSMC Method Construction ##################
+
+@testset "ABCSMC construction and validation" begin
+    m = ABCSMC()
+    @test m.population_size == 100
+    @test m.max_nr_populations == 10
+    @test m.minimum_epsilon == 0.01
+    @test m.epsilon_quantile == 0.5
+    @test m.perturbation_kernel === :gaussian
+
+    m2 = ABCSMC(population_size=50, max_nr_populations=3, minimum_epsilon=0.1)
+    @test m2.population_size == 50
+
+    @test_throws ArgumentError ABCSMC(population_size=0)
+    @test_throws ArgumentError ABCSMC(max_nr_populations=-1)
+    @test_throws ArgumentError ABCSMC(minimum_epsilon=-0.1)
+    @test_throws ArgumentError ABCSMC(epsilon_quantile=0.0)
+    @test_throws ArgumentError ABCSMC(epsilon_quantile=1.0)
+    @test_throws ArgumentError ABCSMC(perturbation_kernel=:uniform)
+
+    # AbstractCalibrationMethod hierarchy is in place
+    @test m isa PhysiCellModelManager.AbstractCalibrationMethod
+end
+
 ################## DB / Folder Tests ##################
 
 @testset "createCalibration" begin
@@ -97,9 +121,6 @@ end
 
     csv_path = PhysiCellModelManager.calibrationMonadsCSV(calibration)
     @test csv_path == joinpath(folder, "monads.csv")
-
-    db_path = PhysiCellModelManager.calibrationABCDBPath(calibration)
-    @test db_path == joinpath(folder, "abc_history.db")
 
     # monads.csv doesn't exist yet (no particles evaluated)
     @test isempty(PhysiCellModelManager.calibrationMonadIDs(calibration))
@@ -159,97 +180,172 @@ end
     @test counts[cell_type] ≈ endpointPopulationCounts(1)[cell_type]
 end
 
-################## pyabc Integration Tests (guarded) ##################
+################## ABC-SMC Algorithm Unit Tests ##################
+# These tests exercise the framework-agnostic ABC-SMC core without running PhysiCell.
 
-pyabc_available = try
-    pyimport("pyabc")
-    true
-catch
-    false
-end
+@testset "ABC-SMC algorithm on toy model" begin
+    # Recover the mean of a Normal distribution from a synthetic "observed" sample mean.
+    Random.seed!(1234)
+    true_mu = 2.0
+    obs_mean = mean(rand(Normal(true_mu, 1.0), 100))
 
-if !pyabc_available
-    @warn """
-    pyabc not available — skipping ABC-SMC integration tests. Install pyabc in your CondaPkg.jl environment to enable them:
+    param_names = ["mu"]
+    priors = [Uniform(-5.0, 5.0)]
 
-        pkg> conda pip_add pyabc # in the Julia Pkg REPL
-
-    """
-end
-
-@testset "ABC-SMC integration" begin
-    if !pyabc_available
-        @test_skip "pyabc not available"
-    else
-        # Access extension internals via Base.get_extension (standard Julia API)
-        ext = Base.get_extension(PhysiCellModelManager, :PCMMCalibrationExt)
-        @test !isnothing(ext)
-
-        # _importPyABC succeeds
-        @test_nowarn ext._importPyABC()
-
-        # Prior construction from Julia Distributions → pyabc.Distribution
-        pyabc = ext._importPyABC()
-        params = [
-            CalibrationParameter("phase_dur", xml_path_phase, Uniform(200.0, 400.0)),
-        ]
-        prior = ext._buildPrior(pyabc, params)
-        # prior is a PyObject (pyabc.Distribution); call .rvs() to draw a sample dict
-        sample = prior.rvs()
-        @test haskey(sample, "phase_dur")
-        val = pyconvert(Float64, sample["phase_dur"])
-        @test 200.0 <= val <= 400.0
-
-        # Normal prior round-trip
-        params_normal = [CalibrationParameter("phase_dur", xml_path_phase, Normal(300.0, 30.0))]
-        @test_nowarn ext._buildPrior(pyabc, params_normal)
-
-        # Unsupported prior type raises ArgumentError
-        struct _Dummy <: ContinuousUnivariateDistribution end
-        @test_throws ArgumentError ext._distributionToRV(pyabc, _Dummy())
-
-        # Full runABC end-to-end with tiny budget
-        observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))
-        problem = CalibrationProblem(
-            inputs, params, observed,
-            endpointPopulationCounts, mseDistance;
-            reference_variation_id=ref.variation_id
-        )
-
-        result = runABC(problem;
-            population_size=3,
-            max_nr_populations=2,
-            minimum_epsilon=Inf,   # never stop on epsilon
-            description="test ABC run"
-        )
-
-        @test result isa ABCResult
-        @test result.calibration isa Calibration
-        @test isdir(PhysiCellModelManager.calibrationFolder(result.calibration))
-        @test isfile(PhysiCellModelManager.calibrationABCDBPath(result.calibration))
-
-        monad_ids = PhysiCellModelManager.calibrationMonadIDs(result.calibration)
-        @test !isempty(monad_ids)
-        @test all(id isa Int for id in monad_ids)
-
-        # DB entry created
-        query = PhysiCellModelManager.constructSelectQuery(
-            "calibrations", "WHERE calibration_id=$(result.calibration.id)")
-        df = PhysiCellModelManager.queryToDataFrame(query)
-        @test nrow(df) == 1
-        @test df.description[1] == "test ABC run"
-
-        # posterior extraction
-        post_df, weights = PhysiCellModelManager.posterior(result)
-        @test post_df isa DataFrame
-        @test "phase_dur" in names(post_df)
-        @test length(weights) == nrow(post_df)
-        @test sum(weights) ≈ 1.0 atol=1e-6
-        post_df, weights = PhysiCellModelManager.posterior(result; generation=0)
-        @test post_df isa DataFrame
-        post_df, weights = PhysiCellModelManager.posterior(result; generation=:final)
-        @test post_df isa DataFrame
-        post_df, weights = PhysiCellModelManager.posterior(result; generation=1)
-        @test post_df isa DataFrame
+    # Simple evaluate function: draw samples and compare means
+    function evaluate(params::Dict{String,Float64})
+        mu = params["mu"]
+        sim_mean = mean(rand(Normal(mu, 1.0), 100))
+        return abs(sim_mean - obs_mean), 0
     end
+
+    method = ABCSMC(population_size=80, max_nr_populations=4, minimum_epsilon=0.001, epsilon_quantile=0.5)
+    gens = PhysiCellModelManager._runABCSMC(method, param_names, priors, evaluate, g -> nothing)
+
+    @test length(gens) == 4
+    @test all(g.t == i for (i, g) in enumerate(gens))
+
+    # Epsilon should decrease over generations
+    for i in Iterators.drop(eachindex(gens), 1)
+        @test gens[i].epsilon <= gens[i-1].epsilon
+    end
+
+    # Weights sum to 1 per generation
+    for g in gens
+        @test sum(g.weights) ≈ 1.0 atol=1e-6
+        @test length(g.weights) == g.particles |> nrow
+        @test length(g.distances) == g.particles |> nrow
+    end
+
+    # Posterior mean should be close to observed mean (weak check)
+    final = gens[end]
+    post_mean = sum(final.weights .* final.particles.mu)
+    @test abs(post_mean - obs_mean) < 0.5
+end
+
+@testset "ABC-SMC stops at minimum_epsilon" begin
+    # With a trivial problem (distance always 0), epsilon should collapse immediately.
+    evaluate = params -> (0.0, 0)
+    method = ABCSMC(population_size=10, max_nr_populations=5, minimum_epsilon=0.5)
+    gens = PhysiCellModelManager._runABCSMC(method, ["x"], [Uniform(0, 1)], evaluate, g -> nothing)
+
+    # First generation always runs; subsequent generations should be skipped because ε = 0 < 0.5
+    @test length(gens) == 1
+    @test gens[1].epsilon == 0.0
+end
+
+@testset "GenerationResult persistence" begin
+    calibration = PhysiCellModelManager.createCalibration("ABC-SMC"; description="persistence test")
+
+    # Build a fake GenerationResult and save it
+    particles = DataFrame(mu=[1.0, 2.0, 3.0])
+    gen = GenerationResult(1, particles, [0.2, 0.3, 0.5], [0.1, 0.2, 0.3], 0.3, 10, [101, 102, 103])
+    PhysiCellModelManager._saveGeneration(calibration, gen)
+
+    path = joinpath(PhysiCellModelManager.calibrationFolder(calibration), "generations", "generation_1.csv")
+    @test isfile(path)
+
+    # Round-trip via _loadGenerations
+    gens = PhysiCellModelManager._loadGenerations(calibration, ["mu"])
+    @test length(gens) == 1
+    @test gens[1].t == 1
+    @test gens[1].particles.mu == [1.0, 2.0, 3.0]
+    @test gens[1].weights ≈ [0.2, 0.3, 0.5]
+    @test gens[1].distances ≈ [0.1, 0.2, 0.3]
+    @test gens[1].monad_ids == [101, 102, 103]
+end
+
+@testset "ABCSMC method save/load" begin
+    calibration = PhysiCellModelManager.createCalibration("ABC-SMC"; description="method save test")
+    method = ABCSMC(population_size=77, max_nr_populations=6, minimum_epsilon=0.02,
+                    epsilon_quantile=0.3, perturbation_kernel=:gaussian)
+    PhysiCellModelManager._saveMethod(calibration, method)
+    loaded = PhysiCellModelManager._loadMethod(calibration)
+    @test loaded.population_size == 77
+    @test loaded.max_nr_populations == 6
+    @test loaded.minimum_epsilon == 0.02
+    @test loaded.epsilon_quantile == 0.3
+    @test loaded.perturbation_kernel === :gaussian
+end
+
+################## ABC-SMC End-to-End Test (with PhysiCell) ##################
+# Uses the actual PhysiCell simulator with a tiny population/generation budget.
+
+@testset "runABC end-to-end" begin
+    observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))
+    params = [CalibrationParameter("phase_dur", xml_path_phase, Uniform(200.0, 400.0))]
+    problem = CalibrationProblem(
+        inputs, params, observed,
+        endpointPopulationCounts, mseDistance;
+        reference_variation_id=ref.variation_id
+    )
+
+    result = runABC(problem;
+        population_size=3,
+        max_nr_populations=2,
+        minimum_epsilon=0.0,
+        description="test ABC run"
+    )
+
+    @test result isa ABCResult
+    @test result.calibration isa Calibration
+    @test isdir(PhysiCellModelManager.calibrationFolder(result.calibration))
+    @test !isempty(result.generations)
+    @test result.method isa ABCSMC
+
+    monad_ids = PhysiCellModelManager.calibrationMonadIDs(result.calibration)
+    @test !isempty(monad_ids)
+
+    # DB entry created
+    query = PhysiCellModelManager.constructSelectQuery(
+        "calibrations", "WHERE calibration_id=$(result.calibration.id)")
+    df = PhysiCellModelManager.queryToDataFrame(query)
+    @test nrow(df) == 1
+    @test df.description[1] == "test ABC run"
+
+    # posterior extraction
+    post_df, weights = posterior(result)
+    @test post_df isa DataFrame
+    @test "phase_dur" in names(post_df)
+    @test length(weights) == nrow(post_df)
+    @test sum(weights) ≈ 1.0 atol=1e-6
+
+    # Specific generation access
+    post_df1, _ = posterior(result; generation=1)
+    @test post_df1 isa DataFrame
+    post_df_final, _ = posterior(result; generation=:final)
+    @test nrow(post_df_final) == nrow(post_df)
+
+    # Out-of-range generation throws
+    @test_throws ArgumentError posterior(result; generation=99)
+
+    # Generation files saved to disk
+    gen_dir = joinpath(PhysiCellModelManager.calibrationFolder(result.calibration), "generations")
+    @test isdir(gen_dir)
+    @test isfile(joinpath(gen_dir, "generation_1.csv"))
+end
+
+@testset "resumeABC" begin
+    # Run a short calibration, then resume with more generations
+    observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))
+    params = [CalibrationParameter("phase_dur", xml_path_phase, Uniform(200.0, 400.0))]
+    problem = CalibrationProblem(
+        inputs, params, observed,
+        endpointPopulationCounts, mseDistance;
+        reference_variation_id=ref.variation_id
+    )
+
+    # Initial run: 1 generation, tiny population
+    method_initial = ABCSMC(population_size=3, max_nr_populations=1, minimum_epsilon=0.0)
+    result1 = PhysiCellModelManager.runCalibration(problem, method_initial; description="resume test")
+    @test length(result1.generations) == 1
+
+    # Resume with a method that allows 2 more generations
+    method_continue = ABCSMC(population_size=3, max_nr_populations=3, minimum_epsilon=0.0)
+    result2 = resumeABC(result1.calibration, problem; method=method_continue)
+    @test length(result2.generations) > 1
+    @test result2.calibration.id == result1.calibration.id
+
+    # First generation particles should be preserved across resume
+    @test result2.generations[1].particles.phase_dur ≈ result1.generations[1].particles.phase_dur
 end

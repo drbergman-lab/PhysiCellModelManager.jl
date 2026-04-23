@@ -1,7 +1,9 @@
 using Dates, CSV, Statistics
 
+include("methods.jl")
 include("problem.jl")
 include("distance.jl")
+include("abc_smc.jl")
 include("abc.jl")
 
 ################## Folder Helpers ##################

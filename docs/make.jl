@@ -1,9 +1,10 @@
-using Documenter, PhysiCellModelManager
+using Documenter, PhysiCellModelManager, ModelManager
 
 DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true)
+DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
 
 makedocs(;
-    modules=[PhysiCellModelManager],
+    modules=[PhysiCellModelManager, ModelManager],
     authors="Daniel Bergman <danielrbergman@gmail.com> and contributors",
     sitename="PhysiCellModelManager.jl",
     format=Documenter.HTML(;
@@ -26,6 +27,7 @@ makedocs(;
             "Known limitations" => "man/known_limitations.md",
             "PhysiCell Studio" => "man/physicell_studio.md",
             "Sensitivity analysis" => "man/sensitivity_analysis.md",
+            "Calibration" => "man/calibration.md",
             "Analyzing output" => "man/analyzing_output.md",
             "Developer guide" => "man/developer_guide.md",
             "Project configuration" => "man/project_configuration.md",
@@ -39,6 +41,7 @@ makedocs(;
             "Database upgrades" => "misc/database_upgrades.md",
         ],
     ],
+    checkdocs=:exports,
 )
 
 deploydocs(;

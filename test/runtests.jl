@@ -1,3 +1,16 @@
+# Clean up artifacts from previous test runs so each run starts fresh.
+# Artifacts are left in place after the run for manual inspection.
+let test_dir = @__DIR__
+    for artifact in ["data", "PhysiCell", "scripts", "IntracellularTestExport",
+        "InvalidRulesetExport", "test-project-download",
+        "pcmm_project_sans_template"]
+        path = joinpath(test_dir, artifact)
+        if ispath(path)
+            rm(path; recursive=true, force=true)
+        end
+    end
+end
+
 using PhysiCellModelManager, Test
 
 include("./test-scripts/PrintHelpers.jl")
@@ -15,6 +28,7 @@ test_order = [
     "ICECMTests.jl",
     "ExportTests.jl",
     "SensitivityTests.jl",
+    "CalibrationTests.jl",
     "DatabaseTests.jl",
     "ClassesTests.jl",
     "LoaderTests.jl",
@@ -38,7 +52,7 @@ test_order = [
     for test_file in test_order
         @testset "$test_file" begin
             include("./test-scripts/$(test_file)")
-            @test_nowarn PhysiCellModelManager.databaseDiagnostics()
+            @test_nowarn PhysiCellModelManager.ModelManager.databaseDiagnostics()
         end
     end
 

@@ -28,6 +28,20 @@ xml_path = configPath("max_time")
 dv = DiscreteVariation(xml_path, [1440.0, 2880.0])
 ```
 
+You can optionally set a user-facing name with the `name` keyword argument.
+This name is used in reporting outputs (for example, sensitivity scheme headers):
+
+```jldoctest
+using PhysiCellModelManager
+xml_path = configPath("max_time")
+dv = DiscreteVariation(xml_path, [1440.0, 2880.0]; name="max time")
+variationName(dv)
+# output
+"max time"
+```
+
+If `name` is omitted, PhysiCellModelManager.jl assigns a default based on the target/location naming conventions used by [`shortVariationName`](@ref PhysiCellModelManager.shortVariationName).
+
 These can then be passed into either [`createTrial`](@ref) or ([`run`](@ref)) to create (or run) simulations with the specific paramater variations, automatically adding them to the database for future reference.
 If multiple variations are used, they are by default combined on a grid, i.e., all combinations of the variations are used.
 
@@ -50,6 +64,12 @@ using Distributions
 xml_path = configPath("cd8", "apoptosis", "rate")
 d = Uniform(0, 0.001)
 dv = DistributedVariation(xml_path, d)
+```
+
+Like discrete variations, distributed variations also support optional naming:
+
+```julia
+dv = DistributedVariation(xml_path, d; name="apoptosis rate")
 ```
 
 These variations are useful for doing [Sensitivity analysis](@ref).

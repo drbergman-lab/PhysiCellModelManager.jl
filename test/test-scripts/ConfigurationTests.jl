@@ -141,25 +141,25 @@ out = run(inputs, discrete_variations; n_replicates=n_replicates)
 reference_monad = out.trial.monads[1]
 
 monads = Monad[]
-discrete_variations = DiscreteVariation[]
-addDomainVariationDimension!(discrete_variations, (x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
-monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
+avs = AbstractVariation[]
+avs = domainVariations((x_min=-78.1, x_max=78.1, y_min=-30.1, y_max=30.1, z_min=-10.1, z_max=10.1))
+monad = createTrial(reference_monad, avs; n_replicates=n_replicates)
 push!(monads, monad)
 
-discrete_variations = DiscreteVariation[]
-addDomainVariationDimension!(discrete_variations, (min_x=-78.2, maxy=30.2))
-monad = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
-push!(monads, monad)
+avs = domainVariations((min_x=[-78.2, -78.3], maxy=[30.2, 30.3]), covary=true)
+sampling = createTrial(reference_monad, avs; n_replicates=n_replicates)
+append!(monads, sampling.monads)
 
-@test_throws ArgumentError addDomainVariationDimension!(discrete_variations, (x=70, ))
-@test_throws AssertionError addDomainVariationDimension!(discrete_variations, (u_min=70, ))
+@test_throws ArgumentError domainVariations((x=70, ))
+@test_throws AssertionError domainVariations((u_min=70, ))
+@test_throws AssertionError domainVariations((x_min=[-78.2, -78.3, -78.4], maxy=[30.2, 30.3]); covary=true)
 
 sampling_1 = Sampling(monads)
 
 discrete_variations = DiscreteVariation[]
 xml_path = configPath(cell_type, "speed")
 push!(discrete_variations, DiscreteVariation(xml_path, [0.1, 1.0]))
-addCustomDataVariationDimension!(discrete_variations, cell_type, "sample", [0.1, 1.0])
+push!(discrete_variations, DiscreteVariation(configPath(cell_type, "custom", "sample"), [0.1, 1.0]))
 sampling_2 = createTrial(reference_monad, discrete_variations; n_replicates=n_replicates)
 
 trial = Trial([sampling_1, sampling_2])
@@ -195,17 +195,16 @@ hashBorderPrint("SUCCESSFULLY VARIED CONFIG AND RULESETS PARAMETERS!")
 
 # one last set of tests for coverage
 discrete_variations = DiscreteVariation[]
-
-addAttackRateVariationDimension!(discrete_variations, cell_type, cell_type, [0.1])
+push!(discrete_variations, DiscreteVariation(configPath(cell_type, "attack", cell_type), [0.1]))
 
 out = run(reference_monad, discrete_variations; n_replicates=n_replicates)
 @test out.n_success == length(out.trial)
 
 @test isnothing(PhysiCellModelManager.prepareVariedInputFolder(:custom_code, Sampling(1))) #! returns nothing because custom codes is not varied
 @test_throws ArgumentError PhysiCellModelManager.shortLocationVariationID(:not_a_location)
-@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "not_a_var")
-@test_nowarn PhysiCellModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
-@test_throws ArgumentError PhysiCellModelManager.shortVariationName(:not_a_location, "not_a_var")
+@test_nowarn PhysiCellModelManager.ModelManager.shortVariationName(:intracellular, "not_a_var")
+@test_nowarn PhysiCellModelManager.ModelManager.shortVariationName(:intracellular, "intracellular_variation_id")
+@test_throws ArgumentError PhysiCellModelManager.ModelManager.shortVariationName(:not_a_location, "not_a_var")
 
 xml_doc = parse_file(path_to_xml)
 xml_path = ["not", "a", "path"]

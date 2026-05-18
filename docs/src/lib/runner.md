@@ -4,18 +4,18 @@ CollapsedDocStrings = true
 
 # Runner
 
-Run simulations, monads, samplings, and trials in the PhysiCellModelManager.jl framework.
+Run simulations, monads, samplings, and trials in the ModelManager.jl framework.
 
 ## Public API
 ```@autodocs
-Modules = [PhysiCellModelManager]
+Modules = [ModelManager]
 Pages = ["runner.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
-Modules = [PhysiCellModelManager]
+Modules = [ModelManager]
 Pages = ["runner.jl"]
 Public = false
 ```

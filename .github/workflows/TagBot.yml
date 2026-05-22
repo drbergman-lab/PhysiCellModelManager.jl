@@ -1,10 +1,11 @@
 name: TagBot
 on:
-  repository_dispatch: # I don't know what this is...but maybe one day I can duplicate what the HolyLab does?
   workflow_dispatch:
     inputs:
       lookback:
         default: "3"
+  repository_dispatch:
+    types: [TagBot]
 permissions:
   actions: read
   checks: read
@@ -20,7 +21,7 @@ permissions:
   statuses: read
 jobs:
   TagBot:
-    if: github.event_name == 'workflow_dispatch' || github.actor == 'JuliaTagBot'
+    if: github.event_name == 'workflow_dispatch' || github.event_name == 'repository_dispatch' || github.actor == 'JuliaTagBot'
     runs-on: ubuntu-latest
     steps:
       - uses: JuliaRegistries/TagBot@v1

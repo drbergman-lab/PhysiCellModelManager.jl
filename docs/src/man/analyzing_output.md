@@ -1,8 +1,7 @@
 # Analyzing output
 
 ## Install dependencies
-Julia has several packages for plotting.
-Here, we will use `Plots.jl` which you can install with
+The examples use `Plots.jl`; install it with
 ```julia-repl
 pkg> add Plots
 ```
@@ -10,18 +9,13 @@ pkg> add Plots
 ## Loading output
 
 ### `PhysiCellSnapshot`
-The base unit of PhysiCell output is the `PhysiCellSnapshot`.
-Each snapshot records the path to the PhysiCell output folder, its index in the sequence of outputs, the time of the snapshot in the simulation, and optionally the cell, substrate, and mesh data at that snapshot.
+The base unit of PhysiCell output is the `PhysiCellSnapshot`. Each records the output-folder path, its index in the output sequence, the simulation time, and optionally the cell, substrate, and mesh data at that snapshot.
 
 ### `PhysiCellSequence`
-A `PhysiCellSequence` is the full sequence of snapshots corresponding to a single PhysiCell simulation.
-In addition to the path to the PhysiCell output folder and the vector of `PhysiCellSnapshot`'s, it holds metadata for the simulation.
+A `PhysiCellSequence` is the full sequence of snapshots for a single simulation, plus the output-folder path and simulation metadata.
 
 ### `cellDataSequence`
-The main function to get sequences of cell data is `cellDataSequence`.
-It accepts any of a simulation ID (`<:Integer`), a simulation (`::Simulation`), or a sequence (`::PhysiCellSequence`) and either a single label (`::String`) or a vector of labels (`::Vector{String}`).
-For each cell in the simulation (as determined by the cell ID), the output creates a dictionary entry (the key is the integer cell ID) whose value is a named tuple with the input labels as keys as well as `:time`.
-This means that if one sets
+`cellDataSequence` returns sequences of cell data. It accepts a simulation ID (`<:Integer`), a `::Simulation`, or a `::PhysiCellSequence`, together with one label (`::String`) or several (`::Vector{String}`). It returns a dictionary keyed by integer cell ID, each value a named tuple with the requested labels plus `:time`. For example, setting
 
 ```julia
 data = cellDataSequence(1, "position")
@@ -44,13 +38,10 @@ Plan your analyses accordingly as loading simulation data is not fast.
 ## Population plots
 
 ### Group by Monad
-Plotting population plots is one the most basic analysis tasks and PhysiCellModelManager.jl makes it super easy!
-If you call `plot` on a `Simulation`, `Monad`, `Sampling`, or the return value of a call to `run` (though not for a sensitivity analysis),
-then a sequence of panels will be generated in a single figure.
-Each panel will correspond to a `Monad` (replicates using the same parameter values) and will plot mean +/- SD for each cell type.
+Population plots are easy: call `plot` on a `Simulation`, `Monad`, `Sampling`, or a `run` result (but not a sensitivity analysis) to generate a figure of panels. Each panel is one `Monad` (replicates with the same parameters) and plots mean ± SD per cell type.
 
-Finer-grained control of the output is possible, too!
-- to include dead cells in your counts: `plot(...; ..., include_dead=true, ...)`
+Finer control is available:
+- include dead cells in counts: `plot(...; ..., include_dead=true, ...)`
 - select a subset of cell types to include: `plot(...; ..., include_cell_type_names="cancer", ...)`
 - select a subset of cell types to exclude: `plot(...; ..., exclude_cell_type_names="cancer", ...)`
 - choose time units for the x-axis: `plot(...; ..., time_unit=:h, ...)`

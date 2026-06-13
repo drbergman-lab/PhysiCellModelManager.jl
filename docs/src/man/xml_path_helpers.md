@@ -1,10 +1,8 @@
-# Helper functions to define targets
-For each of the varied input types, PhysiCellModelManager.jl has a helper function to create the XML path.
+# XML path helpers
+Each varied input type has a helper function that builds its XML path.
 
 ## Varying config parameters
-The [`configPath`](@ref) function can be used to create the XML path to almost[^1] any parameter in the configuration file intuitively.
-See [Config XML paths](@ref) for an exhaustive explanation of the available tokens.
-Here are some simple examples to get you started:
+[`configPath`](@ref) builds the XML path to almost[^1] any configuration parameter from intuitive tokens. See [Config XML paths](@ref) for the full token reference. Some examples:
 
 ```julia
 configPath("max_time")
@@ -19,11 +17,7 @@ configPath("user_parameters", <tag>)
 [^1]: Intracellular parameters are not supported (yet). Others may also be missing. If the [`configPath`](@ref) function does not recognize the tokens you pass it, it will throw an error showing the available tokens (for the given number of tokens you passed).
 
 ## Varying rules parameters
-The [`rulePath`](@ref) function can help start the XML path to rules parameters.
-It does not infer the full path from tokens like [`configPath`](@ref), but relies on the user knowing the structure of the rules XML file.
-The first argument is the cell type and the second argument is the behavior.
-The remaining arguments are the remaining entries in the XML path.
-Here are some examples:
+[`rulePath`](@ref) builds the XML path to rules parameters. Unlike [`configPath`](@ref), it does not infer the path from tokens — you supply the cell type, the behavior, then the remaining XML-path entries directly:
 
 ```julia
 rulePath(<cell_type>, <behavior>, "increasing_signals", "max_response")
@@ -33,33 +27,24 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
 ```
 
 ## Varying initial cell parameters
-PhysiCellModelManager.jl supports an XML-based initialization of cell locations using [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl).
-See the documentation of that package for details on how to create the XML file.
-Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
-From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).
+PhysiCellModelManager.jl initializes cell locations from XML via [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref), not after dependent simulations exist).
 
-To vary parameters in this XML file, the [`icCellsPath`](@ref) function can be used.
-The signature is as follows:
+Vary its parameters with [`icCellsPath`](@ref):
 
 ```julia
 icCellsPath(<cell_type>, <patch_type>, <patch_id>, <tag>)
 ```
 
-[PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) supports carveouts that can be used to not place cells within the given patches.
-These are contained in a child element of the patch element and their parameters can be varied using the following signature:
+[PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) also supports carveouts (a child element of the patch) that exclude cells from a region. Vary their parameters with:
 
 ```julia
 icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id>, <tag>)
 ```
 
 ## Varying initial ECM parameters
-PhysiCellModelManager.jl supports an XML-based initialization of ECMs using [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl).
-See the documentation of that package for details on how to create the XML file.
-Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template XML file and automatically add it to the database.
-From there, you can edit it directly (though as per [Best practices](@ref) do not edit after simulations are created that rely on it).
+PhysiCellModelManager.jl initializes ECMs from XML via [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref), not after dependent simulations exist).
 
-To vary parameters in this XML file, the [`icECMPath`](@ref) function can be used.
-The signature is as follows:
+Vary its parameters with [`icECMPath`](@ref):
 
 ```julia
 icECMPath(<layer_id>, <patch_type>, <patch_id>, <tag>)

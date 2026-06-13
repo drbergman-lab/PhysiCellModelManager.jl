@@ -1,31 +1,17 @@
 # LatentVariations
-Extending the concept of [CoVariations`](@ref), sometimes several parameters need to be varied together according to some underlying latent parameters.
-The motivating use case is varying thresholds to create low-medium-high regimes for a signal response.
-In this case, the high threshold must always be greater than the low threshold.
-Thus, if you want to vary both thresholds independently, you need to impose a constraint that the high threshold is always greater than the low threshold.
-A [`LatentVariation`](@ref) can handle this by introducing **latent parameters** that are then mapped to the **target parameters**.
-Thus, to construct a `LatentVariation`, you need to provide:
-- Latent parameters with each as either
-  - a vector of discrete values
-  - a probability distribution from which values can be drawn
-- Target parameters provided as a vector of XML paths as done for other `ElementaryVariation`'s
-- Mapping functions that map the latent parameters to each target parameter
-- (Optional) Human-interpretable names for the latent parameters
-- (Optional) A user-facing name for the latent variation itself via `name=...`
+[`LatentVariation`](@ref) extends [CoVariations](@ref) to vary parameters together under a constraint. The motivating case is varying low/high thresholds to create low-medium-high regimes, where the high threshold must always exceed the low one. A `LatentVariation` enforces this by introducing **latent parameters** that map to the **target parameters**.
+
+To construct one, provide:
+- **Latent parameters** — each a vector of discrete values or a probability distribution.
+- **Target parameters** — a vector of XML paths, as for other `ElementaryVariation`s.
+- **Mapping functions** — one per target parameter (see below).
+- **(Optional)** human-interpretable latent-parameter names, and a `name=...` for the variation itself.
 
 ## Mappings
-For each target parameter, you must provide a mapping function that **takes as input a vector of latent parameter values** and returns the corresponding target parameter value.
-Again, the input to the mapping function **must be a vector of latent parameter values**, even if there is only one latent parameter.
-The order of the latent parameter values in the input vector corresponds to the order of the latent parameters provided when constructing the `LatentVariation`.
-The mapping functions can be as simple or complex as needed, as long as they return a single, value for the target parameter.
+Each target parameter needs a mapping function that takes **a vector of latent parameter values** (even with a single latent parameter) and returns one target value. The input vector is ordered as the latent parameters were given at construction. Mappings can be arbitrarily simple or complex.
 
 ## Latent Parameter Names
-You can optionally provide human-interpretable names for the latent parameters.
-These names will be used in the display of the `LatentVariation` to help identify the latent parameters.
-This can be especially useful when looking over results of sensitivity analyses or optimization runs that use `LatentVariation`'s.
-If none are provided, the latent parameters will be named according to the target parameters and their index in the latent parameter vector.
-The target-parameter portion of the default names follows PhysiCellModelManager.jl short variation naming conventions.
-See [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames) for the default naming scheme.
+Optionally name the latent parameters; the names appear in the `LatentVariation` display, which helps when reading sensitivity-analysis or optimization results. If omitted, names default from the target parameters and their index (the target portion follows PhysiCellModelManager.jl short variation naming). See [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames).
 
 ## Variation Names
 You can optionally name a `LatentVariation` using the `name` keyword argument:
@@ -37,9 +23,7 @@ lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; n
 When latent variations are constructed automatically from [`DiscreteVariation`](@ref), [`DistributedVariation`](@ref), or [`CoVariation`](@ref), those variation names are propagated into latent parameter names used by sensitivity sampling outputs.
 
 ## `LatentVariation{Vector{<:Real}}`
-If the latent parameters are provided as vectors of discrete values, then the `LatentVariation` is parameterized as `LatentVariation{Vector{<:Real}}`.
-The lengths of the latent parameter vectors do not need to be the same.
-When values are requested from the `LatentVariation`, PhysiCellModelManager.jl will use all combinations of the latent parameter values to compute the corresponding target parameter values.
+Latent parameters given as vectors of discrete values produce a `LatentVariation{Vector{<:Real}}`. The vectors need not be the same length; requesting values uses all combinations of the latent values to compute the target values.
 
 ```jldoctest
 using PhysiCellModelManager
@@ -67,8 +51,7 @@ LatentVariation (Discrete), 2 -> 2:
 ```
 
 ## `LatentVariation{Distribution}`
-If the latent parameters are provided as probability distributions, then the `LatentVariation` is parameterized as `LatentVariation{Distribution}`.
-When values are requested from the `LatentVariation`, PhysiCellModelManager.jl will draw samples from each of the latent parameter distributions and compute the corresponding target parameter values.
+Latent parameters given as probability distributions produce a `LatentVariation{Distribution}`. Requesting values draws a sample from each distribution and computes the target values.
 
 ```jldoctest
 using PhysiCellModelManager, Distributions

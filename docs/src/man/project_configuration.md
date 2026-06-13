@@ -1,11 +1,9 @@
 # Project configuration
 
-The `inputs.toml` file is used to configure the inputs for the project.
-It is located in the `inputs` directory within the project data directory.
+The `inputs.toml` file (in the project's `data/inputs/` directory) configures the project's inputs.
 
 ## TOML-defined structure
-Each section of the `inputs.toml` file defines one of the input "locations" in the project.
-An example of the structure is as follows:
+Each section defines one input "location". For example:
 
 ```toml
 [config]
@@ -14,7 +12,7 @@ varied = true
 basename = "PhysiCell_settings.xml"
 ```
 
-Upon initialization of the model manager, i.e., calling `using PhysiCellModelManager` (or [`initializeModelManager`](@ref PhysiCellModelManager.initializeModelManager)), the `inputs.toml` file is parsed and each entry (`config` is shown above) has four features stored:
+On initialization (`using PhysiCellModelManager`, or [`initializeModelManager`](@ref PhysiCellModelManager.initializeModelManager)), each entry (e.g. `config` above) is parsed into four features:
 - `required`: A boolean indicating if the location is required for the model to run.
 - `basename`: The base name of the file to be used for the location.
 - `varied`: A boolean indicating if the location can vary between different model runs.

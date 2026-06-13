@@ -168,12 +168,11 @@ end
 problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
 ```
 
-The distance function is called as `distance(simulated, observed_data) → Float64`, where `simulated` is the direct return value of `summary_statistic` and `observed_data` is whatever you passed into `CalibrationProblem`. Both can be any type — your distance function just needs to handle them. `mseDistance` accepts dicts, vectors, and scalars; when using it with dicts, the keys of `observed_data` must be a subset of the keys returned by `summary_statistic`.
+When using `mseDistance` with dicts, the keys of `observed_data` must be a subset of the keys returned by `summary_statistic`.
 
 ### Distance functions
 
-A distance function is any `(simulated, observed) → Float64` — the types of both arguments are whatever your `summary_statistic` returns and whatever you set `observed_data` to.
-[`mseDistance`](@ref) is the built-in option and handles dicts, vectors, and scalars. A custom function can work with any types:
+A distance function is any `(simulated, observed) → Float64`, where the argument types are whatever your `summary_statistic` returns and whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option (dicts, vectors, scalars); a custom function can use any types:
 
 ```julia
 # Dict-based: weighted MSE on two cell populations

@@ -1,23 +1,17 @@
 # Sensitivity analysis
 
-PhysiCellModelManager.jl supports some sensitivity analysis workflows.
-By using PhysiCellModelManager.jl, you will have the opportunity to readily reuse previous simulations to perform and extend sensitivity analyses.
+PhysiCellModelManager.jl supports sensitivity analysis workflows and can reuse previous simulations to perform and extend them.
 
 ## Supported sensitivity analysis methods
-PhysiCellModelManager.jl currently supports three sensitivity analysis methods:
+Three methods are currently supported:
 - Morris One-At-A-Time (MOAT)
 - Sobol'
 - Random Balance Design (RBD)
 
 ### Morris One-At-A-Time (MOAT)
-The Morris One-At-A-Time (MOAT) method gives an intuitive understanding of the sensitivity of a model to its parameters.
-What it lacks in theoretical grounding, it makes up for in speed and ease of use.
-In short, MOAT will sample parameter space at `n` points.
-From each point, it will vary each parameter one at a time and record the change in model output.
-Aggregating these changes, MOAT will quantify the sensitivity of the model to each parameter.
+MOAT is fast and easy to use, trading theoretical rigor for an intuitive sensitivity estimate. It samples parameter space at `n` points; from each, it varies one parameter at a time and records the change in output, then aggregates those changes into a sensitivity for each parameter.
 
-`MOAT` uses a Latin Hypercube Sampling (LHS) to sample the parameter space.
-By default, it will use the centerpoint of each bin as the point to vary each parameter from.
+`MOAT` samples via Latin Hypercube Sampling (LHS), using each bin's centerpoint as the base point by default.
 To pick a random point within the bin, set `add_noise=true`.
 
 `MOAT` furthermore uses an orthogonal LHS, if possible.
@@ -35,11 +29,7 @@ MOAT(8; orthogonalize=false) # do not use an orthogonal LHS (even if d=3, so k=2
 ```
 
 ### Sobol'
-The Sobol' method is a more rigorous sensitivity analysis method, relying on the variance of the model output to quantify sensitivity.
-It relies on a Sobol' sequence, a deterministic sequence of points that are evenly distributed in the unit hypercube.
-The important main feature of the Sobol' sequence is that it is a _low-discrepancy_ sequence, meaning that it fills the space very evenly.
-Thus, using such sequences can give a very good approximation of certain quantities (like integrals) with fewer points than a random sequence would require.
-The Sobol' sequence is built around powers of 2, and so picking `n=2^k` (as well as ±1) will give the best results.
+The Sobol' method is more rigorous, quantifying sensitivity from the variance of the model output. It uses a Sobol' sequence — a deterministic _low-discrepancy_ sequence that fills the unit hypercube very evenly, approximating quantities like integrals with far fewer points than random sampling. The sequence is built around powers of 2, so `n=2^k` (or ±1) gives the best results.
 See [`SobolVariation`](@ref) for more information on how PhysiCellModelManager.jl will use the Sobol' sequence to sample the parameter space and how you can control it.
 
 If the extremes of your distributions (where the CDF is 0 or 1) are non-physical, e.g., an unbounded normal distribution, then consider using `n=2^k-1` to pick a subsequence that does not include the extremes.
@@ -62,11 +52,7 @@ To type it in VS Code, use `\\rasp` and then press `tab`.
 Alternatively, the constructor [`SobolMM`](@ref) is provided as an alias for convenience.
 
 ### Random Balance Design (RBD)
-The RBD method uses a random design matrix (similar to the Sobol' method) and uses a Fourier transform (as in in the FAST method) to compute the sensitivity indices.
-It is much cheaper than Sobol', but only gives first order indices.
-Choosing `n` design points, RBD will run `n` monads.
-It will then rearrange the `n` output values so that each parameter in turn is varied along a sinusoid and computes the Fourier transforms to estimate the first order indices.
-By default, it looks up to the 6th harmonic, but you can control this with the `num_harmonics` keyword argument.
+RBD uses a random design matrix (like Sobol') and a Fourier transform (as in the FAST method) to compute sensitivity indices. It is much cheaper than Sobol' but gives only first-order indices. For `n` design points it runs `n` monads, then rearranges the outputs so each parameter in turn varies along a sinusoid and estimates first-order indices via Fourier transforms. It looks up to the 6th harmonic by default (set with `num_harmonics`).
 
 By default, PhysiCellModelManager.jl will make use of the Sobol' sequence to pick the design points.
 It is best to pick `n` such that is differs from a power of 2 by at most 1, e.g. 7, 8, or 9.
@@ -88,25 +74,18 @@ If `n=2^k`, then PhysiCellModelManager.jl will choose the `n` odd multiples of `
 ## Setting up a sensitivity analysis
 
 ### Simulation inputs
-Having chosen a sensitivity analysis method, you must now choose the same set of inputs as required for a sampling. You will need:
-- `inputs::InputFolders` containing the `data/inputs/` folder info defining your model
-- `evs::Vector{<:ElementaryVariation}` to define the parameters to conduct the sensitivity analysis on and their ranges/distributions
+A sensitivity analysis takes the same inputs as a sampling:
+- `inputs::InputFolders` — the `data/inputs/` folders defining your model.
+- `evs::Vector{<:ElementaryVariation}` — the parameters to analyze and their ranges/distributions.
 
-Unlike for (most) trials, the `ElementaryVariation`'s you will want here are likely to be [`DistributedVariation`](@ref)'s to allow for a continuum of parameter values to be tested.
-PhysiCellModelManager.jl offers [`UniformDistributedVariation`](@ref) and [`NormalDistributedVariation`](@ref) as convenience functions to create these `DistributedVariation`'s.
-You can also use any `d::Distribution` to create a `DistributedVariation` directly:
+Unlike most trials, these are usually [`DistributedVariation`](@ref)s, so a continuum of values can be tested. Use the convenience constructors [`UniformDistributedVariation`](@ref) and [`NormalDistributedVariation`](@ref), or any `d::Distribution` directly:
 ```julia
 dv = DistributedVariation(xml_path, d)
 ```
 
-[`CoVariation`](@ref)s can be used to draw all parameters using the same CDF value.
-For a negative correlation between co-varied parameters, use the `flip` keyword argument to flip the CDF value for some of the parameters.
+[`CoVariation`](@ref)s draw all member parameters from the same CDF value; pass `flip` to negatively correlate some of them. For more complex relationships, use [`LatentVariations`](@ref) to transform latent variables into the parameters of interest.
 
-To build more complex relationships between parameters, you can use [`LatentVariations`](@ref) to define a set of latent variables that are then transformed into the parameters of interest via a user-defined function.
-
-All variation types support an optional `name=...` keyword.
-For sensitivity workflows, these names are used in the scheme DataFrame/CSV headers when applicable.
-You can inspect the effective name with [`variationName`](@ref).
+All variation types accept `name=...`, used in the scheme DataFrame/CSV headers. Inspect the effective name with [`variationName`](@ref).
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.

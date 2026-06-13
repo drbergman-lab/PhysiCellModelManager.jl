@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/src/assets/logo-hero.svg" width="200" alt="PhysiCellModelManager.jl"></p>
+
 # PhysiCellModelManager.jl
 
 [![Stable](https://img.shields.io/badge/docs-stable-blue.svg)](https://drbergman-lab.github.io/PhysiCellModelManager.jl/stable/)

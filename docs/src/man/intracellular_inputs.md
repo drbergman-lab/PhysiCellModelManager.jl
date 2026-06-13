@@ -1,12 +1,8 @@
 # Intracellular inputs
 
-PhysiCellModelManager.jl currently only supports ODE intracellular models using libRoadRunner.
-It uses a specialized format to achieve this, creating the SBML files needed by libRoadRunner at PhysiCell runtime.
-Briefly, the `intracellular.xml` file defines a mapping between cell definitions and intracellular models.
-See the template provided [here](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/combined/template-combined/config/sample_combined_sbmls.xml).
+PhysiCellModelManager.jl currently supports only ODE intracellular models (via libRoadRunner). An `intracellular.xml` file maps cell definitions to intracellular models; the SBML files libRoadRunner needs are generated at PhysiCell runtime. See the [template file](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/combined/template-combined/config/sample_combined_sbmls.xml).
 
-To facilitate creation of such files, and to make it easy to mix-and-match intracellular models, users can place the SBML files that define the ODEs into `data/components/roadrunner` and then simply reference those to construct the specialized XMLs needed.
-For example, place the `Toy_Metabolic_Model.xml` from [sample\_projects\_intracellular/ode/ode\_energy/config/](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/ode/ode_energy/config) into `data/components/roadrunner` and assemble the XML as follows
+To build these files and mix-and-match models, place the SBML files defining your ODEs in `data/components/roadrunner` and reference them. For example, copy `Toy_Metabolic_Model.xml` from [sample\_projects\_intracellular/ode/ode\_energy/config/](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/ode/ode_energy/config) into `data/components/roadrunner` and assemble:
 
 ```julia
 cell_type = "default" # name of the cell type using this intracellular model
@@ -15,9 +11,7 @@ cell_type_to_component = Dict{String, PhysiCellComponent}(cell_type => component
 intracellular_folder = assembleIntracellular!(cell_type_to_component; name="toy_metabolic") # will return "toy_metabolic" or "toy_metabolic_n"
 ```
 
-This creates a folder at `data/inputs/intracellulars/` with the name stored in `intracellular_folder`.
-Also, the `!` in `assembleIntracellular!` references how the components in the `cell_type_to_component` `Dict` are updated to match those in `data/inputs/intracellulars/$(intracellular_folder)/intracellular.xml`.
-Use these IDs to make variations on the components by using
+This creates `data/inputs/intracellulars/$(intracellular_folder)/intracellular.xml`. The `!` in `assembleIntracellular!` signals that the components in `cell_type_to_component` are updated in place to match those written to the XML. Use their IDs to vary the components:
 
 ```julia
 xml_path = ["intracellulars", "intracellular:ID:$(component.id)", ...]

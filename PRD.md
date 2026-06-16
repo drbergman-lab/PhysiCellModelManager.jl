@@ -245,10 +245,32 @@
 **Acceptance criteria:**
 - No orphaned records after normal use.
 - `up.jl` migrations are idempotent.
+- Migrations are exercised end-to-end in CI: a project created by an older released version can be opened by a newer version with `auto_upgrade=true` without data loss (see *Upgrade-path CI* below).
 
 **Edge cases:**
 - Schema version mismatch → migrate up, never silently corrupt.
 - Database file locked by another process → error with message, not silent hang.
+
+### Sub-feature: Upgrade-path CI
+
+**One-line description:** A dedicated GitHub Actions workflow that replays real version history — generate a project with an older *released* package version, then upgrade it with a newer version — to guard `src/up.jl` against regressions.
+
+**Why a separate workflow:** the test needs two different package versions present (one to write legacy data, one to upgrade it), which cannot coexist inside a single `Pkg.test()` environment. It runs on the same triggers as `CI.yml`.
+
+**Behavioral specification:**
+- A *generation* step installs a pinned older release in an isolated environment and produces a real `data/` project (DB + simulation outputs) stamped at that older version.
+- An *upgrade + verify* step opens that same project with the **dev checkout** (`auto_upgrade=true`), which runs every `src/up.jl` milestone between the source version and dev `HEAD`, then asserts data integrity directly against the SQLite database.
+- The source version is a single parameter (a CI matrix entry) so the upgrade history can be "walked back" incrementally. The primary target is `0.1.7` → `HEAD` (the oldest version a real user is currently on; crosses the `0.2.0` par_key rewrite and `0.3.0`), with `0.2.2` → `HEAD` kept to isolate the `0.3.0` hop. Eventual target: back to the oldest installable release `pcvct@0.0.3`.
+
+**Acceptance criteria:**
+- After upgrade, `simulations` / `monads` / `samplings` row counts equal the pre-upgrade snapshot (no data loss).
+- The version table is stamped with the dev `HEAD` version.
+- Output folders referenced by surviving simulations still exist on disk.
+- The upgrade completes without error crossing each milestone in range.
+
+**Edge cases / notes:**
+- Versions `< 0.1.0` were published under the package name `pcvct` (UUID `3c374bc7…`); `≥ 0.1.0` under `PhysiCellModelManager` (UUID `7582d1aa…`). The harness derives the package name from the source version. `0.0.1`/`0.0.2` were never released, so `pcvct@0.0.3` is the floor.
+- Some milestone effects are also produced by normal `initializeDatabase` (e.g. `upgradeToV0_3_0`'s `calibrations` table), so the primary guarantee of the early hops is data preservation, not migration-specific schema deltas; the latter become testable as the source version moves back through data-transforming milestones (`upgradeToV0_2_0`, the `vct.db`→`pcmm.db` rename, etc.).
 
 ---
 

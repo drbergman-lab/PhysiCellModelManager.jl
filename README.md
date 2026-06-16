@@ -84,6 +84,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [ ] Bayesian optimization
   - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
 - [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
+  - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix currently `0.1.7` (real users' oldest version; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`.
 - [x] Export and pruning of simulation outputs
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management

@@ -5,6 +5,42 @@
 
 ---
 
+## 2026-06-15 — Upgrade-path CI for `src/up.jl`
+
+### Motivation
+`src/up.jl` (cross-version DB/file migrations) was untested. It can't live in `Pkg.test()` because exercising a migration needs *two* package versions present: an old one to write legacy data and a new one to upgrade it. Goal: a dedicated workflow that replays real version history.
+
+### Findings that shaped the design
+- **`v0.0.1`/`v0.0.2` were never released.** Registry floor is `pcvct@0.0.3` (UUID `3c374bc7…`); the package was renamed to `PhysiCellModelManager` (UUID `7582d1aa…`) at `0.1.0`. So the harness derives the package name from the source version, and "start at v0.0.1" is impossible via `Pkg`.
+- The upgrade driver (`ModelManager.upgradePackage`) always upgrades to the runtime `pkg_version`; there is **no "stop at version X" knob**, and ModelManager is out of scope (separate repo). So "one milestone hop" is controlled by *which version performs the upgrade*, not by capping.
+- `upgradeToV0_3_0` only adds the `calibrations` table, which `initializeDatabase` also creates on every init — so that migration's effect is shadowed and not independently observable. Early hops therefore assert **data preservation**, not migration-specific deltas.
+
+### Decision: "go backwards"
+Rather than start at the oldest release and upgrade with an *intermediate released* version (which would test released code, not the repo), generate with an older release and **upgrade with the dev checkout** — this exercises the repo's actual `src/up.jl`.
+- **Concrete goal (this session):** support upgrading a **`0.1.7`** project — the version a real user (the repo owner) is currently on — to `HEAD`. `0.1.7` → `HEAD` crosses `0.2.0` (the `upgradeToV0_2_0` par_key binary rewrite) and `0.3.0`.
+- CI matrix source versions: `0.1.7` (primary) and `0.2.2` (isolates the `0.3.0` hop for diagnosis). Verified against the `v0.1.7`/`v0.2.2` tags that the generation API — `createProject`, `InputFolders(...; rulesets_collection)`, `DiscreteVariation`, `configPath` shortcuts, `createTrial(...; n_replicates)`, `run` → `PCMMOutput` — is unchanged, so one `generate.jl` covers both.
+- `verify.jl` asserts the distinguishing `par_key` column on every varied-location variations table when the `0.2.0` milestone is crossed (not produced by normal init, unlike `0.3.0`'s `calibrations` table).
+- Source version is a single parameter so we can keep walking back into the `pcvct` era, ideally to `0.0.3`.
+
+### Rejected
+- *Generate@0.0.3 → upgrade@0.0.10 (released)* — tests the released migration code, not the repo's `up.jl`; also can't reach the pre-0.0.3 functions anyway. Kept as a possible future "released-vs-released" cross-check, not the primary path.
+- *Adding a `target_version` cap to `initializeModelManager`* — would let the dev version do a single hop from old data, but requires editing ModelManager (out of scope).
+
+### Design
+New workflow `.github/workflows/UpgradeCI.yml` (same triggers as `CI.yml`; ubuntu-latest; Julia `lts` + `1`). Two isolated Julia envs under `test/upgrade/tmp/`: a generation env with the pinned old release, and the dev checkout for the upgrade. Scripts `test/upgrade/generate.jl` and `test/upgrade/verify.jl`, parameterized by `PCMM_UPGRADE_SOURCE_VERSION`. Verification reads the SQLite DB directly so it's independent of either package's API.
+
+### First CI run — caught a real bug (the harness paid off immediately)
+The very first `0.1.7` → `HEAD` run failed at the `0.2.0` milestone with `UndefVarError(:validateParsBytes)`. Root cause: `upgradeToV0_2_0` (`src/up.jl`) calls `validateParsBytes` unqualified, but the `bafb5b528` modularization moved that helper into ModelManager (`variations.jl`) and it is **not exported**. The other non-exported MM helpers `up.jl` needs were explicitly imported at the top (`using ModelManager: continueMilestoneUpgrade, populateTableOnFeatureSubset`); `validateParsBytes` was missed.
+- **Impact:** this is a real shipping bug — any user on `0.1.7` (incl. the repo owner) could not upgrade to `0.2.0+`; the migration threw and rolled back every time.
+- **Fix:** added `validateParsBytes` to that explicit import. Chose the in-repo import over exporting from ModelManager (out of scope) and to match the existing pattern in the file.
+- Only this one surfaced because it is the last statement in the migration's `try` block — everything before it resolved, so the rest of the chain is exercised.
+
+### Open questions
+- How far back can generation's API be reused? `0.2.x`→`0.3.x` should share the `createProject` / `run(sampling)` API; the `pcvct` era will likely need an older generation script.
+- Does `pcvct@0.0.3` stamp a version table the newer code can read? (Resolved only when we walk back that far.)
+
+---
+
 ## 2026-06-12 — Documentation restructure for clarity & discoverability
 
 ### Motivation

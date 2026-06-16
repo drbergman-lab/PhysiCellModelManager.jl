@@ -1,0 +1,86 @@
+name: Upgrade CI
+on:
+  push:
+    branches:
+      - main
+    tags: ['*']
+  pull_request:
+  workflow_dispatch:
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: only if it is a pull request build.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ startsWith(github.ref, 'refs/pull/') }}
+
+jobs:
+  upgrade:
+    name: Upgrade ${{ matrix.source-version }} → HEAD - Julia ${{ matrix.julia-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:  # needed for julia-actions/cache to delete old caches
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        julia-version:
+          - 'lts'
+          - '1'
+        # Source release used to generate the legacy project. The dev checkout
+        # performs the upgrade, so each entry exercises every src/up.jl milestone
+        # between the source version and HEAD. Walk this back over time to cover
+        # older migrations (eventually down to pcvct@0.0.3).
+        #   0.1.7 -> HEAD crosses 0.2.0 (par_key rewrite) + 0.3.0; this is the
+        #           oldest version a real user is currently on.
+        #   0.2.2 -> HEAD crosses only 0.3.0; isolates that hop for diagnosis.
+        source-version:
+          - '0.1.7'
+          - '0.2.2'
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set fake ImageMagick/ffmpeg paths
+        run: |
+          echo "PCMM_IMAGEMAGICK_PATH=not/the/real/path/just/for/testing" >> $GITHUB_ENV
+          echo "PCMM_FFMPEG_PATH=another/not/real/path/just/for/testing" >> $GITHUB_ENV
+
+      - uses: julia-actions/setup-julia@v3
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: x64
+
+      - uses: julia-actions/cache@v3
+        with:
+          cache-artifacts: true
+          cache-packages: true
+          cache-registries: false
+
+      - name: Add BergmanLabRegistry
+        run: julia -e 'import Pkg; Pkg.Registry.add("General"); Pkg.Registry.add(Pkg.RegistrySpec(url="https://github.com/drbergman-lab/BergmanLabRegistry.git"))'
+
+      - name: Install libRoadRunner dependencies
+        run: |
+          sudo apt-get update
+          wget https://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          sudo apt-get install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+
+      - uses: julia-actions/julia-buildpkg@v1
+
+      - name: Generate legacy project with source version
+        env:
+          PCMM_UPGRADE_SOURCE_VERSION: ${{ matrix.source-version }}
+          PCMM_NUM_PARALLEL_SIMS: 4
+          PHYSICELL_CPP: g++
+          PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
+          JULIA_DEBUG: PhysiCellModelManager,pcvct
+        run: julia test/upgrade/generate.jl
+
+      - name: Upgrade with dev checkout and verify
+        env:
+          PCMM_UPGRADE_SOURCE_VERSION: ${{ matrix.source-version }}
+          PHYSICELL_CPP: g++
+          PCMM_PUBLIC_REPO_AUTH: ${{ secrets.PUBLIC_REPO_AUTH }}
+          JULIA_DEBUG: PhysiCellModelManager
+        run: julia --project=. test/upgrade/verify.jl

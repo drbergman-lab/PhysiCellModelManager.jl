@@ -1,6 +1,6 @@
 using PhysiCellXMLRules
 
-using ModelManager: continueMilestoneUpgrade, populateTableOnFeatureSubset
+using ModelManager: continueMilestoneUpgrade, populateTableOnFeatureSubset, validateParsBytes
 
 const pcmm_milestones = [v"0.0.1", v"0.0.3", v"0.0.10", v"0.0.11", v"0.0.13", v"0.0.15", v"0.0.16", v"0.0.25", v"0.0.29", v"0.0.30", v"0.1.3", v"0.2.0", v"0.3.0"]
 const upgrade_fns = Dict{VersionNumber,Function}()

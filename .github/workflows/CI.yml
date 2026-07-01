@@ -132,7 +132,7 @@ jobs:
       with:
         directories: src,deps
 
-    - uses: codecov/codecov-action@v6
+    - uses: codecov/codecov-action@v7
       with:
         files: lcov.info
         token: ${{ secrets.CODECOV_TOKEN }}

@@ -63,6 +63,17 @@ cell_type_to_component = Dict("default" => component)
 intracellular_folder = assembleIntracellular!(cell_type_to_component; name="toy_metabolic")
 ```
 
+## Batch pre-built trials into one run
+
+If you've built several trials separately (e.g. across a loop over input folders or parameter sets), pass them all to `run` (or `createTrial`) as a vector to launch them together in a single parallelized batch, rather than calling `run` once per trial. → [Your first project](@ref)
+
+```julia
+trials = [createTrial(inputs, dv1), createTrial(inputs, dv2)]
+run(trials)   # one parallel pool across every simulation in both trials
+```
+
+Elements can be any mix of `Simulation`, `Monad`, `Sampling`, or `Trial`. The parallel-sims limit (`PCMM_NUM_PARALLEL_SIMS`) applies across the whole batch, so this launches more efficiently than running each trial separately.
+
 ## Run a sensitivity analysis
 
 Pick a method ([`MOAT`](@ref), [`SobolMM`](@ref), or RBD) and pass continuous variations. → [Sensitivity analysis](@ref)

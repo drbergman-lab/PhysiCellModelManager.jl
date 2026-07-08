@@ -21,3 +21,21 @@ out = run(simulation; force_recompile=false, prune_options=prune_options)
 @test out.n_success == 1
 
 pruned_simulation_id = simulation.id #! save this for use in other tests
+
+#! postSimulationCleanup runs AFTER the user post_processor, so the callback must
+#! see the intact (un-pruned) output folder; pruning only happens once it returns.
+outputMatFiles(path) = filter(f -> startswith(f, "output") && endswith(f, ".mat"), readdir(path))
+
+intact_during_callback = Ref(false)
+callback_output_path = Ref("")
+cb_simulation = createTrial(inputs, discrete_variations; use_previous=false)
+out_cb = run(cb_simulation; force_recompile=false, prune_options=prune_options,
+    post_processor = function (sp)
+        path = pathToOutputFolder(sp)
+        callback_output_path[] = path
+        intact_during_callback[] = !isempty(outputMatFiles(path)) #! output present before cleanup
+        return nothing
+    end)
+@test out_cb.n_success == 1
+@test intact_during_callback[]                          #! callback saw un-pruned output
+@test isempty(outputMatFiles(callback_output_path[]))   #! cleanup pruned it afterward

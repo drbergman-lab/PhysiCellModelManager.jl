@@ -294,6 +294,34 @@
 
 ---
 
+## Feature: Post-Processing Hook & Quantities of Interest
+
+**One-line description:** Let users compute per-simulation quantities of interest (QoIs) from intact output via a `post_processor` callback, and guarantee that PCMM's destructive pruning runs only after that callback.
+
+**Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders).
+
+**Background:** ModelManager (0.7.x) runs three per-simulation post steps in order:
+`postSimulationProcessing` (non-destructive) → user `post_processor` (successful sims only) → `postSimulationCleanup` (destructive). PCMM implements the destructive step (err-file handling + `pruneSimulationOutput`) as `postSimulationCleanup` so a `post_processor` always reads an un-pruned output folder. `postSimulationProcessing` is left as ModelManager's no-op default.
+
+**Behavioral specification:**
+- `run(T; post_processor = sp -> …)` calls the callback once per successful simulation, after the simulation finishes and before pruning.
+- The callback receives a `SimulationProcess`; use accessors `simulationID`, `monadID`, `wasSuccessful`, `pathToOutputFolder(sp)` (not `sp.simulation.id`).
+- Return patterns: `nothing` (side effects only — must be explicit), a `NamedTuple`, or a `Dict` of `name => scalar` (`Real`/`Bool`/`String`). Non-scalar returns throw `ArgumentError` (ModelManager-side).
+- Stored QoIs land in `data/outputs/postprocessing.db`; read back with `postProcessingTable(T)` or `simulationsTable(T; post_processing=true)`.
+- **(Should-have) QoI builders:** `populationCountQoI(; index=:final, …)` returns a ready-made `post_processor` yielding per-cell-type counts at the final save or any indexed save.
+
+**Acceptance criteria:**
+- A `post_processor` reading `pathToOutputFolder(sp)` sees output files present; those files are pruned only after it returns.
+- A run without `post_processor` prunes exactly as before (no regression).
+- `postSimulationCleanup` runs for every completed simulation, including failures.
+
+**Edge cases:**
+- Callback on a failed simulation → not called (successful sims only); cleanup still runs.
+- Callback returns a non-scalar → `ArgumentError`.
+- Un-updated PCMM against reordered ModelManager → still prunes, but in the earlier hook, so a `post_processor` would see already-pruned output. Task A removes this gap.
+
+---
+
 ## Non-Functional Requirements
 
 ### Performance

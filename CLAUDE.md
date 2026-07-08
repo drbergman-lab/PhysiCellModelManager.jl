@@ -157,3 +157,4 @@ Therefore:
 
 ## To-dos
 When setting you off on a task, check this list and assess if any of these should be done first.
+- Wire the `post_processor` QoI builders (e.g. `populationCountQoI`) into sensitivity analysis and calibration workflows, so a builder's output can feed `runSensitivity`/`CalibrationProblem` directly instead of only landing in the post-processing sink. Not yet done — these builders currently only target `run(...; post_processor=...)`.

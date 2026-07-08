@@ -92,6 +92,15 @@ problem = CalibrationProblem(inputs, parameters, observed_data, summary_statisti
 result  = runABC(problem)
 ```
 
+## Record quantities of interest as simulations run
+
+Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Analyzing output](@ref)
+
+```julia
+run(sampling; post_processor = populationCountQoI())   # one count_<cell_type> quantity per cell type
+postProcessingTable(sampling)                          # read the stored quantities back
+```
+
 ## Query the parameters of past runs
 
 Use [`simulationsTable`](@ref) for a readable table, or [`getAllParameterValues`](@ref) for programmatic access. → [Querying parameters](@ref)

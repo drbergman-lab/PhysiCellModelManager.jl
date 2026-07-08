@@ -5,6 +5,56 @@
 
 ---
 
+## 2026-07-08 — Task B: `populationCountQoI`, a ready-made `post_processor` builder
+
+### Motivation
+Task A made `post_processor` usable (intact output guaranteed), but a user still had to know
+which PCMM loader to call and how to shape its return value. Task B (deferred from the
+original post-processing handoff, "optional/nice-to-have") closes that gap: a one-line
+`post_processor` for the most common QoI, per-cell-type population counts, at the final
+snapshot or any indexed save (the user asked for both explicitly).
+
+### Design
+- New file `src/analysis/post_processor_qois.jl` (included from `analysis.jl`), kept
+  separate from `src/analysis/standard_qois.jl` on purpose: that file's functions are
+  calibration summary statistics keyed by `monad_id` and averaged across replicates (for
+  `CalibrationProblem`); `populationCountQoI` returns a closure keyed by `SimulationProcess`
+  for ModelManager's post-processing sink (one row per simulation). Different shape, different
+  consumer — conflating them in one file would blur that distinction.
+- `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` mirrors the
+  existing `cell_types`/`include_dead` keyword convention from `endpointPopulationCounts`
+  (`standard_qois.jl`) for consistency rather than inventing new names.
+- Returns `Dict("count_$(name)" => n for ...)` rather than a `NamedTuple`: cell type names
+  can contain spaces (e.g. `"fast T cell"`), which aren't valid `NamedTuple` field names: a
+  `Dict` sidesteps that identifier-validity problem entirely.
+- Missing snapshot (e.g. pruned) → `populationCount`/`PhysiCellSnapshot` already return
+  `missing` for that case; the builder checks for it and returns `nothing` (no QoI recorded)
+  rather than propagating an error, matching the "prefer `nothing` for the no-data case"
+  guidance from the original handoff.
+
+### Testing
+New `test/test-scripts/PostProcessorQoITests.jl` (added to `runtests.jl` after
+`PopulationTests.jl`, so `finalPopulationCount`/`populationCount`/`pruned_simulation_id`
+semantics are already established). Constructs a `SimulationProcess` directly (plain struct,
+default positional constructor) to unit-test the returned closure — index default, integer
+index, `cell_types` filter, `include_dead`, and the pruned/missing-snapshot path — without
+needing a live run for each case, plus one full `run(...; post_processor=populationCountQoI())`
+integration test asserting the sink DB (`postProcessingTable`) is populated correctly.
+
+### Docs
+- API reference: `docs/src/lib/analysis.md`, new "Ready-made `post_processor` builders"
+  subsection with an explicit `@docs populationCountQoI` block (mirrors how
+  `calibration.md` documents `standard_qois.jl`'s functions individually rather than via a
+  blanket `@autodocs` page, since `checkdocs=:exports` requires every export to be
+  documented somewhere).
+- User guide: also wrote the "Post-processing during a run" section in
+  `analyzing_output.md` that was deferred from the original docs handoff (gated on Task B
+  landing) — hook description, the three return patterns with real PhysiCell loaders (not
+  ModelManager's stand-ins), the `populationCountQoI` builder, and reading results back.
+  Cross-linked from a new `examples.md` cookbook entry.
+
+---
+
 ## 2026-07-08 — Docs for batch `run(Vector)` and the calibration evaluation budget (D5/D6)
 
 ### Source

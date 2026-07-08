@@ -298,7 +298,7 @@
 
 **One-line description:** Let users compute per-simulation quantities of interest (QoIs) from intact output via a `post_processor` callback, and guarantee that PCMM's destructive pruning runs only after that callback.
 
-**Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders).
+**Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders — implemented).
 
 **Background:** ModelManager (0.7.x) runs three per-simulation post steps in order:
 `postSimulationProcessing` (non-destructive) → user `post_processor` (successful sims only) → `postSimulationCleanup` (destructive). PCMM implements the destructive step (err-file handling + `pruneSimulationOutput`) as `postSimulationCleanup` so a `post_processor` always reads an un-pruned output folder. `postSimulationProcessing` is left as ModelManager's no-op default.
@@ -308,17 +308,19 @@
 - The callback receives a `SimulationProcess`; use accessors `simulationID`, `monadID`, `wasSuccessful`, `pathToOutputFolder(sp)` (not `sp.simulation.id`).
 - Return patterns: `nothing` (side effects only — must be explicit), a `NamedTuple`, or a `Dict` of `name => scalar` (`Real`/`Bool`/`String`). Non-scalar returns throw `ArgumentError` (ModelManager-side).
 - Stored QoIs land in `data/outputs/postprocessing.db`; read back with `postProcessingTable(T)` or `simulationsTable(T; post_processing=true)`.
-- **(Should-have) QoI builders:** `populationCountQoI(; index=:final, …)` returns a ready-made `post_processor` yielding per-cell-type counts at the final save or any indexed save.
+- **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a ready-made `post_processor` recording one `count_<cell_type>` quantity per cell type, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index).
 
 **Acceptance criteria:**
 - A `post_processor` reading `pathToOutputFolder(sp)` sees output files present; those files are pruned only after it returns.
 - A run without `post_processor` prunes exactly as before (no regression).
 - `postSimulationCleanup` runs for every completed simulation, including failures.
+- `populationCountQoI()` matches `finalPopulationCount` at the default `:final` index and `populationCount` at any integer index; an optional `cell_types` filter restricts which cell types are recorded.
 
 **Edge cases:**
 - Callback on a failed simulation → not called (successful sims only); cleanup still runs.
 - Callback returns a non-scalar → `ArgumentError`.
 - Un-updated PCMM against reordered ModelManager → still prunes, but in the earlier hook, so a `post_processor` would see already-pruned output. Task A removes this gap.
+- `populationCountQoI`'s requested snapshot doesn't exist (e.g. pruned) → returns `nothing` for that simulation instead of throwing.
 
 ---
 
@@ -375,6 +377,7 @@
 ### Open Questions
 1. **Model Manager Studio scope:** The PCMM GUI companion (Model Manager Studio) is partially implemented. Which PCMM features should be accessible through it, and in what release phase?
 2. **Windows CI validation:** Windows support is targeted but not yet validated in CI. Build environment and compiler chain need to be confirmed.
+3. **QoI builders for sensitivity/calibration:** `post_processor` QoI builders (e.g. `populationCountQoI`) currently only target `run(...; post_processor=...)` and its sink DB. Not yet done: wiring their output into sensitivity analysis or `CalibrationProblem` workflows (which currently take separate `summary_statistic`/`functions` callbacks of their own).
 
 ### Assumptions
 1. PhysiCell is the only supported ABM framework in this release; generalization is deferred to v2.

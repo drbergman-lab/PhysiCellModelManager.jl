@@ -29,6 +29,17 @@ simulation_process = PhysiCellModelManager.ModelManager.runSimulation(PhysiCellM
 @test isnothing(simulation_process.process)
 @test !simulation_process.success
 
+# test postSimulationCleanup does not crash on a failed process whose output.err was never
+# created (e.g. an sbatch submission failure on HPC before the job ever ran and redirected
+# its stderr to output.err)
+path_to_err = joinpath(PhysiCellModelManager.trialFolder(simulation), "output.err")
+rm(path_to_err; force=true)
+fake_process = Base.run(pipeline(ignorestatus(`false`)); wait=true)
+fake_simulation_process = PhysiCellModelManager.SimulationProcess(simulation, monad.id, fake_process, false)
+@test_nowarn PhysiCellModelManager.postSimulationCleanup(PhysiCellModelManager.simulator(), fake_simulation_process)
+@test contains(read(path_to_err, String), "no output.err file was found")
+rm(path_to_err; force=true)
+
 # test hpc removal of file that does not exist
 @test isnothing(PhysiCellModelManager.rm_hpc_safe("not_a_file.txt"))
 

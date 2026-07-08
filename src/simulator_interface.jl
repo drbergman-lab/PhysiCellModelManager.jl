@@ -263,7 +263,11 @@ function postSimulationCleanup(::PhysiCellSimulator, simulation_process::Simulat
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)
     else
         println("\nWARNING: Simulation $(simulation.id) failed. Please check $(path_to_err) for more information.\n")
-        lines = readlines(path_to_err)
+        #! On HPC, sbatch redirects the job's stderr to output.err too (see prepareHPCCommand),
+        #! but a submission failure (bad partition, malformed script, etc.) can mean the job
+        #! never ran and this file was never created.
+        lines = isfile(path_to_err) ? readlines(path_to_err) :
+                ["(no output.err file was found — the job likely never ran)"]
         open(path_to_err, "w+") do io
             println(io, "Execution command: $(p.cmd)")
             println(io, "\n---stderr from PhysiCell---")

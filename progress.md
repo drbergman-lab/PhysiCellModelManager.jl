@@ -5,6 +5,104 @@
 
 ---
 
+## 2026-07-08 — Task B: `populationCountQoI`, a ready-made `post_processor` builder
+
+### Motivation
+Task A made `post_processor` usable (intact output guaranteed), but a user still had to know
+which PCMM loader to call and how to shape its return value. Task B (deferred from the
+original post-processing handoff, "optional/nice-to-have") closes that gap: a one-line
+`post_processor` for the most common QoI, per-cell-type population counts, at the final
+snapshot or any indexed save (the user asked for both explicitly).
+
+### Design
+- New file `src/analysis/post_processor_qois.jl` (included from `analysis.jl`), kept
+  separate from `src/analysis/standard_qois.jl` on purpose: that file's functions are
+  calibration summary statistics keyed by `monad_id` and averaged across replicates (for
+  `CalibrationProblem`); `populationCountQoI` returns a closure keyed by `SimulationProcess`
+  for ModelManager's post-processing sink (one row per simulation). Different shape, different
+  consumer — conflating them in one file would blur that distinction.
+- `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` mirrors the
+  existing `cell_types`/`include_dead` keyword convention from `endpointPopulationCounts`
+  (`standard_qois.jl`) for consistency rather than inventing new names.
+- Returns `Dict("count_$(name)" => n for ...)` rather than a `NamedTuple`: cell type names
+  can contain spaces (e.g. `"fast T cell"`), which aren't valid `NamedTuple` field names: a
+  `Dict` sidesteps that identifier-validity problem entirely.
+- Missing snapshot (e.g. pruned) → `populationCount`/`PhysiCellSnapshot` already return
+  `missing` for that case; the builder checks for it and returns `nothing` (no QoI recorded)
+  rather than propagating an error, matching the "prefer `nothing` for the no-data case"
+  guidance from the original handoff.
+
+### Testing
+New `test/test-scripts/PostProcessorQoITests.jl` (added to `runtests.jl` after
+`PopulationTests.jl`, so `finalPopulationCount`/`populationCount`/`pruned_simulation_id`
+semantics are already established). Constructs a `SimulationProcess` directly (plain struct,
+default positional constructor) to unit-test the returned closure — index default, integer
+index, `cell_types` filter, `include_dead`, and the pruned/missing-snapshot path — without
+needing a live run for each case, plus one full `run(...; post_processor=populationCountQoI())`
+integration test asserting the sink DB (`postProcessingTable`) is populated correctly.
+
+### Docs
+- API reference: `docs/src/lib/analysis.md`, new "Ready-made `post_processor` builders"
+  subsection with an explicit `@docs populationCountQoI` block (mirrors how
+  `calibration.md` documents `standard_qois.jl`'s functions individually rather than via a
+  blanket `@autodocs` page, since `checkdocs=:exports` requires every export to be
+  documented somewhere).
+- User guide: also wrote the "Post-processing during a run" section in
+  `analyzing_output.md` that was deferred from the original docs handoff (gated on Task B
+  landing) — hook description, the three return patterns with real PhysiCell loaders (not
+  ModelManager's stand-ins), the `populationCountQoI` builder, and reading results back.
+  Cross-linked from a new `examples.md` cookbook entry.
+
+---
+
+## 2026-07-08 — Docs for batch `run(Vector)` and the calibration evaluation budget (D5/D6)
+
+### Source
+Third handoff from the ModelManager session (`handoff-pcmm-batch-and-budget.md`), completing the story started by the post-processing handoffs. Both ModelManager changes are inherited via `@reexport using ModelManager` — no PCMM code change, doc-only.
+
+### D6 — `max_evaluations` enforcement (`docs/src/man/calibration.md`)
+Verified against the ModelManager dev checkout (`_capBatchToBudget`, applied before dispatch in both `_runFirstGeneration` and `_runSubsequentGeneration`, `src/calibration/abc_smc.jl`). Rewrote the "Evaluation budget" section to state, as current behavior, that the cap is enforced before each batch (never overshoots) and the final generation may be partial. Added a callout that `max_evaluations` counts particles (monads), not simulations — a calibration launches up to `max_evaluations × n_replicates` PhysiCell simulations, since PCMM's `CalibrationProblem` runs `n_replicates` simulations per particle.
+Deliberately wrote this as "how it behaves," not "here's what changed" — a reader who never saw the old overshooting behavior shouldn't have to parse a before/after diff to understand the current contract.
+
+### D5 — batching pre-built trials (`docs/src/man/examples.md`)
+PCMM has no page equivalent to ModelManager's `running_simulations.md`, so the cookbook-style `examples.md` (task → minimal code → link) was the right home instead of forcing a new page. Added a "Batch pre-built trials into one run" recipe linking to `Your first project`, since that page already documents the `PCMM_NUM_PARALLEL_SIMS` parallel-pool knob — ties the "one parallel pool across the whole batch" behavior to a concept the reader has already seen.
+
+### Style note (user feedback, applies going forward)
+Don't over-explain decisions in docs pages by referencing prior versions or the conversations that produced them — a reader new to PCMM has no context for "used to be X, now Y." State current behavior directly; save the before/after narrative for this file.
+
+---
+
+## 2026-07-07 — Post-processing hook: move pruning to `postSimulationCleanup` (Task A)
+
+### Motivation
+ModelManager (0.7.x, dev) added a user `post_processor` callback and split the single per-simulation post hook into `postSimulationProcessing` (non-destructive, before the callback) → `post_processor` → `postSimulationCleanup` (destructive, after). PCMM was pruning inside `postSimulationProcessing`, so under the reordered ModelManager a user callback would be handed an already-gutted output folder. This session moves PCMM's destructive work to `postSimulationCleanup` so a `post_processor` always reads intact output.
+
+### Synthesis source
+Planned from two handoff docs from the ModelManager session (`handoff-pcmm-postprocessing.md` = code, `handoff-pcmm-docs.md` = docs). Their inferred PCMM specifics were re-verified against source before coding: `postSimulationProcessing(::PhysiCellSimulator, …)` was at `src/simulator_interface.jl:246` with exactly the described body (err handling + `pruneSimulationOutput(simulation, prune_options)`).
+
+### Decisions
+- **Moved the whole body**, not just pruning: the err-file handling (rm `output.err`/`hpc.err` on success; annotate on failure) runs equally well after the callback, and a callback has no reason to read `output.err`. Cleanest split — leaves `postSimulationProcessing` at ModelManager's no-op default, so PCMM no longer defines it at all.
+- **Import wiring:** swapped `postSimulationProcessing` → `postSimulationCleanup` in the `import ModelManager:` (extend) list; kept `postSimulationProcessing` in the non-extending `using ModelManager:` line so its docstring `@ref` still resolves (ModelManager doesn't export the hooks and PCMM has no DocumenterInterLinks, so a referenced symbol must be in PCMM's namespace).
+- **Testing:** dev-checked-out the local ModelManager worktree (v0.7.5, which already has the reordering + no-op `postSimulationCleanup` default) so the reordered contract is exercised locally. Confirmed method resolution: PCMM owns `postSimulationCleanup(::PhysiCellSimulator, …)`; `postSimulationProcessing` falls through to ModelManager's no-op.
+- **No compat change:** PCMM pins `ModelManager = "0.7"`; the feature ships in a `0.7.x` bump, still in range.
+
+### New export the handoffs missed — `monadsTable`
+ModelManager also just added `monadsTable`/`printMonadsTable` (monad-level analogue of `simulationsTable`), re-exported by PCMM. Documented this session:
+- **API reference:** no change needed — `docs/src/lib/database.md` already autodocs `Modules = [PhysiCellModelManager, ModelManager], Pages = ["database.jl"]`, and `monadsTable` lives in ModelManager's `database.jl`, so it's auto-included once docs rebuild against the updated ModelManager.
+- **User prose:** added a "Monad-level: `monadsTable`" subsection to `man/querying_parameters.md` (next to `simulationsTable`), not `analyzing_output.md` — querying_parameters is where `simulationsTable` is already explained, so the analogue belongs there.
+
+### Docs nav rename (same session, user request)
+Renamed the docs nav section `"Experiments"` → `"Uncertainty Quantification"` in `docs/make.jl` to match ModelManager's naming (both group Sensitivity analysis + Calibration). Nav-label-only; no prose referenced "Experiments".
+
+### Test strategy
+Appended to `PrunerTests.jl`: a run with a `post_processor` that records whether `output*.mat` files exist in `pathToOutputFolder(sp)` during the callback (must be intact), then asserts they're gone after the run (cleanup pruned them). No-regression "pruning without a callback" is already covered by existing `pruned_simulation_id` assertions in Loader/Population/Substrate tests, fed by the existing no-callback run in `PrunerTests.jl`.
+
+### Open questions
+- Task B (QoI builders): design `populationCountQoI(; index=:final)` on `PhysiCellSnapshot(sim_id, index)` — the user asked for final counts *and* any indexed save.
+- Release lockstep: PCMM Task A must not ship against a ModelManager that still has the old single-hook ordering.
+
+---
+
 ## 2026-06-15 — Upgrade-path CI for `src/up.jl`
 
 ### Motivation

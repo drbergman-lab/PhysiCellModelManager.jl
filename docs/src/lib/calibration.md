@@ -69,6 +69,15 @@ ModelManager.CVSource
 ModelManager.LVSource
 ```
 
+### Progress reporting
+
+Internal helper resolving the `progress` keyword of [`runCalibration`](@ref)/[`runABC`](@ref)
+into a console-feedback level.
+
+```@docs
+ModelManager._resolveVerbosity
+```
+
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]

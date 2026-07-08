@@ -28,7 +28,7 @@ makedocs(;
             "LatentVariations" => "man/latent_variations.md",
             "Intracellular inputs" => "man/intracellular_inputs.md",
         ],
-        "Experiments" => Any[
+        "Uncertainty Quantification" => Any[
             "Sensitivity analysis" => "man/sensitivity_analysis.md",
             "Calibration" => "man/calibration.md",
         ],

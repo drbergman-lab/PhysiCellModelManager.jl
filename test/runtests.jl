@@ -34,6 +34,7 @@ test_order = [
     "LoaderTests.jl",
     "MovieTests.jl",
     "PopulationTests.jl",
+    "PostProcessorQoITests.jl",
     "SubstrateTests.jl",
     "GraphsTests.jl",
     "PCFTests.jl",

@@ -63,8 +63,12 @@ jobs:
       - name: Install libRoadRunner dependencies
         run: |
           sudo apt-get update
-          wget https://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/libtinfo5_6.3-2ubuntu0.1_amd64.deb
-          sudo apt-get install -y ./libtinfo5_6.3-2ubuntu0.1_amd64.deb
+          # Resolve the current libtinfo5 amd64 package dynamically: the exact patch
+          # version in the pool changes over time, so a hardcoded filename eventually 404s.
+          base="https://security.ubuntu.com/ubuntu/pool/universe/n/ncurses/"
+          deb=$(wget -qO- "$base" | grep -oP 'libtinfo5_[^"]+_amd64\.deb' | sort -V | tail -1)
+          wget "${base}${deb}"
+          sudo apt-get install -y "./${deb}"
 
       - uses: julia-actions/julia-buildpkg@v1
 

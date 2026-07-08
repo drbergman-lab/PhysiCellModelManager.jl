@@ -263,7 +263,10 @@ A hard cap on the total number of particle evaluations across the entire run, re
 method = ABCSMC(population_size = 100, max_nr_populations = 20, max_evaluations = 5000)
 ```
 
-The current generation's accepted particles are saved before stopping.
+The cap is applied before each batch of proposals is dispatched: a batch that would exceed the budget is trimmed to exactly the remaining allowance, so the run never evaluates more than `max_evaluations` particles. As a result, the final generation may hold fewer than `population_size` particles (and if `max_evaluations` is smaller than `population_size`, even the first generation is trimmed). The current generation's accepted particles are saved before stopping.
+
+!!! note "Budget counts particles, not simulations"
+    Each particle evaluation is one `Monad`, and PCMM runs `n_replicates` simulations per monad (set on the [`CalibrationProblem`](@ref)). So `max_evaluations` bounds the number of *particles*, and a calibration launches up to `max_evaluations × n_replicates` PhysiCell simulations. For example, `max_evaluations = 5000` with `n_replicates = 3` can launch up to 15,000 simulations — size the budget with your replicate count in mind.
 
 ## [Perturbation kernels](@id perturbation_kernels_calibration)
 

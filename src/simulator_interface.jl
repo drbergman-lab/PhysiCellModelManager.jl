@@ -6,11 +6,12 @@ import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
                      simulatorVersionTableName, simulatorVersionIDName, resolveSimulatorVersionID,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
                      packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
-                     postSimulationProcessing, initializeInputFolder, getInputFolderDescription,
+                     postSimulationCleanup, initializeInputFolder, getInputFolderDescription,
                      shortLocationVariationID, shortVariationName
 
 #! Bring ModelManager functions/types into scope without extending them, so we can call them from PCMM implementations when needed.
-using ModelManager: SimulationProcess, SimulationSpec
+#! `postSimulationProcessing` is only referenced (for `@ref` cross-links / the default no-op); PCMM extends `postSimulationCleanup` instead.
+using ModelManager: SimulationProcess, SimulationSpec, postSimulationProcessing
 
 """
     runSimulation(::PhysiCellSimulator, spec::SimulationSpec)
@@ -234,16 +235,21 @@ function prepareSimulationCommand(simulation::Simulation)
 end
 
 """
-    postSimulationProcessing(::PhysiCellSimulator, simulation_process::SimulationProcess; prune_options::PruneOptions=PruneOptions())
+    postSimulationCleanup(::PhysiCellSimulator, simulation_process::SimulationProcess; prune_options::PruneOptions=PruneOptions())
 
-PhysiCell implementation of [`postSimulationProcessing`](@ref).
+PhysiCell implementation of [`postSimulationCleanup`](@ref).
 
-After a simulation finishes:
+Runs as the last per-simulation step — after any user `post_processor` (see
+[`run`](@ref)) has read the intact output folder. This is where PCMM does its
+**destructive** work, so a `post_processor` always sees un-pruned output:
 1. If successful, remove the `output.err` and `hpc.err` files.
 2. If failed, augment `output.err` with the execution command for debugging.
 3. Prune the simulation output according to `prune_options`.
+
+Runs for every completed simulation regardless of success. Non-destructive work
+belongs in [`postSimulationProcessing`](@ref), which runs before the callback.
 """
-function postSimulationProcessing(::PhysiCellSimulator, simulation_process::SimulationProcess;
+function postSimulationCleanup(::PhysiCellSimulator, simulation_process::SimulationProcess;
                                    prune_options::PruneOptions=PruneOptions(), kwargs...)
     if isnothing(simulation_process.process)
         return
@@ -257,7 +263,11 @@ function postSimulationProcessing(::PhysiCellSimulator, simulation_process::Simu
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)
     else
         println("\nWARNING: Simulation $(simulation.id) failed. Please check $(path_to_err) for more information.\n")
-        lines = readlines(path_to_err)
+        #! On HPC, sbatch redirects the job's stderr to output.err too (see prepareHPCCommand),
+        #! but a submission failure (bad partition, malformed script, etc.) can mean the job
+        #! never ran and this file was never created.
+        lines = isfile(path_to_err) ? readlines(path_to_err) :
+                ["(no output.err file was found — the job likely never ran)"]
         open(path_to_err, "w+") do io
             println(io, "Execution command: $(p.cmd)")
             println(io, "\n---stderr from PhysiCell---")

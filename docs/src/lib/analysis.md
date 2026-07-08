@@ -15,6 +15,15 @@ Pages = ["graphs.jl", "motility.jl", "pcf.jl", "population.jl", "preprocessing.j
 Private = false
 ```
 
+### Ready-made `post_processor` builders
+
+Functions that return a `post_processor` (see [`run`](@ref ModelManager.run)) ready to pass
+straight to `run(T; post_processor=...)`.
+
+```@docs
+populationCountQoI
+```
+
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]

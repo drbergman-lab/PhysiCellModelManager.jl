@@ -348,13 +348,6 @@ function Base.show(io::IO, sequence::PhysiCellSequence)
 end
 
 """
-    pathToOutputFolder(simulation_id::Integer)
-
-Return the path to the output folder for a PhysiCell simulation.
-"""
-pathToOutputFolder(simulation_id::Integer) = joinpath(trialFolder(Simulation, simulation_id), "output")
-
-"""
     pathToOutputFileBase(simulation_id::Integer, index::Union{Integer,Symbol})
 
 Return the path to the output files for a snapshot of a PhysiCell simulation, i.e., everything but the file extension.

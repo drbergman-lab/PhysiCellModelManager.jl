@@ -90,6 +90,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management
+- [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
 
 ### Remaining
 

@@ -119,6 +119,14 @@ using Plots
 plot(Simulation(1); include_cell_type_names=["cd8", "cancer"])
 ```
 
+## Make a movie from a simulation's snapshots
+
+Use `makeMovie` to render a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile. Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change frame rate or JPEG resolution/density; omit any to keep the Makefile's default. → [Analyzing output](@ref)
+
+```julia
+makeMovie(1; framerate=10, magick_resize_x=512, magick_resize_y=512)
+```
+
 ## Extract per-cell time series
 
 Use `cellDataSequence` to pull a labeled quantity for every cell across time. → [Analyzing output](@ref)

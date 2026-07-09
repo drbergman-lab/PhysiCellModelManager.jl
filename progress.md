@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-07-08 — Expose Makefile animation parameters (`framerate`, `magick_density`, `magick_resize_x/y`) in `makeMovie`
+
+### Motivation
+`makeMovie` (`src/movie.jl`) only ever forwarded `OUTPUT=` to the PhysiCell Makefile's `jpeg`/`movie` targets, even though that Makefile also reads `FRAMERATE`, `MAGICK_DENSITY`, `MAGICK_RESIZE_X`, `MAGICK_RESIZE_Y` (defaults 24 fps / 96 dpi / 1024×1024). Users had no way to control frame rate or JPEG resolution/density from Julia.
+
+### Design
+- Added four new keyword arguments to `makeMovie(simulation_id::Int; ...)`, each `Union{Missing,Int}=missing`, mirroring the existing `magick_path`/`ffmpeg_path` sentinel pattern already in this function rather than inventing a new convention.
+- Each is only appended as a `"VAR=value"` string to the relevant `Cmd` when not `missing` — an unset keyword falls through to whatever the target project's own Makefile defines for that variable, rather than PCMM silently overriding a user's project-level Makefile customization.
+- `framerate` targets the `movie` command; `magick_density`, `magick_resize_x`, `magick_resize_y` target the `jpeg` command (matches which Makefile target actually reads which variable).
+- `makeMovie(T::AbstractTrial; kwargs...)` / `makeMovie(T::PCMMOutput; kwargs...)` needed no changes — they already forward `kwargs...` untouched.
+
+### Testing
+Extended `test/test-scripts/MovieTests.jl` with a case passing non-default values for all four new keywords and confirming `out.mp4` is still produced; existing no-kwargs path is unchanged and still covered.
+
+### Docs
+- `docs/src/lib/movie.md` needed no edit — it's an `@autodocs` page over `movie.jl`, so the updated docstring flows through automatically.
+- Added a "Movies" section to `docs/src/man/analyzing_output.md` (before "Post-processing during a run") documenting `makeMovie` and a table mapping each new keyword to its Makefile variable and default.
+- Added a matching recipe to the `examples.md` cookbook, linking back to that new section, following the existing task → minimal code → link pattern.
+
+---
+
 ## 2026-07-08 — Task B: `populationCountQoI`, a ready-made `post_processor` builder
 
 ### Motivation

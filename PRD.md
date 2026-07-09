@@ -294,6 +294,29 @@
 
 ---
 
+## Feature: Movie Generation
+
+**One-line description:** Render a simulation's SVG snapshots into a movie via the PhysiCell Makefile's `jpeg`/`movie` targets.
+
+**Priority:** Should-have
+
+**Behavioral specification:**
+- `makeMovie(simulation_id)` invokes `make jpeg` then `make movie` in `physicellDir()`, deletes the intermediate JPEGs, and leaves `out.mp4` in the simulation's output folder.
+- `makeMovie(T::AbstractTrial)` / `makeMovie(out::PCMMOutput)` batch this over every simulation in the trial/output.
+- Keyword arguments `framerate`, `magick_density`, `magick_resize_x`, `magick_resize_y` forward directly to the Makefile's `FRAMERATE`, `MAGICK_DENSITY`, `MAGICK_RESIZE_X`, `MAGICK_RESIZE_Y` variables (`movie`/`jpeg` targets respectively). Each defaults to `missing`, in which case the Makefile's own default for that variable is used unchanged.
+- `magick_path`/`ffmpeg_path` locate the ImageMagick/FFmpeg executables; `verbose` prints the underlying `make` command output.
+
+**Acceptance criteria:**
+- Omitting the new framerate/density/resize keywords reproduces the exact previous behavior (Makefile defaults).
+- Passing any of the four keywords changes the corresponding `make` invocation's variable assignment and is reflected in the produced movie.
+- Re-running `makeMovie` when `out.mp4` already exists is a no-op (`false` return), regardless of these keywords.
+
+**Edge cases:**
+- No `s*.svg` files in the output folder → warn and skip (`false` return), independent of these keywords.
+- ImageMagick or FFmpeg not discoverable on `PATH` → throws `ErrorException`.
+
+---
+
 ## Feature: Post-Processing Hook & Quantities of Interest
 
 **One-line description:** Let users compute per-simulation quantities of interest (QoIs) from intact output via a `post_processor` callback, and guarantee that PCMM's destructive pruning runs only after that callback.

@@ -9,10 +9,17 @@ if Sys.isapple()
     @test makeMovie(1; verbose=true) === false
     @test makeMovie(run(Simulation(1)); verbose=true) |> isnothing #! makeMovie on the PCMMOutput object
 
-    #! Test that makeMovie returns false if no SVGs are found
     sim = Simulation(1)
     inputs = sim.inputs
     variation_id = sim.variation_id
+
+    #! Test that the framerate/magick_density/magick_resize_x/magick_resize_y kwargs still produce a movie
+    custom_params_sim = Simulation(inputs, variation_id)
+    run(custom_params_sim)
+    @test makeMovie(custom_params_sim.id; framerate=10, magick_density=48, magick_resize_x=256, magick_resize_y=256)
+    @test isfile(joinpath(PhysiCellModelManager.dataDir(), "outputs", "simulations", string(custom_params_sim.id), "output", "out.mp4"))
+
+    #! Test that makeMovie returns false if no SVGs are found
     new_sim = Simulation(inputs, variation_id)
     out = run(new_sim)
 

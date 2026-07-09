@@ -26,6 +26,10 @@ There are three ways to allow this function to find these dependencies:
 - `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses `simulator().path_to_magick`.
 - `ffmpeg_path::Union{Missing,String}`: The path to the FFmpeg executable. If not provided, uses `simulator().path_to_ffmpeg`.
 - `verbose::Bool`: If `true`, prints the output of the commands used to generate the movie. Default is `false`.
+- `framerate::Union{Missing,Int}`: Frames per second, forwarded to the Makefile's `FRAMERATE` variable. If not provided, uses the Makefile's own default.
+- `magick_density::Union{Missing,Int}`: JPEG rendering density (dpi), forwarded to the Makefile's `MAGICK_DENSITY` variable. If not provided, uses the Makefile's own default.
+- `magick_resize_x::Union{Missing,Int}`: JPEG resize width, forwarded to the Makefile's `MAGICK_RESIZE_X` variable. If not provided, uses the Makefile's own default.
+- `magick_resize_y::Union{Missing,Int}`: JPEG resize height, forwarded to the Makefile's `MAGICK_RESIZE_Y` variable. If not provided, uses the Makefile's own default.
 
 # Example
 ```julia
@@ -38,8 +42,12 @@ makeMovie(sampling) # make movies for all simulations in the sampling
 out = run(sampling) # run the sampling
 makeMovie(out) # make movies for all simulations in the output
 ```
+```julia
+makeMovie(123; framerate=10, magick_density=48, magick_resize_x=512, magick_resize_y=512)
+```
 """
-function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg, verbose::Bool=false)
+function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg, verbose::Bool=false,
+    framerate::Union{Missing,Int}=missing, magick_density::Union{Missing,Int}=missing, magick_resize_x::Union{Missing,Int}=missing, magick_resize_y::Union{Missing,Int}=missing)
     assertInitialized()
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
     if isfile("$(path_to_output_folder)/out.mp4")
@@ -67,9 +75,16 @@ function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simula
         movie_generated = false
         return movie_generated
     end
-    cmd = Cmd(`make jpeg OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
+    jpeg_args = ["make", "jpeg", "OUTPUT=$(path_to_output_folder)"]
+    ismissing(magick_density) || push!(jpeg_args, "MAGICK_DENSITY=$(magick_density)")
+    ismissing(magick_resize_x) || push!(jpeg_args, "MAGICK_RESIZE_X=$(magick_resize_x)")
+    ismissing(magick_resize_y) || push!(jpeg_args, "MAGICK_RESIZE_Y=$(magick_resize_y)")
+    cmd = Cmd(Cmd(jpeg_args); env=env, dir=physicellDir())
     verbose ? run(cmd) : quietRun(cmd)
-    cmd = Cmd(`make movie OUTPUT=$(path_to_output_folder)`; env=env, dir=physicellDir())
+
+    movie_args = ["make", "movie", "OUTPUT=$(path_to_output_folder)"]
+    ismissing(framerate) || push!(movie_args, "FRAMERATE=$(framerate)")
+    cmd = Cmd(Cmd(movie_args); env=env, dir=physicellDir())
     verbose ? run(cmd) : quietRun(cmd)
     movie_generated = true
     jpgs = readdir(joinpath(trialFolder(Simulation, simulation_id), "output"), sort=false)

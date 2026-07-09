@@ -236,6 +236,29 @@ agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) # get the IDs f
 component_df = rightjoin(cells_df, agent_ids, on=:ID) # join on the agent IDs, keeping only the rows in the connected component
 ```
 
+## Movies
+
+[`makeMovie`](@ref) uses the PhysiCell Makefile to turn a simulation's SVG snapshots into `output/out.mp4`, deleting the intermediate JPEGs afterward. It requires ImageMagick and FFmpeg to be discoverable — on `PATH`, via `PCMM_IMAGEMAGICK_PATH`/`PCMM_FFMPEG_PATH`, or passed directly as `magick_path`/`ffmpeg_path`.
+
+```julia
+makeMovie(1)          # simulation 1 -> output/out.mp4
+makeMovie(sampling)   # every simulation in a trial
+makeMovie(out)        # every simulation in a `run` result
+```
+
+The Makefile's own animation variables are exposed as keyword arguments. Omit any of them to keep that Makefile's default:
+
+| Keyword | Makefile variable | Typical default |
+|---|---|---|
+| `framerate` | `FRAMERATE` | 24 |
+| `magick_density` | `MAGICK_DENSITY` | 96 |
+| `magick_resize_x` | `MAGICK_RESIZE_X` | 1024 |
+| `magick_resize_y` | `MAGICK_RESIZE_Y` | 1024 |
+
+```julia
+makeMovie(1; framerate=10, magick_density=48, magick_resize_x=512, magick_resize_y=512)
+```
+
 ## Post-processing during a run
 
 Everything above analyzes output *after* a run finishes. `run` also accepts a `post_processor` keyword: a callback invoked once per successful simulation, right after it finishes and before PhysiCellModelManager.jl prunes any output — so the callback always sees the intact output folder, however aggressive your `prune_options` are.

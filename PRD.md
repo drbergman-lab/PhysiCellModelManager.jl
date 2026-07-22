@@ -303,6 +303,7 @@
 **Behavioral specification:**
 - `makeMovie(simulation_id)` invokes `make jpeg` then `make movie` in `physicellDir()`, deletes the intermediate JPEGs, and leaves `out.mp4` in the simulation's output folder.
 - `makeMovie(T::AbstractTrial)` / `makeMovie(out::PCMMOutput)` batch this over every simulation in the trial/output.
+- `makeMovie(simulation_ids::AbstractVector{<:Integer})` (e.g. `makeMovie(4:7)`) and `makeMovie(Ts::AbstractVector{<:AbstractTrial})` (e.g. `makeMovie(Simulation.(4:7))`) batch over an explicit collection; the trial-vector form flattens to IDs via `simulationIDs`.
 - Keyword arguments `framerate`, `magick_density`, `magick_resize_x`, `magick_resize_y` forward directly to the Makefile's `FRAMERATE`, `MAGICK_DENSITY`, `MAGICK_RESIZE_X`, `MAGICK_RESIZE_Y` variables (`movie`/`jpeg` targets respectively). Each defaults to `missing`, in which case the Makefile's own default for that variable is used unchanged.
 - `magick_path`/`ffmpeg_path` locate the ImageMagick/FFmpeg executables; `verbose` prints the underlying `make` command output.
 

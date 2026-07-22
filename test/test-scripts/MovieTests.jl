@@ -19,6 +19,10 @@ if Sys.isapple()
     @test makeMovie(custom_params_sim.id; framerate=10, magick_density=48, magick_resize_x=256, magick_resize_y=256)
     @test isfile(joinpath(PhysiCellModelManager.dataDir(), "outputs", "simulations", string(custom_params_sim.id), "output", "out.mp4"))
 
+    #! Batch over a range of IDs and a vector of Simulations (out.mp4 already exists for these, so each is a no-op)
+    @test makeMovie(1:1) |> isnothing
+    @test makeMovie(Simulation.(1:1)) |> isnothing
+
     #! Test that makeMovie returns false if no SVGs are found
     new_sim = Simulation(inputs, variation_id)
     out = run(new_sim)

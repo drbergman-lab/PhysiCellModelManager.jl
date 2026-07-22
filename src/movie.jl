@@ -1,9 +1,11 @@
 export makeMovie
 
 """
-    makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg)
+    makeMovie(simulation_id::Integer; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg)
     makeMovie(T::AbstractTrial; kwargs...)
     makeMovie(out::PCMMOutput; kwargs...)
+    makeMovie(simulation_ids::AbstractVector{<:Integer}; kwargs...)
+    makeMovie(Ts::AbstractVector{<:AbstractTrial}; kwargs...)
 
 Batch make movies for each simulation identified by the input.
 
@@ -18,9 +20,11 @@ There are three ways to allow this function to find these dependencies:
   3. Set environment variables `PCMM_IMAGEMAGICK_PATH` and `PCMM_FFMPEG_PATH` before `using PhysiCellModelManager`.
 
 # Arguments
-- `simulation_id::Int`: The ID of the simulation for which to make the movie.
+- `simulation_id::Integer`: The ID of the simulation for which to make the movie.
 - `T::AbstractTrial`: Make movies for all simulations in the [`AbstractTrial`](@ref).
 - `out::PCMMOutput`: Make movies for all simulations in the output, i.e., all simulations in the completed trial.
+- `simulation_ids::AbstractVector{<:Integer}`: Make movies for each simulation ID in the collection (e.g. a range such as `4:7`).
+- `Ts::AbstractVector{<:AbstractTrial}`: Make movies for every simulation across the collection of trials (e.g. `Simulation.(4:7)`).
 
 # Keyword Arguments
 - `magick_path::Union{Missing,String}`: The path to the ImageMagick executable. If not provided, uses `simulator().path_to_magick`.
@@ -45,8 +49,12 @@ makeMovie(out) # make movies for all simulations in the output
 ```julia
 makeMovie(123; framerate=10, magick_density=48, magick_resize_x=512, magick_resize_y=512)
 ```
+```julia
+makeMovie(4:7) # make movies for simulations 4, 5, 6, and 7
+makeMovie(Simulation.(4:7)) # equivalent, passing Simulation objects
+```
 """
-function makeMovie(simulation_id::Int; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg, verbose::Bool=false,
+function makeMovie(simulation_id::Integer; magick_path::Union{Missing,String}=simulator().path_to_magick, ffmpeg_path::Union{Missing,String}=simulator().path_to_ffmpeg, verbose::Bool=false,
     framerate::Union{Missing,Int}=missing, magick_density::Union{Missing,Int}=missing, magick_resize_x::Union{Missing,Int}=missing, magick_resize_y::Union{Missing,Int}=missing)
     assertInitialized()
     path_to_output_folder = joinpath(trialFolder(Simulation, simulation_id), "output")
@@ -120,3 +128,14 @@ function makeMovie(T::AbstractTrial; kwargs...)
 end
 
 makeMovie(T::PCMMOutput; kwargs...) = makeMovie(T.trial; kwargs...)
+
+function makeMovie(simulation_ids::AbstractVector{<:Integer}; kwargs...)
+    println("Making movies for $(length(simulation_ids)) simulations...")
+    for simulation_id in simulation_ids
+        print("  Making movie for simulation $simulation_id...")
+        makeMovie(simulation_id; kwargs...)
+        println("done.")
+    end
+end
+
+makeMovie(Ts::AbstractVector{<:AbstractTrial}; kwargs...) = makeMovie(simulationIDs(Ts); kwargs...)

@@ -241,9 +241,11 @@ component_df = rightjoin(cells_df, agent_ids, on=:ID) # join on the agent IDs, k
 [`makeMovie`](@ref) uses the PhysiCell Makefile to turn a simulation's SVG snapshots into `output/out.mp4`, deleting the intermediate JPEGs afterward. It requires ImageMagick and FFmpeg to be discoverable — on `PATH`, via `PCMM_IMAGEMAGICK_PATH`/`PCMM_FFMPEG_PATH`, or passed directly as `magick_path`/`ffmpeg_path`.
 
 ```julia
-makeMovie(1)          # simulation 1 -> output/out.mp4
-makeMovie(sampling)   # every simulation in a trial
-makeMovie(out)        # every simulation in a `run` result
+makeMovie(1)              # simulation 1 -> output/out.mp4
+makeMovie(sampling)       # every simulation in a trial
+makeMovie(out)            # every simulation in a `run` result
+makeMovie(4:7)            # a range/vector of simulation IDs
+makeMovie(Simulation.(4:7)) # a vector of trials
 ```
 
 The Makefile's own animation variables are exposed as keyword arguments. Omit any of them to keep that Makefile's default:

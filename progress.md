@@ -5,6 +5,21 @@
 
 ---
 
+## 2026-07-22 — Vector/range dispatch for `makeMovie`
+
+### Motivation
+`makeMovie(4:7)` (a `UnitRange{Int}`) and `makeMovie(Simulation.(4:7))` (a `Vector{Simulation}`) both threw `MethodError` — only the scalar `Int`, single `AbstractTrial`, and `PCMMOutput` forms existed. Batching over an explicit collection of IDs or trials is a natural call and should mirror the existing `AbstractTrial` batching.
+
+### Design
+- Added `makeMovie(simulation_ids::AbstractVector{<:Integer}; kwargs...)`, reusing the "announce → loop → delegate" shape of the `AbstractTrial` method.
+- Added `makeMovie(Ts::AbstractVector{<:AbstractTrial}; kwargs...) = makeMovie(simulationIDs(Ts); kwargs...)`, flattening to IDs via `simulationIDs` (already accepts a vector of trials) so it reuses the integer-vector path.
+- Broadened the worker signature from `simulation_id::Int` to `simulation_id::Integer`: elements of `AbstractVector{<:Integer}` / the output of `simulationIDs` aren't guaranteed to be `Int`, and downstream (`trialFolder`, etc.) already accept `Integer`. Purely additive — no behavior change for existing callers.
+
+### Testing
+Extended `test/test-scripts/MovieTests.jl` (Apple branch) with `makeMovie(1:1)` and `makeMovie(Simulation.(1:1))`, each a no-op (`out.mp4` already exists) returning `nothing`.
+
+---
+
 ## 2026-07-08 — Expose Makefile animation parameters (`framerate`, `magick_density`, `magick_resize_x/y`) in `makeMovie`
 
 ### Motivation

@@ -5,6 +5,34 @@
 
 ---
 
+## 2026-07-23 — Migrate `src/loader.jl` onto PhysiCellOutput.jl
+
+### Motivation
+`src/loader.jl` (~865 lines) duplicated logic that now lives in the standalone **PhysiCellOutput.jl** (BergmanLabRegistry). PhysiCellOutput owns path-based, stateless loading (types keyed on `folder::String`, no database identity). PCMM should depend on it and delete the ported code, keeping only its database-identity layer.
+
+### Design decision — §5 (preserve API via extension) over §4 (wrapper)
+`PCMM_MIGRATION.md` offered two paths: (§4) a piracy-free PCMM-owned wrapper type carrying `simulation_id` and restoring `SimID=…` display, or (§5) `import` the PhysiCellOutput functions and add `::Integer`/`::Simulation` methods routed through `pathToOutputFolder`. The doc *recommends* §4, but that recommendation predates PCMM's actual shape:
+
+- The only internal callers of the loader API are `src/analysis/*.jl`; they are **heavily typed on the concrete `PhysiCellSnapshot`/`PhysiCellSequence`/`AbstractPhysiCellSequence` types** and read their fields directly.
+- The public API (`PhysiCellSnapshot(id, index)`, `PhysiCellSequence(id)`, `cellDataSequence(id, …)`) is exercised by tests and docs.
+- §4's wrapper must **not** subtype `AbstractPhysiCellSequence` (a documented gotcha — internal `getfield` use bypasses `getproperty` forwarding), so it would not flow through the analysis signatures without re-typing every one; and it renames the public constructors. Net: §4 is the *more* invasive option here.
+- §5 preserves the exact public API and keeps all analysis code working unchanged, because id-based constructors return the *real* folder-based PhysiCellOutput objects. Piracy is confined to one file and is tolerable because PCMM is the terminal application in the stack (the doc says as much).
+
+Chosen: **§5**, plus keep `assertInitialized()` at PCMM's id-based entry points (PhysiCellOutput doesn't assert).
+
+### The one real friction: `sequence.simulation_id`
+PhysiCellOutput's `PhysiCellSequence` has no `simulation_id` field. Three sequence-typed builders read it to stamp results: `SimulationPopulationTimeSeries` (`population.jl`), `AverageSubstrateTimeSeries` and `ExtracellularSubstrateTimeSeries` (`substrate.jl`). Every public/test path reaches these via an id/`Simulation`/run-output entry point (no bare-sequence call in tests), so the id is threaded explicitly from the entry point into the sequence-typed builder instead of being read off the sequence.
+
+### Consequences
+- `show(::PhysiCellSnapshot)` now prints `Folder=…` (PhysiCellOutput's display) instead of `SimID=…`. No test asserts the old text; accepted.
+- `getCellDataSequence` deprecation now comes from PhysiCellOutput (re-exported); PCMM's own copy deleted.
+- `_safe_matread` zero-cell workaround dropped; relies on `MAT ≥ 0.12.1`.
+
+### Open questions
+- None blocking. Optional future: an additive SimID-carrying convenience type if users want `SimID=…` display back.
+
+---
+
 ## 2026-07-22 — Vector/range dispatch for `makeMovie`
 
 ### Motivation

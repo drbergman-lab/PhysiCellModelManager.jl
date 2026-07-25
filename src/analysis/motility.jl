@@ -73,7 +73,7 @@ Each cell type taken on by a given cell will be a key in the dictionary returned
 - `direction::Symbol`: The direction to compute the mean speed. Can be `:x`, `:y`, `:z`, or `:any` (default). If `:x`, for example, the mean speed is calculated using only the x component of the cell's movement.
 
 # Returns
-- `AgentDict{Dict{String, NamedTuple}}`: An [`AgentDict`](@ref), i.e., one entry per cell in the simulation. Each dictionary has keys for each cell type taken on by the cell. The values are NamedTuples with fields `:time`, `:distance`, and `:speed`.
+- `AgentDict{Dict{String, NamedTuple}}`: An `AgentDict`, i.e., one entry per cell in the simulation. Each dictionary has keys for each cell type taken on by the cell. The values are NamedTuples with fields `:time`, `:distance`, and `:speed`.
 
 # Example
 ```julia

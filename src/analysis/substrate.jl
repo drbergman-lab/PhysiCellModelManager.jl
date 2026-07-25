@@ -65,7 +65,7 @@ end
 
 A struct to hold the average substrate concentrations over time for a PhysiCell simulation.
 
-Constructed using `AverageSubstrateTimeSeries(x)` where `x` is any of the following: `Integer` (simulation ID), `PhysiCellSequence`, or `Simulation`.
+Constructed using `AverageSubstrateTimeSeries(x)` where `x` is an `Integer` (simulation ID) or a `Simulation`. A pre-loaded sequence can be used via `AverageSubstrateTimeSeries(sequence::PhysiCellSequence, simulation_id::Integer)` (the id is supplied separately because `PhysiCellSequence` no longer carries it).
 
 # Fields
 - `simulation_id::Int`: The ID of the PhysiCell simulation.
@@ -86,7 +86,7 @@ struct AverageSubstrateTimeSeries
     substrate_concentrations::Dict{String, Vector{Real}}
 end
 
-function AverageSubstrateTimeSeries(sequence::PhysiCellSequence)
+function AverageSubstrateTimeSeries(sequence::PhysiCellSequence, simulation_id::Integer)
     time = [snapshot.time for snapshot in sequence.snapshots]
     substrate_concentrations = Dict{String, Vector{Real}}()
     substrate_names = substrateNames(sequence)
@@ -100,7 +100,7 @@ function AverageSubstrateTimeSeries(sequence::PhysiCellSequence)
             substrate_concentrations[substrate_name][i] = snapshot_substrate_concentrations[substrate_name]
         end
     end
-    return AverageSubstrateTimeSeries(sequence.simulation_id, time, substrate_concentrations)
+    return AverageSubstrateTimeSeries(simulation_id, time, substrate_concentrations)
 end
 
 function AverageSubstrateTimeSeries(simulation_id::Integer)
@@ -117,7 +117,7 @@ function AverageSubstrateTimeSeries(simulation_id::Integer)
             return missing
         end
         mkpath(path_to_summary)
-        asts = AverageSubstrateTimeSeries(sequence)
+        asts = AverageSubstrateTimeSeries(sequence, simulation_id)
         df = DataFrame(time=asts.time)
         for (name, concentrations) in pairs(asts.substrate_concentrations)
             df[!, Symbol(name)] = concentrations
@@ -240,7 +240,7 @@ ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(simulation; includ
 ests["time"] # Alternate way to get the time points
 ests["cd8"]["IFNg"] # Get the interferon gamma concentration over time for the CD8 cell type
 
-ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(sequence) # Load extracellular substrate time series for a PhysiCellSequence object
+ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(sequence, 1) # Load from a pre-loaded PhysiCellSequence (pass the simulation id separately)
 ```
 """
 struct ExtracellularSubstrateTimeSeries
@@ -249,7 +249,7 @@ struct ExtracellularSubstrateTimeSeries
     data::Dict{String,Dict{String,Vector{Real}}}
 end
 
-function ExtracellularSubstrateTimeSeries(sequence::PhysiCellSequence; include_dead::Bool=false)
+function ExtracellularSubstrateTimeSeries(sequence::PhysiCellSequence, simulation_id::Integer; include_dead::Bool=false)
     time = [snapshot.time for snapshot in sequence.snapshots]
     data = Dict{String, Dict{String, Vector{Real}}}()
     cell_type_to_name_dict = sequence.cell_type_to_name_dict
@@ -268,7 +268,7 @@ function ExtracellularSubstrateTimeSeries(sequence::PhysiCellSequence; include_d
             end
         end
     end
-    return ExtracellularSubstrateTimeSeries(sequence.simulation_id, time, data)
+    return ExtracellularSubstrateTimeSeries(simulation_id, time, data)
 end
 
 function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::Bool=false)
@@ -296,7 +296,7 @@ function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::
             return missing
         end
         mkpath(path_to_summary)
-        ests = ExtracellularSubstrateTimeSeries(sequence; include_dead=include_dead)
+        ests = ExtracellularSubstrateTimeSeries(sequence, simulation_id; include_dead=include_dead)
         df = DataFrame(time=ests.time)
         for (cell_type_name, data) in pairs(ests.data)
             for (substrate_name, concentrations) in pairs(data)

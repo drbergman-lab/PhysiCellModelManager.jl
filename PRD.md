@@ -161,6 +161,28 @@
 
 ---
 
+## Feature: Simulation Output Loading
+
+**One-line description:** Load PhysiCell simulation output (cells, substrates, mesh, attachment/spring/neighbor graphs) into Julia objects, addressable by simulation ID.
+
+**Priority:** Must-have
+
+**Behavioral specification:**
+- Path-based loading is provided by the external **PhysiCellOutput.jl** package (re-exported): `PhysiCellSnapshot`, `PhysiCellSequence`, `AbstractPhysiCellSequence`, `cellDataSequence`, `cellLabels`, `cellTypeToNameDict`, `substrateNames`, `loadCells!`, `loadSubstrates!`, `loadMesh!`, `loadGraph!`, `pathToOutputFileBase`, `pathToOutputXML`, `AgentID`, `AgentDict`.
+- PCMM adds database-identity entry points on top of these: the same functions accept a `simulation_id::Integer` or a `Simulation`, converting to an output folder via `pathToOutputFolder` before delegating to PhysiCellOutput. Examples: `PhysiCellSnapshot(sim_id, index; include_cells=true)`, `PhysiCellSequence(simulation)`, `cellDataSequence(sim_id, ["position", "total_volume"])`.
+- `include_*` keyword arguments (`include_cells`, `include_substrates`, `include_mesh`, `include_attachments`, `include_spring_attachments`, `include_neighbors`) control eager loading; omitted data can be loaded later with the `load*!` mutators.
+
+**Acceptance criteria:**
+- The id-/`Simulation`-based API behaves identically to the pre-migration in-repo loader for all existing callers and tests.
+- Loaded values match the raw PhysiCell `.mat`/`.xml` output.
+
+**Edge cases:**
+- Missing output file (e.g. a pruned simulation) → returns `missing` with a printed message rather than throwing.
+- A project must be initialized before id-based loading; PCMM's entry points call `assertInitialized()` first so the error is clear.
+- Zero-cell snapshots load correctly (relies on `MAT ≥ 0.12.1`).
+
+---
+
 ## Feature: Analysis — Population Dynamics
 
 **One-line description:** Compute cell population counts and time series from completed simulations.

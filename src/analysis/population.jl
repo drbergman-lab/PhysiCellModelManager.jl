@@ -71,7 +71,7 @@ struct SimulationPopulationTimeSeries <: AbstractPopulationTimeSeries
     cell_count::Dict{String, Vector{Integer}}
 end
 
-function SimulationPopulationTimeSeries(sequence::PhysiCellSequence; include_dead::Bool=false)
+function SimulationPopulationTimeSeries(sequence::PhysiCellSequence, simulation_id::Integer; include_dead::Bool=false)
     time = [snapshot.time for snapshot in sequence.snapshots]
     cell_count = Dict{String, Vector{Integer}}()
     for (i, snapshot) in enumerate(sequence.snapshots)
@@ -84,7 +84,7 @@ function SimulationPopulationTimeSeries(sequence::PhysiCellSequence; include_dea
             cell_count[ID][i] = count
         end
     end
-    return SimulationPopulationTimeSeries(sequence.simulation_id, time, cell_count)
+    return SimulationPopulationTimeSeries(simulation_id, time, cell_count)
 end
 
 function SimulationPopulationTimeSeries(simulation_id::Integer; include_dead::Bool=false, verbose::Bool=true)
@@ -101,7 +101,7 @@ function SimulationPopulationTimeSeries(simulation_id::Integer; include_dead::Bo
             return missing
         end
         mkpath(path_to_summary)
-        spts = SimulationPopulationTimeSeries(sequence; include_dead=include_dead)
+        spts = SimulationPopulationTimeSeries(sequence, simulation_id; include_dead=include_dead)
         df = DataFrame(time=spts.time)
         for (name, counts) in pairs(spts.cell_count)
             df[!, Symbol(name)] = counts

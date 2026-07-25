@@ -19,7 +19,7 @@ import PhysiCellOutput: PhysiCellSnapshot, PhysiCellSequence,
     cellDataSequence, pathToOutputFileBase, pathToOutputXML
 
 export cellDataSequence, getCellDataSequence, PhysiCellSnapshot, PhysiCellSequence,
-    loadCells!, loadSubstrates!, loadMesh!, loadGraph!
+       loadCells!, loadSubstrates!, loadMesh!, loadGraph!
 
 """
     PhysiCellSnapshot(simulation_id::Integer, index::Union{Integer,Symbol}, labels=String[], substrate_names=String[]; kwargs...)

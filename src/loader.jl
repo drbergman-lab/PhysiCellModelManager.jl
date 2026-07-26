@@ -79,6 +79,15 @@ end
 
 PhysiCellSequence(simulation::Simulation; kwargs...) = PhysiCellSequence(simulation.id; kwargs...)
 
+function simulationID(apcs::AbstractPhysiCellSequence)
+    sim_id_str = splitpath(apcs.folder)[end-1]
+    try
+        return parse(Int, sim_id_str)
+    catch e
+        throw(ArgumentError("Could not parse simulation ID from folder path: $apcs.folder"))
+    end
+end
+
 """
     cellDataSequence(simulation_id::Integer, labels; kwargs...)
     cellDataSequence(simulation::Simulation, labels; kwargs...)

@@ -1,6 +1,6 @@
 #! PhysiCell output loading lives in the standalone PhysiCellOutput.jl package (path-based,
 #! stateless: its types are keyed on an output-folder path, with no database identity). PCMM
-#! re-exports that API (see `@reexport using PhysiCellOutput` in PhysiCellModelManager.jl).
+#! exports critical types and functions from PhysiCellOutput.
 #!
 #! This file re-adds PhysiCellModelManager's database identity on top: it provides
 #! `simulation_id::Integer`- and `Simulation`-based entry points that convert to an output

@@ -79,12 +79,16 @@ end
 
 PhysiCellSequence(simulation::Simulation; kwargs...) = PhysiCellSequence(simulation.id; kwargs...)
 
+"""
+    folderToSimulationID(apcs::AbstractPhysiCellSequence)
+
+Return the database id of the simulation corresponding to a PhysiCell sequence (or snapshot) based on the output folder path.
 function folderToSimulationID(apcs::AbstractPhysiCellSequence)
-    sim_id_str = splitpath(apcs.folder)[end-1]
     try
+        sim_id_str = splitpath(apcs.folder)[end-1]
         return parse(Int, sim_id_str)
     catch e
-        throw(ArgumentError("Could not parse simulation ID from folder path: $apcs.folder"))
+        throw(ArgumentError("Could not parse simulation ID from folder path: $(apcs.folder)"))
     end
 end
 

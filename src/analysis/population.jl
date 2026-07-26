@@ -61,12 +61,10 @@ spts = SimulationPopulationTimeSeries(1; include_dead=true) # similar, but count
 ```
 
 # Fields
-- `simulation_id::Int`: The ID of the simulation.
 - `time::Vector{Real}`: The time points of the population time series.
 - `cell_count::Dict{String, Vector{Integer}}`: A dictionary where keys are cell type names and values are vectors of cell counts over time.
 """
 struct SimulationPopulationTimeSeries <: AbstractPopulationTimeSeries
-    simulation_id::Int
     time::Vector{Real}
     cell_count::Dict{String, Vector{Integer}}
 end
@@ -84,7 +82,7 @@ function SimulationPopulationTimeSeries(sequence::PhysiCellSequence; include_dea
             cell_count[ID][i] = count
         end
     end
-    return SimulationPopulationTimeSeries(folderToSimulationID(sequence), time, cell_count)
+    return SimulationPopulationTimeSeries(time, cell_count)
 end
 
 function SimulationPopulationTimeSeries(simulation_id::Integer; include_dead::Bool=false, verbose::Bool=true)
@@ -94,7 +92,7 @@ function SimulationPopulationTimeSeries(simulation_id::Integer; include_dead::Bo
     path_to_file = joinpath(path_to_summary, "population_time_series$(include_dead ? "_include_dead" : "").csv")
     if isfile(path_to_file)
         df = CSV.read(path_to_file, DataFrame)
-        spts = SimulationPopulationTimeSeries(simulation_id, df.time, Dict{String, Vector{Integer}}(name => df[!, Symbol(name)] for name in names(df) if name != "time"))
+        spts = SimulationPopulationTimeSeries(df.time, Dict{String, Vector{Integer}}(name => df[!, Symbol(name)] for name in names(df) if name != "time"))
     else
         sequence = PhysiCellSequence(simulation_id; include_cells=true)
         if ismissing(sequence)
@@ -125,7 +123,7 @@ function Base.getindex(spts::SimulationPopulationTimeSeries, cell_type::String)
 end
 
 function Base.show(io::IO, spts::SimulationPopulationTimeSeries)
-    println(io, "SimulationPopulationTimeSeries for Simulation $(spts.simulation_id):")
+    println(io, "SimulationPopulationTimeSeries:")
     println(io, "  Time: $(formatTimeRange(spts.time))")
     println(io, "  Cell types: $(join(keys(spts.cell_count), ", "))")
 end

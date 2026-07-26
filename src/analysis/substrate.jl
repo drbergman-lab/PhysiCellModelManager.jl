@@ -69,7 +69,6 @@ Constructed using `AverageSubstrateTimeSeries(x)` where `x` is an `Integer` (sim
 A pre-loaded sequence can be used via `AverageSubstrateTimeSeries(sequence::PhysiCellSequence)`.
 
 # Fields
-- `simulation_id::Int`: The ID of the PhysiCell simulation.
 - `time::Vector{Real}`: The time points at which the snapshots were taken.
 - `substrate_concentrations::Dict{String, Vector{Real}}`: A dictionary mapping substrate names to vectors of their average concentrations over time.
 
@@ -82,7 +81,6 @@ asts["oxygen"] # Get the oxygen concentration over time
 ```
 """
 struct AverageSubstrateTimeSeries
-    simulation_id::Int
     time::Vector{Real}
     substrate_concentrations::Dict{String, Vector{Real}}
 end
@@ -101,7 +99,7 @@ function AverageSubstrateTimeSeries(sequence::PhysiCellSequence)
             substrate_concentrations[substrate_name][i] = snapshot_substrate_concentrations[substrate_name]
         end
     end
-    return AverageSubstrateTimeSeries(folderToSimulationID(sequence), time, substrate_concentrations)
+    return AverageSubstrateTimeSeries(time, substrate_concentrations)
 end
 
 function AverageSubstrateTimeSeries(simulation_id::Integer)
@@ -111,7 +109,7 @@ function AverageSubstrateTimeSeries(simulation_id::Integer)
     path_to_file = joinpath(path_to_summary, "average_substrate_time_series.csv")
     if isfile(path_to_file)
         df = CSV.read(path_to_file, DataFrame)
-        asts = AverageSubstrateTimeSeries(simulation_id, df.time, Dict{String, Vector{Real}}(name => df[!, Symbol(name)] for name in names(df) if name != "time"))
+        asts = AverageSubstrateTimeSeries(df.time, Dict{String, Vector{Real}}(name => df[!, Symbol(name)] for name in names(df) if name != "time"))
     else
         sequence = PhysiCellSequence(simulation_id; include_cells=false, include_substrates=true)
         if ismissing(sequence)
@@ -144,7 +142,7 @@ function Base.getindex(asts::AverageSubstrateTimeSeries, name::String)
 end
 
 function Base.show(io::IO, asts::AverageSubstrateTimeSeries)
-    println(io, "AverageSubstrateTimeSeries for Simulation $(asts.simulation_id)")
+    println(io, "AverageSubstrateTimeSeries")
     println(io, "  Time: $(formatTimeRange(asts.time))")
     println(io, "  Substrates: $(join(keys(asts.substrate_concentrations), ", "))")
 end
@@ -227,7 +225,6 @@ end
 A struct to hold the mean extracellular substrate concentrations per cell type over time for a PhysiCell simulation.
 
 # Fields
-- `simulation_id::Int`: The ID of the PhysiCell simulation.
 - `time::Vector{Real}`: The time points at which the snapshots were taken.
 - `data::Dict{String, Dict{String, Vector{Real}}}`: A dictionary mapping cell type names to dictionaries mapping substrate names to vectors of their average concentrations over time.
 
@@ -245,7 +242,6 @@ ests = PhysiCellModelManager.ExtracellularSubstrateTimeSeries(sequence) # Load f
 ```
 """
 struct ExtracellularSubstrateTimeSeries
-    simulation_id::Int
     time::Vector{Real}
     data::Dict{String,Dict{String,Vector{Real}}}
 end
@@ -269,7 +265,7 @@ function ExtracellularSubstrateTimeSeries(sequence::PhysiCellSequence; include_d
             end
         end
     end
-    return ExtracellularSubstrateTimeSeries(folderToSimulationID(sequence), time, data)
+    return ExtracellularSubstrateTimeSeries(time, data)
 end
 
 function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::Bool=false)
@@ -290,7 +286,7 @@ function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::
             end
             data[cell_type_name][substrate_name] = df[!, name]
         end
-        ests = ExtracellularSubstrateTimeSeries(simulation_id, df.time, data)
+        ests = ExtracellularSubstrateTimeSeries(df.time, data)
     else
         sequence = PhysiCellSequence(simulation_id; include_cells=true, include_substrates=true, include_mesh=true)
         if ismissing(sequence)
@@ -325,7 +321,7 @@ function Base.getindex(ests::ExtracellularSubstrateTimeSeries, name::String)
 end
 
 function Base.show(io::IO, ests::ExtracellularSubstrateTimeSeries)
-    println(io, "ExtracellularSubstrateTimeSeries for Simulation $(ests.simulation_id)")
+    println(io, "ExtracellularSubstrateTimeSeries")
     println(io, "  Time: $(formatTimeRange(ests.time))")
     substrates = reduce(hcat, [keys(v) for v in values(ests.data)]) |> unique
     println(io, "  Substrates: $(join(substrates, ", "))")

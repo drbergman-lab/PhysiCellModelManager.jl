@@ -1,4 +1,4 @@
-using DataFrames, PhysiCellOutput
+using DataFrames
 
 filename = @__FILE__
 filename = split(filename, "/") |> last

@@ -101,7 +101,7 @@ function AverageSubstrateTimeSeries(sequence::PhysiCellSequence)
             substrate_concentrations[substrate_name][i] = snapshot_substrate_concentrations[substrate_name]
         end
     end
-    return AverageSubstrateTimeSeries(simulationID(sequence), time, substrate_concentrations)
+    return AverageSubstrateTimeSeries(folderToSimulationID(sequence), time, substrate_concentrations)
 end
 
 function AverageSubstrateTimeSeries(simulation_id::Integer)
@@ -269,7 +269,7 @@ function ExtracellularSubstrateTimeSeries(sequence::PhysiCellSequence; include_d
             end
         end
     end
-    return ExtracellularSubstrateTimeSeries(simulationID(sequence), time, data)
+    return ExtracellularSubstrateTimeSeries(folderToSimulationID(sequence), time, data)
 end
 
 function ExtracellularSubstrateTimeSeries(simulation_id::Integer; include_dead::Bool=false)

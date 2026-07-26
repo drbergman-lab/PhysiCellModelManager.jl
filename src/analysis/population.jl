@@ -84,7 +84,7 @@ function SimulationPopulationTimeSeries(sequence::PhysiCellSequence; include_dea
             cell_count[ID][i] = count
         end
     end
-    return SimulationPopulationTimeSeries(simulationID(sequence), time, cell_count)
+    return SimulationPopulationTimeSeries(folderToSimulationID(sequence), time, cell_count)
 end
 
 function SimulationPopulationTimeSeries(simulation_id::Integer; include_dead::Bool=false, verbose::Bool=true)

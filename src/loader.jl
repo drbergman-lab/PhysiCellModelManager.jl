@@ -79,7 +79,7 @@ end
 
 PhysiCellSequence(simulation::Simulation; kwargs...) = PhysiCellSequence(simulation.id; kwargs...)
 
-function simulationID(apcs::AbstractPhysiCellSequence)
+function folderToSimulationID(apcs::AbstractPhysiCellSequence)
     sim_id_str = splitpath(apcs.folder)[end-1]
     try
         return parse(Int, sim_id_str)

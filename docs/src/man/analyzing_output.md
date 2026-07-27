@@ -187,7 +187,7 @@ Each of these graphs is expected to be symmetric, i.e., if cell A is attached to
 Nonetheless, PhysiCellModelManager.jl holds the data in a directed graph.
 
 Currently, PhysiCellModelManager.jl supports computing connected components for any of these graphs using the [`connectedComponents`](@ref) function.
-For an [`PhysiCellModelManager.AbstractPhysiCellSequence`](@ref) object, the graphs can be loaded using the [`loadGraph!`](@ref) function for any other analysis.
+For an `AbstractPhysiCellSequence` object, the graphs can be loaded using the `loadGraph!` function (provided by [PhysiCellOutput.jl](https://github.com/drbergman-lab/PhysiCellOutput.jl)) for any other analysis.
 
 ### Examples
 For all examples that follow, we will assume a [`PhysiCellSnapshot`](@ref) object called `snapshot` has been created, e.g., as follows:
@@ -202,7 +202,7 @@ To get a list of the connected components for the `:neighbors` graph for all liv
 connected_components = connectedComponents(snapshot) # defaults to the :neighbors graph, all cells, and exclude dead cells
 ```
 The `connected_components` object is a `Dict` with the cell type names in a single vector as the only key with value a vector of vectors.
-Each element is a vector of the cell IDs belonging to that connected component in the wrapper type [`PhysiCellModelManager.AgentID`](@ref).
+Each element is a vector of the cell IDs belonging to that connected component in the wrapper type `AgentID`.
 
 If you want to compute connected components for subsets of cells, pass in a vector of vectors of cell type names (`String`s) such that each vector corresponds to a subset of cell types.
 ```julia

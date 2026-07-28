@@ -62,6 +62,8 @@ struct PCMMMissingProject <: Exception
 end
 
 function __init__()
+    isInitialized() && return
+
     sim = PhysiCellSimulator()
     sim.compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
     sim.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing

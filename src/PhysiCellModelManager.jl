@@ -62,7 +62,7 @@ struct PCMMMissingProject <: Exception
 end
 
 function __init__()
-    isInitialized() && return
+    !isnothing(ModelManager.mm_globals_ref[]) && isInitialized() && return
 
     sim = PhysiCellSimulator()
     sim.compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"

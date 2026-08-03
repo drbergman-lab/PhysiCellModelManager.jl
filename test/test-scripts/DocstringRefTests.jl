@@ -4,10 +4,13 @@
 # This runs with the ordinary suite and needs no docs build.
 # See CLAUDE.md, "Docstring cross-references".
 #
-#! PCMM's doc site renders both PhysiCellModelManager and ModelManager (see docs/make.jl),
-#! so a ref resolves if the target is public in *either* module. Docstrings written in PCMM's
-#! source on a ModelManager function live in `Docs.meta(PhysiCellModelManager)` but are keyed
-#! by the ModelManager binding, which is why both metas are walked.
+#! Only `Docs.meta(PhysiCellModelManager)` is walked: that is the set of docstrings this repo
+#! can actually fix. Docstrings written in PCMM's source on a ModelManager function land there
+#! too (keyed by the ModelManager binding), so the simulator-interface methods are covered.
+#! ModelManager's own docstrings are deliberately out of scope — it has an equivalent guard of
+#! its own, and PCMM's suite should not go red over a defect in a dependency it cannot patch.
+#! Targets still resolve against *both* public sets, since PCMM's doc site renders both modules
+#! (see docs/make.jl) and a PCMM docstring may legitimately ref a public ModelManager name.
 #! Julia 1.10 (the compat floor) has neither `Base.ispublic` nor the `public` keyword, so
 #! `@compat public` is a no-op there and every name would look private. The check is only
 #! meaningful on 1.11+; docs CI must run 1.11+ as well, or Documenter's `Private = false`
@@ -22,15 +25,13 @@
         isResolvable(sym) = Base.ispublic(PhysiCellModelManager, sym) || Base.ispublic(MM, sym)
 
         violations = Tuple{Symbol,String}[]
-        for mod in (PhysiCellModelManager, MM)
-            for (binding, multidoc) in Docs.meta(mod)
-                for docstr in values(multidoc.docs)
-                    text = join(Iterators.filter(x -> x isa AbstractString, docstr.text), "")
-                    for m in eachmatch(r"\[`([^`]+)`\]\(@ref\)", text)
-                        target = Symbol(refTarget(m.captures[1]))
-                        isResolvable(target) && continue
-                        push!(violations, (binding.var, m.captures[1]))
-                    end
+        for (binding, multidoc) in Docs.meta(PhysiCellModelManager)
+            for docstr in values(multidoc.docs)
+                text = join(Iterators.filter(x -> x isa AbstractString, docstr.text), "")
+                for m in eachmatch(r"\[`([^`]+)`\]\(@ref\)", text)
+                    target = Symbol(refTarget(m.captures[1]))
+                    isResolvable(target) && continue
+                    push!(violations, (binding.var, m.captures[1]))
                 end
             end
         end

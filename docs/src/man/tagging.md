@@ -102,6 +102,6 @@ deletion.
 
 ## Silencing the hint
 
-If a trial is created with no user tags, PCMM prints a one-time-per-session hint. Turn it off
-with [`setTagHints!`](@ref)`(false)`, or set the `MODELMANAGER_TAG_HINTS` environment variable —
-the better option in a job script, since it needs no code change.
+If a trial is created with no user tags, PCMM prints a one-time-per-session hint. Pass `false`
+to [`setTagHints!`](@ref) to turn it off, or set the `MODELMANAGER_TAG_HINTS` environment
+variable — the better option in a job script, since it needs no code change.

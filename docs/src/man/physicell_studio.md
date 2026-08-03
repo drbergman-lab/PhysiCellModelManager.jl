@@ -1,4 +1,4 @@
-# Using PhysiCell Studio
+# [Using PhysiCell Studio](@id physicell_studio_man)
 See [PhysiCell-Studio](https://github.com/PhysiCell-Tools/PhysiCell-Studio). Within PhysiCellModelManager.jl, PhysiCell Studio is for visualizing output (the `Plot` tab) and inspecting model parameters (the other tabs).
 
 **Do not use the `Run` tab in PhysiCell Studio — it may delete simulation data.**
@@ -49,5 +49,5 @@ julia> runStudio(sim_id; python_path=path_to_python, studio_path=path_to_studio)
 ```
 
 ## Editing in PhysiCell Studio
-`runStudio` opens Studio on the specified simulation using temporary configuration and rules files, so edits are lost when Studio closes — remember, this is the output of a simulation that __already__ ran. Save the configuration with `File > Save as` and the rules from the `Rules` tab. The PhysiCell 1.14.1 behavior of copying over initial-conditions files is not yet supported; see [Known limitations](@ref).
+`runStudio` opens Studio on the specified simulation using temporary configuration and rules files, so edits are lost when Studio closes — remember, this is the output of a simulation that __already__ ran. Save the configuration with `File > Save as` and the rules from the `Rules` tab. The PhysiCell 1.14.1 behavior of copying over initial-conditions files is not yet supported; see [Known limitations](@ref known_limitations_man).
 

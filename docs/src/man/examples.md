@@ -1,10 +1,10 @@
 # [Examples](@id examples_cookbook)
 
-A task-oriented catalog of common recipes. Each entry shows the minimal code and links to the full how-to page. All assume you have a project set up (see [Your first project](@ref)) and a defined `inputs::InputFolders`.
+A task-oriented catalog of common recipes. Each entry shows the minimal code and links to the full how-to page. All assume you have a project set up (see [Your first project](@ref getting_started_man)) and a defined `inputs::InputFolders`.
 
 ## Vary one parameter over a few values
 
-Use [`DiscreteVariation`](@ref) to sweep a finite set of values. → [Varying parameters](@ref)
+Use [`DiscreteVariation`](@ref) to sweep a finite set of values. → [Varying parameters](@ref varying_parameters_man)
 
 ```julia
 dv = DiscreteVariation(configPath("max_time"), [1440.0, 2880.0])
@@ -13,7 +13,7 @@ run(inputs, dv)
 
 ## Sweep a grid of parameters
 
-Pass multiple variations; by default they combine on a grid (all combinations). → [Varying parameters](@ref)
+Pass multiple variations; by default they combine on a grid (all combinations). → [Varying parameters](@ref varying_parameters_man)
 
 ```julia
 dv_g1 = DiscreteVariation(configPath("cd8", "cycle", "rate", 0), [0.001, 0.002])
@@ -23,7 +23,7 @@ sampling = createTrial(inputs, dv_g1, dv_s; n_replicates=4) # 2×3 monads, 4 rep
 
 ## Vary a parameter over a continuous range
 
-Use [`DistributedVariation`](@ref) with a distribution from `Distributions.jl`. → [Varying parameters](@ref)
+Use [`DistributedVariation`](@ref) with a distribution from `Distributions.jl`. → [Varying parameters](@ref varying_parameters_man)
 
 ```julia
 using Distributions
@@ -32,7 +32,7 @@ dv = DistributedVariation(configPath("cd8", "apoptosis", "rate"), Uniform(0, 0.0
 
 ## Co-vary linked parameters
 
-Use [`CoVariation`](@ref) when parameters must move together (e.g. a rule's base value and its max response). → [CoVariations](@ref)
+Use [`CoVariation`](@ref) when parameters must move together (e.g. a rule's base value and its max response). → [CoVariations](@ref covariations_man)
 
 ```julia
 covariation = CoVariation(
@@ -43,7 +43,7 @@ covariation = CoVariation(
 
 ## Impose a constraint between parameters
 
-Use [`LatentVariation`](@ref) when target parameters are derived from latent parameters through a mapping (e.g. enforcing high > low thresholds). → [LatentVariations](@ref)
+Use [`LatentVariation`](@ref) when target parameters are derived from latent parameters through a mapping (e.g. enforcing high > low thresholds). → [LatentVariations](@ref latent_variations_man)
 
 ```julia
 using Distributions
@@ -55,7 +55,7 @@ lv = LatentVariation(
 
 ## Add an intracellular (ODE) model
 
-Reference an SBML file in `data/components/roadrunner` and assemble the intracellular XML. → [Intracellular inputs](@ref)
+Reference an SBML file in `data/components/roadrunner` and assemble the intracellular XML. → [Intracellular inputs](@ref intracellular_inputs_man)
 
 ```julia
 component = PhysiCellComponent("roadrunner", "Toy_Metabolic_Model.xml")
@@ -65,7 +65,7 @@ intracellular_folder = assembleIntracellular!(cell_type_to_component; name="toy_
 
 ## Batch pre-built trials into one run
 
-If you've built several trials separately (e.g. across a loop over input folders or parameter sets), pass them all to `run` (or `createTrial`) as a vector to launch them together in a single parallelized batch, rather than calling `run` once per trial. → [Your first project](@ref)
+If you've built several trials separately (e.g. across a loop over input folders or parameter sets), pass them all to `run` (or `createTrial`) as a vector to launch them together in a single parallelized batch, rather than calling `run` once per trial. → [Your first project](@ref getting_started_man)
 
 ```julia
 trials = [createTrial(inputs, dv1), createTrial(inputs, dv2)]
@@ -76,7 +76,7 @@ Elements can be any mix of `Simulation`, `Monad`, `Sampling`, or `Trial`. The pa
 
 ## Run a sensitivity analysis
 
-Pick a method ([`MOAT`](@ref), [`SobolMM`](@ref), or RBD) and pass continuous variations. → [Sensitivity analysis](@ref)
+Pick a method ([`MOAT`](@ref), [`SobolMM`](@ref), or RBD) and pass continuous variations. → [Sensitivity analysis](@ref sensitivity_analysis_man)
 
 ```julia
 method = MOAT(8) # 8 base points
@@ -94,7 +94,7 @@ result  = runABC(problem)
 
 ## Record quantities of interest as simulations run
 
-Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Analyzing output](@ref)
+Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Analyzing output](@ref analyzing_output_man)
 
 ```julia
 run(sampling; post_processor = populationCountQoI())   # one count_<cell_type> quantity per cell type
@@ -103,7 +103,7 @@ postProcessingTable(sampling)                          # read the stored quantit
 
 ## Query the parameters of past runs
 
-Use [`simulationsTable`](@ref) for a readable table, or [`getAllParameterValues`](@ref) for programmatic access. → [Querying parameters](@ref)
+Use [`simulationsTable`](@ref) for a readable table, or [`getAllParameterValues`](@ref) for programmatic access. → [Querying parameters](@ref querying_parameters_man)
 
 ```julia
 printSimulationsTable(sampling)          # human-readable, varied values only
@@ -112,7 +112,7 @@ df = getAllParameterValues(sampling)     # every terminal XML value, columns = X
 
 ## Plot population over time
 
-Call `plot` directly on a `Simulation`, `Monad`, `Sampling`, or a `run` result for a population panel (mean ± SD per cell type). → [Analyzing output](@ref)
+Call `plot` directly on a `Simulation`, `Monad`, `Sampling`, or a `run` result for a population panel (mean ± SD per cell type). → [Analyzing output](@ref analyzing_output_man)
 
 ```julia
 using Plots
@@ -121,7 +121,7 @@ plot(Simulation(1); include_cell_type_names=["cd8", "cancer"])
 
 ## Make a movie from a simulation's snapshots
 
-Use `makeMovie` to render a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile. Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change frame rate or JPEG resolution/density; omit any to keep the Makefile's default. → [Analyzing output](@ref)
+Use `makeMovie` to render a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile. Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change frame rate or JPEG resolution/density; omit any to keep the Makefile's default. → [Analyzing output](@ref analyzing_output_man)
 
 ```julia
 makeMovie(1; framerate=10, magick_resize_x=512, magick_resize_y=512)
@@ -129,7 +129,7 @@ makeMovie(1; framerate=10, magick_resize_x=512, magick_resize_y=512)
 
 ## Extract per-cell time series
 
-Use `cellDataSequence` to pull a labeled quantity for every cell across time. → [Analyzing output](@ref)
+Use `cellDataSequence` to pull a labeled quantity for every cell across time. → [Analyzing output](@ref analyzing_output_man)
 
 ```julia
 data = cellDataSequence(1, "position")

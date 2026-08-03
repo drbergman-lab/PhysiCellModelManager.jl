@@ -464,7 +464,7 @@ Each calibration run creates `data/outputs/calibrations/{id}/` with:
 
 Three built-in summary statistics accept a monad ID and return a `Dict` suitable for the `summary_statistic` argument of [`CalibrationProblem`](@ref).
 
-### `endpointPopulationCounts`
+### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
 
 ```julia
 endpointPopulationCounts(monad_id; cell_types=nothing, include_dead=false)
@@ -473,7 +473,7 @@ endpointPopulationCounts(monad_id; cell_types=nothing, include_dead=false)
 Returns a `Dict{String,Float64}` mapping each cell type to its mean population count at the final simulation time point, averaged across all replicates.
 Returns `missing` if no simulation output is available.
 
-### `endpointPopulationFractions`
+### [`endpointPopulationFractions`](@id endpoint_population_fractions_section)
 
 ```julia
 endpointPopulationFractions(monad_id; cell_types=nothing, include_dead=false)
@@ -482,7 +482,7 @@ endpointPopulationFractions(monad_id; cell_types=nothing, include_dead=false)
 Returns a `Dict{String,Float64}` mapping each cell type to its **fraction** of the total live cell population at the final time point, averaged across replicates.
 Returns `missing` if no simulation output is available.
 
-### `meanPopulationTimeSeries`
+### [`meanPopulationTimeSeries`](@id mean_population_time_series_section)
 
 ```julia
 meanPopulationTimeSeries(monad_id; cell_types=nothing, include_dead=false)
@@ -495,7 +495,7 @@ For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict t
 
 ## Built-in distance functions
 
-### `mseDistance`
+### [`mseDistance`](@id mse_distance_section)
 
 ```julia
 mseDistance(simulated, observed)

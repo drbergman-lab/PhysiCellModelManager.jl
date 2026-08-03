@@ -1,4 +1,4 @@
-# Known limitations
+# [Known limitations](@id known_limitations_man)
 ## Always select all simulations associated with a `Monad`
 Anytime a group of simulation replicates (a `Monad` in PhysiCellModelManager.jl internals) is requested, all simulations in that group are used, regardless of the value of `n_replicates`.
 

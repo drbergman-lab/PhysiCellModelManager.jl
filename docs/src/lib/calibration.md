@@ -77,10 +77,3 @@ into a console-feedback level.
 ```@docs
 ModelManager._resolveVerbosity
 ```
-
-## Private API
-```@autodocs
-Modules = [PhysiCellModelManager]
-Pages = ["calibration.jl"]
-Public = false
-```

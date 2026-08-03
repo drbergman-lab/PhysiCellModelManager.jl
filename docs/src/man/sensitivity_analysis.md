@@ -1,4 +1,4 @@
-# Sensitivity analysis
+# [Sensitivity analysis](@id sensitivity_analysis_man)
 
 PhysiCellModelManager.jl supports sensitivity analysis workflows and can reuse previous simulations to perform and extend them.
 
@@ -83,7 +83,7 @@ Unlike most trials, these are usually [`DistributedVariation`](@ref)s, so a cont
 dv = DistributedVariation(xml_path, d)
 ```
 
-[`CoVariation`](@ref)s draw all member parameters from the same CDF value; pass `flip` to negatively correlate some of them. For more complex relationships, use [`LatentVariations`](@ref) to transform latent variables into the parameters of interest.
+[`CoVariation`](@ref)s draw all member parameters from the same CDF value; pass `flip` to negatively correlate some of them. For more complex relationships, use [LatentVariations](@ref latent_variations_man) to transform latent variables into the parameters of interest.
 
 All variation types accept `name=...`, used in the scheme DataFrame/CSV headers. Inspect the effective name with [`variationName`](@ref).
 

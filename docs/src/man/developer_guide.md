@@ -1,4 +1,4 @@
-# Developer guide
+# [Developer guide](@id developer_guide_man)
 
 ## Style guide
 - Use `#!` for comments that are informative

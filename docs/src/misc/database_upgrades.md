@@ -1,4 +1,4 @@
-# Database upgrades
+# [Database upgrades](@id database_upgrades_misc)
 Over time, the database structure of PhysiCellModelManager.jl will evolve to reflect new capabilities, features, and improvements.
 Not every release will change the database structure, but when one does in a way that could affect your workflow, PhysiCellModelManager.jl will throw a warning.
 The warning will link to this page and the function will wait for user input to proceed.

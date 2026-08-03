@@ -124,13 +124,13 @@ PhysiCellModelManager.userParameterPath
 ## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["configuration.jl"]
+Pages = ["/configuration.jl"]
 Private = false
 ```
 
 ## Private API
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["configuration.jl"]
+Pages = ["/configuration.jl"]
 Public = false
 ```

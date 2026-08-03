@@ -5,6 +5,44 @@
 
 ---
 
+## 2026-08-02 — Absorb ModelManager's docs-findability pass; declare PCMM's public API
+
+### Motivation
+`HANDOFF-modelmanager-docs.md` arrived from a ModelManager session after MM's docs-findability pass (MM HEAD `7c91292`), framed as "opportunity, not repair." Audited against PCMM `main` (`10a65877d`), that framing is wrong: one item is a latent **build break**, two findings are false, one transfers only in a different form, and four problems the handoff never mentions turned up.
+
+### The build break (the reason this is not optional)
+MM's `src/tags.jl` exports 17 names. `docs/make.jl` sets `modules=[PhysiCellModelManager, ModelManager]` and `checkdocs=:exports` with no `warnonly`, so Documenter's `missingdocs` requires every docstring on an exported name in *either* module to be rendered — and no PCMM `Pages` entry matches `tags.jl` (all 42 enumerated). It passes today only because `tags.jl` is unreleased: `git rev-parse v0.8.2^{tree}` equals the `git-tree-sha1` registered for 0.8.2, and that tree has no `tags.jl`. PCMM's docs CI `Pkg.develop`s PCMM only, so MM comes from the registry. **The day MM cuts 0.8.3, the docs job goes red.** Since `src/PhysiCellModelManager.jl:4` does `@reexport using ModelManager`, users already get all 17 tag names — with no page and no mention anywhere.
+
+### Handoff findings corrected
+- (c) "`up.md` does not render `up.jl`" — **false**; `lib/up.md:11-19` renders it for both modules.
+- (d) "`project_configuration.jl` is not rendered" — **false**; `lib/globals.md:26-33` renders it.
+- (f) self-resolving "See the *X* API reference" links — **does not transfer** in that form (PCMM has no man/lib H1 collisions). The live bug is **backticked sub-headings shadowing docstrings**: the `Header` resolver (order 1.0) precedes `Docs` (3.0), and PCMM has ~17 headings that are bare backticked names. Builds stay green, so this needs a deliberate slug-intersection check.
+- (b) the `utilities.md` glob — **real**. `Pages` matching is `endswith(path, p)`; an exhaustive sweep of 42 globs × 65 files found three cross-suffix collisions, but only `utilities.jl` ← MM `xml_utilities.jl` is live (only `utilities.md` lists both modules).
+
+### Newly found
+`src/deletion.jl`'s docstring is **orphaned**: Julia stores a docstring in `Docs.meta` of the module whose *source contains it*, keyed by the owner binding — so a PCMM-authored docstring on `ModelManager.clearSimulatorArtifacts` lives in `meta(PhysiCellModelManager)`, while `lib/deletion.md` lists `Modules = [ModelManager]` only. Also: a dead `@autodocs` block at `lib/calibration.md:82-86` (PCMM has no `calibration.jl`; the `AutoDocsBlocks` runner has no emptiness check, so glob typos fail silently), `man/index.md`'s unfiltered `@index` contradicting `index.md:27`, and sidebar labels drifting from their H1s.
+
+### Key decision — do **not** mirror MM on the public-API question
+PCMM has 234 documented bindings, 177 non-public, only 3 underscore-prefixed. MM resolved its equivalent by *promoting* 35 names on the rule "none is underscore-prefixed, so by this repo's convention they were never internals." Applied here that promotes ~174 of 177 and makes the index cut pointless.
+
+Chosen instead: **reachability defines the public API** — a name is public if we tell users how to use it, or if it is passed to or returned from a non-internal. Internals do not appear in the docs at all; a developer who wants them reads the source. The first-order closure over public PCMM docstrings is **six names**, not 177: `AgentDict`, `MonadPopulationTimeSeries`, `SimulationPopulationTimeSeries`, `PCMMPCFResult` (all documented return types, constructed in doctests → promote), plus `prepareSimulationCommand` and `resolvePhysiCellVersionID` (named only in prose, and their callers are legitimately public → rewrite the prose instead of promoting plumbing).
+
+Two supporting rules: run the closure to a fixpoint, since a newly-public type's docstring can name further internals; and count types users *receive or pass*, but **not** types that merely appear in a dispatching method's signature.
+
+### Rejected — per-method docstring splitting
+Considered splitting a public function's docstring so internal-dispatch methods stay unrendered. Not viable: `@autodocs` computes `APIStatus` and applies `Filter` **per binding, not per signature**, so `Public`/`Private`/`Filter` cannot exclude one method — the only lever is `Pages`, i.e. relocating source files to satisfy Documenter. Worse, `missingbindings` removes one signature at a time, so for an *exported* function, rendering only some method docstrings makes the rest count as missing → `:missing_docs` → build error. Fallback adopted: leave the internal internal, strip the `@ref`, keep plain backticks. The one place the pattern exists (`getMeanCounts`, documented once against `AbstractPopulationTimeSeries`) already does the right thing and is itself internal.
+
+### Sequencing
+Registered MM 0.8.2 contains **zero** `@compat public` — all 16 sites postdate the tag. Against it, MM's public set is 134 vs 213 at dev HEAD. So dropping the `Public = false` blocks before 0.8.3 would de-render most of MM's API on PCMM's site. Stages A–C (docs-only) land now; Stage D (public-API declaration + index cut) is **hard-gated on MM 0.8.3**. Nothing merges or releases until 0.8.3 is out.
+
+### Scope notes
+Docs-only for Stages A–C. Stage D touches `src/` (`@compat public`, docstring rewrites) and `test/` (guard testset); the promotion list goes up for review before any source edit. Following the 2026-06-12 precedent: progress.md entry, no PRD entry, no README Implementation Status row.
+
+### Open questions
+- Whether MM will fold `_resolveVerbosity`'s behaviour into `runCalibration`'s docstring once PCMM drops the explicit `@docs` that currently renders it (handback item).
+
+---
+
 ## 2026-07-23 — Migrate `src/loader.jl` onto PhysiCellOutput.jl
 
 ### Motivation

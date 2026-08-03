@@ -1,4 +1,4 @@
-# Analyzing output
+# [Analyzing output](@id analyzing_output_man)
 
 ## Install dependencies
 The examples use `Plots.jl`; install it with
@@ -8,13 +8,13 @@ pkg> add Plots
 
 ## Loading output
 
-### `PhysiCellSnapshot`
+### [`PhysiCellSnapshot`](@id physi_cell_snapshot_section)
 The base unit of PhysiCell output is the `PhysiCellSnapshot`. Each records the output-folder path, its index in the output sequence, the simulation time, and optionally the cell, substrate, and mesh data at that snapshot.
 
-### `PhysiCellSequence`
+### [`PhysiCellSequence`](@id physi_cell_sequence_section)
 A `PhysiCellSequence` is the full sequence of snapshots for a single simulation, plus the output-folder path and simulation metadata.
 
-### `cellDataSequence`
+### [`cellDataSequence`](@id cell_data_sequence_section)
 `cellDataSequence` returns sequences of cell data. It accepts a simulation ID (`<:Integer`), a `::Simulation`, or a `::PhysiCellSequence`, together with one label (`::String`) or several (`::Vector{String}`). It returns a dictionary keyed by integer cell ID, each value a named tuple with the requested labels plus `:time`. For example, setting
 
 ```julia
@@ -74,7 +74,7 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 ## Substrate analysis
 PhysiCellModelManager.jl supports two ways to summarize substrate information over time.
 
-### `AverageSubstrateTimeSeries`
+### [`AverageSubstrateTimeSeries`](@id average_substrate_time_series_section)
 An `AverageSubstrateTimeSeries` gives the time series for the average substrate across the entire domain.
 
 ```julia
@@ -84,7 +84,7 @@ using Plots
 plot(asts.time, asts["oxygen"])
 ```
 
-### `ExtracellularSubstrateTimeSeries`
+### [`ExtracellularSubstrateTimeSeries`](@id extracellular_substrate_time_series_section)
 An `ExtracellularSubstrateTimeSeries` gives the time series for the average substrate concentration in the extracellular space neighboring all cells of a given cell type.
 In a simulation with `cd8` cells and `IFNg` diffusible substrate, plot the average concentration of IFNg experienced by CD8+ T cells using the following:
 
@@ -114,7 +114,7 @@ mean_mes_speed /= sum(all_times_as_mes) # finish computing weighted average
 mss = motilityStatistics(simulation_id; direction=:x) # only consider the movement in the x direction
 ```
 
-## Pair correlation function (PCF)
+## [Pair correlation function](@id pcf_section)
 Sometimes referred to as radial distribution functions, the pair correlation function (PCF) computes the density of target cells around center cells.
 If the two sets of cells are the same (centers = targets), this is called PCF.
 If the two are not equal, this is sometimes called cross-PCF.
@@ -177,7 +177,7 @@ results = [PhysiCellModelManager.pcf(simulation_id, "cancer", "cd8") for simulat
 plot(results) # heatmap of average PCF values with time on the x-axis and radius on the y-axis; averages omit NaN values that can occur at higher radii
 ```
 
-## Graph analysis
+## [Graph analysis](@id graph_analysis_section)
 Every PhysiCell simulation produces three different directed graphs at each save time point.
 For each graph, the vertices are the cell agents and the edges are as follows:
 - `:neighbors`: the cells overlap based on their positions and adhesion radii
@@ -236,77 +236,10 @@ agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) # get the IDs f
 component_df = rightjoin(cells_df, agent_ids, on=:ID) # join on the agent IDs, keeping only the rows in the connected component
 ```
 
-## Movies
+## Movies and post-processing
 
-[`makeMovie`](@ref) uses the PhysiCell Makefile to turn a simulation's SVG snapshots into `output/out.mp4`, deleting the intermediate JPEGs afterward. It requires ImageMagick and FFmpeg to be discoverable — on `PATH`, via `PCMM_IMAGEMAGICK_PATH`/`PCMM_FFMPEG_PATH`, or passed directly as `magick_path`/`ffmpeg_path`.
+Two things that used to live on this page now have their own:
 
-```julia
-makeMovie(1)              # simulation 1 -> output/out.mp4
-makeMovie(sampling)       # every simulation in a trial
-makeMovie(out)            # every simulation in a `run` result
-makeMovie(4:7)            # a range/vector of simulation IDs
-makeMovie(Simulation.(4:7)) # a vector of trials
-```
-
-The Makefile's own animation variables are exposed as keyword arguments. Omit any of them to keep that Makefile's default:
-
-| Keyword | Makefile variable | Typical default |
-|---|---|---|
-| `framerate` | `FRAMERATE` | 24 |
-| `magick_density` | `MAGICK_DENSITY` | 96 |
-| `magick_resize_x` | `MAGICK_RESIZE_X` | 1024 |
-| `magick_resize_y` | `MAGICK_RESIZE_Y` | 1024 |
-
-```julia
-makeMovie(1; framerate=10, magick_density=48, magick_resize_x=512, magick_resize_y=512)
-```
-
-## Post-processing during a run
-
-Everything above analyzes output *after* a run finishes. `run` also accepts a `post_processor` keyword: a callback invoked once per successful simulation, right after it finishes and before PhysiCellModelManager.jl prunes any output — so the callback always sees the intact output folder, however aggressive your `prune_options` are.
-
-```julia
-run(sampling; post_processor = sp -> (; final_count = finalPopulationCount(simulationID(sp))["default"]))
-```
-
-Inside the callback, `sp` is a `SimulationProcess`. Use its accessors rather than reaching into its fields:
-- `simulationID(sp)` / `monadID(sp)` — the IDs to key any loader call on.
-- `wasSuccessful(sp)` — always `true` here, since the callback only runs for successful simulations; included for completeness.
-- `pathToOutputFolder(sp)` — the simulation's output folder, if you need to read files directly instead of through a loader function.
-
-### Returning quantities of interest
-
-What the callback returns determines what gets stored:
-- **`nothing`** — side effects only (e.g. writing your own file, or an external log). Return it explicitly, or PCMM will store whatever the callback's last expression evaluated to instead:
-  ```julia
-  run(sampling; post_processor = function (sp)
-      exportSimulation(simulationID(sp), "results/$(simulationID(sp))")
-      return nothing
-  end)
-  ```
-- **A `NamedTuple` or `Dict`** of `name => scalar` (`Real`, `Bool`, or `String`) — stored as quantities of interest, one row per simulation:
-  ```julia
-  run(sampling; post_processor = sp -> (; final_count = finalPopulationCount(simulationID(sp))["default"]))
-  ```
-  A time series or other vector-valued quantity must be reduced to a scalar (e.g. a final or mean value) or written to a file by the callback — a non-scalar return raises an error.
-
-### Ready-made builder: `populationCountQoI`
-
-Writing `finalPopulationCount(simulationID(sp))` by hand works, but [`populationCountQoI`](@ref) builds the callback for you, recording one `count_<cell_type>` quantity per cell type:
-
-```julia
-run(sampling; post_processor = populationCountQoI())                       # final-snapshot counts
-run(sampling; post_processor = populationCountQoI(; index=0))              # counts at snapshot 0 instead
-run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # only the "cd8" cell type
-```
-
-If the requested snapshot doesn't exist for a given simulation (e.g. it was pruned by an *earlier* run before this feature's ordering guarantee applied to it), the builder returns `nothing` for that simulation rather than erroring.
-
-### Reading the stored quantities back
-
-```julia
-postProcessingTable(sampling)                          # just the stored quantities, one row per simulation
-simulationsTable(sampling; post_processing=true)        # joined with the varied parameter values
-```
-
-Stored quantities live in `data/outputs/postprocessing.db`, separate from the main simulation database. Deleting simulations (or `resetDatabase`) keeps this file consistent automatically.
+- [Movies](@ref movies_man) — turning a simulation's SVG snapshots into `output/out.mp4`.
+- [Post-processing and quantities of interest](@ref post_processing_man) — computing and
+  storing per-simulation quantities *while* a run is in flight, before pruning.

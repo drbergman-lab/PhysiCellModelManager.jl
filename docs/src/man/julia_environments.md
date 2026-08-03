@@ -1,4 +1,4 @@
-# Julia environments
+# [Julia environments](@id julia_environments_man)
 
 This page is not specific to PhysiCellModelManager.jl, but using a dedicated environment per project is a Julia best practice that makes your work reproducible and avoids dependency conflicts. If you are new to Julia, read this before setting up a project.
 
@@ -45,7 +45,7 @@ The `@.` tells Julia to search the current directory and its parents for a `Proj
 pkg> instantiate    # installs the exact versions recorded in Manifest.toml
 ```
 
-Committing these files alongside your `inputs` and `scripts` directories (see [Best practices](@ref)) is what makes a PhysiCellModelManager.jl project fully reproducible.
+Committing these files alongside your `inputs` and `scripts` directories (see [Best practices](@ref best_practices_man)) is what makes a PhysiCellModelManager.jl project fully reproducible.
 
 ## Learn more
 

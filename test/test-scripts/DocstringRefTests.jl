@@ -21,6 +21,11 @@
         #! `[`foo`](@ref)` → `foo`; also handles `Mod.foo`, `foo(x)`, and `Foo{T}`.
         refTarget(s) = strip(first(split(replace(s, r"^(PhysiCellModelManager\.)?(ModelManager\.)?" => ""), r"[({]")))
 
+        #! Matches both `[`x`](@ref)` and the explicit-target form `[`x`](@ref Mod.x)`. The
+        #! explicit form is just as capable of naming a non-public binding, so checking only the
+        #! bare form would leave the guard with a blind spot it exists to close.
+        REF = r"\[`([^`]+)`\]\(@ref(?:\s+([^)\s]+))?\)"
+
         MM = PhysiCellModelManager.ModelManager
         isResolvable(sym) = Base.ispublic(PhysiCellModelManager, sym) || Base.ispublic(MM, sym)
 
@@ -28,10 +33,10 @@
         for (binding, multidoc) in Docs.meta(PhysiCellModelManager)
             for docstr in values(multidoc.docs)
                 text = join(Iterators.filter(x -> x isa AbstractString, docstr.text), "")
-                for m in eachmatch(r"\[`([^`]+)`\]\(@ref\)", text)
-                    target = Symbol(refTarget(m.captures[1]))
-                    isResolvable(target) && continue
-                    push!(violations, (binding.var, m.captures[1]))
+                for m in eachmatch(REF, text)
+                    raw = something(m.captures[2], m.captures[1])
+                    isResolvable(Symbol(refTarget(raw))) && continue
+                    push!(violations, (binding.var, raw))
                 end
             end
         end

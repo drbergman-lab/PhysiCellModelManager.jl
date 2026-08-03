@@ -13,7 +13,8 @@ export configPath, rulePath, icCellsPath, icECMPath
                motilityPath, secretionPath, cellInteractionsPath,
                phagocytosisPath, attackRatePath, fusionPath,
                transformationPath, integrityPath, customDataPath,
-               initialParameterDistributionPath, userParameterPath
+               initialParameterDistributionPath, userParameterPath,
+               userParametersPath
 
 ################## XML Functions (PCMM-specific) ##################
 #

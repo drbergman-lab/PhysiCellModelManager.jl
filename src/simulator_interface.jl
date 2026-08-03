@@ -18,7 +18,7 @@ using ModelManager: SimulationProcess, SimulationSpec, postSimulationProcessing
 
 PhysiCell implementation of [`runSimulation`](@ref).
 
-Prepares the PhysiCell command via [`prepareSimulationCommand`](@ref), launches the
+Builds the PhysiCell command line from the spec, launches the
 process (wrapping in an `sbatch` invocation when running on HPC), and updates the
 database with the result. Returns a [`SimulationProcess`](@ref ModelManager.SimulationProcess);
 if command construction fails, the returned process has `process == nothing` and
@@ -81,8 +81,8 @@ simulatorVersionTableName(::PhysiCellSimulator) = "physicell_versions"
 """
     resolveSimulatorVersionID(::PhysiCellSimulator)
 
-Resolve the current PhysiCell version against the database. Delegates to
-[`resolvePhysiCellVersionID`](@ref).
+Resolve the current PhysiCell version against the database, inserting a row for it if
+this version has not been seen before, and return its ID.
 """
 resolveSimulatorVersionID(::PhysiCellSimulator) = resolvePhysiCellVersionID()
 

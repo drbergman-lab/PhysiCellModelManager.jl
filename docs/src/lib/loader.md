@@ -21,16 +21,8 @@ via [`pathToOutputFolder`](@ref) (a ModelManager function), and delegate to Phys
 Object-based methods (e.g. `loadCells!(snapshot)`, `cellDataSequence(sequence, …)`) are used
 directly from PhysiCellOutput and need no PhysiCellModelManager-specific method.
 
-## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
 Pages = ["loader.jl"]
 Private = false
-```
-
-## Private API
-```@autodocs
-Modules = [PhysiCellModelManager]
-Pages = ["loader.jl"]
-Public = false
 ```

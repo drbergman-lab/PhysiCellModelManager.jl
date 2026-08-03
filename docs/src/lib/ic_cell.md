@@ -6,16 +6,8 @@ CollapsedDocStrings = true
 
 Functionality for the using [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) to create and use PhysiCell IC cell XML files.
 
-## Public API
 ```@autodocs
 Modules = [PhysiCellModelManager]
 Pages = ["ic_cell.jl"]
 Private = false
-```
-
-## Private API
-```@autodocs
-Modules = [PhysiCellModelManager]
-Pages = ["ic_cell.jl"]
-Public = false
 ```

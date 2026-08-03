@@ -59,7 +59,7 @@ end
 Get the parameter value for the given XML path from the monad's variations database if
 the column exists, otherwise fall back to the base XML file.
 
-The location is inferred from the XMLPath via [`inferVariationLocation`](@ref).
+The location is inferred from the XMLPath.
 For the generic 3-argument form (explicit location), see `ModelManager.getParameterValue`.
 
 - Boolean strings (`"true"` / `"false"`) are returned as `Bool`.

@@ -134,6 +134,33 @@ Therefore:
 - When reorganizing code, update all associated config, schema, or builder functions.
 - If breaking changes are made to the database structure, they must be reflected in `src/up.jl`.
 
+## Docstring cross-references
+
+`docs/src/lib/*.md` renders **only the public API** (`Private = false`; there are no
+`Public = false` blocks). Two rules follow:
+
+1. **A docstring may only `` [`x`](@ref) `` a binding that is public in PhysiCellModelManager or
+   in ModelManager** — i.e. exported, or declared with `@compat public`. A ref to anything else
+   cannot resolve and terminates `makedocs` with a `:cross_references` error. To mention an
+   internal, use plain backticks with no `@ref`.
+   Enforced by `test/test-scripts/DocstringRefTests.jl`, which needs no docs build.
+2. **Never add an `@docs` block for an internal.** Explicit `@docs` bypasses the
+   Public/Private filter, so it is the one way an internal can leak back into the rendered
+   reference. Internals are not documented on the site; a developer who wants them reads the
+   source.
+
+**What counts as public** is reachability, not taste: a name is public if we tell users how to
+use it, or if it is passed to or returned from something non-internal. When that rule drags in
+an internal, prefer rewriting the public docstring to describe the behaviour over promoting the
+internal — and check that the caller really should be public. A type that merely appears in a
+dispatching method's signature is *not* thereby public.
+
+**Headings shadow docstrings.** A bare `` [`x`](@ref) `` slugs to the code text, and
+Documenter's `Header` resolver runs before `Docs` — so a heading like `` ### `x` `` anywhere in
+the site silently wins, with a green build. Give any backticked heading an explicit `@id`.
+Note an explicit `@id` *replaces* a heading's title slug rather than aliasing it, so inbound
+`[Exact Title](@ref)` links must be converted in the same commit.
+
 ## Documentation & Testing Requirements
 - Every new function needs docstrings.
 - Every feature needs tests in `test/`.

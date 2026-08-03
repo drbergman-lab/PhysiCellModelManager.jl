@@ -1,4 +1,4 @@
-# XML path helpers
+# [XML path helpers](@id xml_path_helpers_man)
 Each varied input type has a helper function that builds its XML path.
 
 ## Varying config parameters
@@ -27,7 +27,7 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
 ```
 
 ## Varying initial cell parameters
-PhysiCellModelManager.jl initializes cell locations from XML via [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref), not after dependent simulations exist).
+PhysiCellModelManager.jl initializes cell locations from XML via [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref best_practices_man), not after dependent simulations exist).
 
 Vary its parameters with [`icCellsPath`](@ref):
 
@@ -42,7 +42,7 @@ icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id
 ```
 
 ## Varying initial ECM parameters
-PhysiCellModelManager.jl initializes ECMs from XML via [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref), not after dependent simulations exist).
+PhysiCellModelManager.jl initializes ECMs from XML via [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref best_practices_man), not after dependent simulations exist).
 
 Vary its parameters with [`icECMPath`](@ref):
 

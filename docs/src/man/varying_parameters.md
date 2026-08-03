@@ -1,4 +1,4 @@
-# Varying parameters
+# [Varying parameters](@id varying_parameters_man)
 PhysiCellModelManager.jl stores all varied inputs in XML files and uses a standard representation for the paths to their parameters.
 
 ## XML paths
@@ -16,7 +16,7 @@ This is needed, e.g., for `initial_parameter_distributions`, where `behavior` is
 ["cell_definitions", "cell_definition:name:T_cell", "initial_parameter_distributions", "distribution::behavior:cycle entry"]
 ```
 
-See [XML path helpers](@ref) for helper functions that build these paths easily for all varied input types.
+See [XML path helpers](@ref xml_path_helpers_man) for helper functions that build these paths easily for all varied input types.
 
 ## Discrete variations
 With an XML path defined, create a discrete variation (a finite set of values) with [`DiscreteVariation`](@ref):
@@ -67,4 +67,4 @@ Like discrete variations, distributed variations also support optional naming:
 dv = DistributedVariation(xml_path, d; name="apoptosis rate")
 ```
 
-These variations are useful for doing [Sensitivity analysis](@ref).
+These variations are useful for doing [Sensitivity analysis](@ref sensitivity_analysis_man).

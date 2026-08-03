@@ -1,9 +1,9 @@
-# Querying parameters
+# [Querying parameters](@id querying_parameters_man)
 Access the parameters of past simulations two ways:
 - [`simulationsTable`](@ref) — reads the databases; best for readability.
 - [`getAllParameterValues`](@ref) — reads every XML value; best for programmatic access.
 
-## [`simulationsTable`](@ref)
+## [`simulationsTable`](@id simulations_table_section)
 [`simulationsTable`](@ref) returns a table of simulation data. By default it shows only varied values and renames columns to be human-readable.
 
 [`printSimulationsTable`](@ref) is a wrapper that prints the table directly. Use the `sink` keyword argument to redirect the output, e.g. to a file.
@@ -18,7 +18,7 @@ monadsTable([1, 2, 3]; remove_constants=false)  # by monad ID, keeping constant 
 
 [`printMonadsTable`](@ref) prints the table directly, mirroring [`printSimulationsTable`](@ref).
 
-## [`getAllParameterValues`](@ref)
+## [`getAllParameterValues`](@id get_all_parameter_values_section)
 [`getAllParameterValues`](@ref) returns every terminal element in the XML input files for a set of simulations, which must all belong to the same `Sampling` (i.e. use the same input files). Column names are the XML paths, so splitting one on `/` gives a path ready for [`DiscreteVariation`](@ref):
 
 ```julia

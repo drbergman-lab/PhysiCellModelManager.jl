@@ -1,4 +1,4 @@
-# Intracellular inputs
+# [Intracellular inputs](@id intracellular_inputs_man)
 
 PhysiCellModelManager.jl currently supports only ODE intracellular models (via libRoadRunner). An `intracellular.xml` file maps cell definitions to intracellular models; the SBML files libRoadRunner needs are generated at PhysiCell runtime. See the [template file](https://github.com/drbergman/PhysiCell/blob/my-physicell/sample_projects_intracellular/combined/template-combined/config/sample_combined_sbmls.xml).
 

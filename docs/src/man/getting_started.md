@@ -1,6 +1,6 @@
-# Your first project
+# [Your first project](@id getting_started_man)
 
-Once PhysiCellModelManager.jl is installed (see [Installation](@ref)), this page walks you from an empty folder to your first simulations. Skim [Best practices](@ref) first.
+Once PhysiCellModelManager.jl is installed (see [Installation](@ref installation_man)), this page walks you from an empty folder to your first simulations. Skim [Best practices](@ref best_practices_man) first.
 
 ## Create a project
 
@@ -11,12 +11,12 @@ julia> using PhysiCellModelManager
 julia> createProject() # uses the current directory by default
 ```
 
-This creates three folders inside the project folder: `data/`, `PhysiCell/`, and `scripts/`. Pass a path to `createProject` to use a different folder. See [Data directory structure](@ref) for what lives in `data/`.
+This creates three folders inside the project folder: `data/`, `PhysiCell/`, and `scripts/`. Pass a path to `createProject` to use a different folder. See [Data directory structure](@ref data_directory_man) for what lives in `data/`.
 
 !!! note
     A PhysiCellModelManager.jl project is distinct from PhysiCell's `sample_projects` and `user_projects`.
 
-Already have a PhysiCell project to bring in? See [Importing a project](@ref).
+Already have a PhysiCell project to bring in? See [Importing a project](@ref importing_projects_man).
 
 ## Run your first trial
 

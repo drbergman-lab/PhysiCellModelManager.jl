@@ -1,4 +1,4 @@
-# Best practices
+# [Best practices](@id best_practices_man)
 
 ## Do NOT manually edit files inside `inputs`.
 If parameter values need to be changed, use variations as shown in `scripts/GenerateData.jl`.
@@ -23,7 +23,7 @@ PhysiCellModelManager.jl tracks simulations in a database and skips re-running o
 If you must delete simulations manually — e.g. after an error left a stale database record — use [`deleteSimulations`](@ref) so the database stays consistent.
 
 ## Use a dedicated Julia environment.
-Keep each project's dependencies in its own environment and commit `Project.toml` and `Manifest.toml`. See [Julia environments](@ref).
+Keep each project's dependencies in its own environment and commit `Project.toml` and `Manifest.toml`. See [Julia environments](@ref julia_environments_man).
 
 ## Use version control on `inputs` and `scripts` directories.
 These two directories plus the PhysiCell version are enough to reproduce a project. `createProject` adds a `.gitignore` in the data directory so the right files are tracked.

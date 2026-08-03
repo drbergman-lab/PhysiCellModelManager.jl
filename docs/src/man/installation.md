@@ -1,4 +1,4 @@
-# Installation
+# [Installation](@id installation_man)
 
 Installing PhysiCellModelManager.jl takes three steps: install Julia, add the BergmanLabRegistry, then add the package.
 
@@ -37,5 +37,5 @@ pkg> add PhysiCellModelManager
 
 ## Next steps
 
-- Set up a dedicated environment for your work — see [Julia environments](@ref).
-- Create and run your first project — see [Your first project](@ref).
+- Set up a dedicated environment for your work — see [Julia environments](@ref julia_environments_man).
+- Create and run your first project — see [Your first project](@ref getting_started_man).

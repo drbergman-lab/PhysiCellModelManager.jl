@@ -1,4 +1,4 @@
-# Importing a project
+# [Importing a project](@id importing_projects_man)
 
 If you already have a PhysiCell project in `PhysiCell/user_projects/` (or `PhysiCell/sample_projects/`), import it into your PhysiCellModelManager.jl project with [`importProject`](@ref):
 ```julia-repl

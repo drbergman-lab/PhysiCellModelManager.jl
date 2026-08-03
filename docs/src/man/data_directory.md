@@ -1,4 +1,4 @@
-# Data directory structure
+# [Data directory structure](@id data_directory_man)
 
 [`createProject`](@ref) builds this structure for you under `project-dir`. This page documents what each folder holds so you can add or edit inputs by hand.
 
@@ -39,7 +39,7 @@ Place your base ruleset collection at `data/inputs/rulesets_collections/baseline
 
 ## Intracellulars
 
-Place a single `intracellular.xml` at `data/inputs/intracellulars/baseline/`, with root children `cell_definitions` and `intracellulars`. Only libRoadRunner (ODEs) is currently supported; see `sample_projects_intracellular/combined/template-combined` for an example and [Intracellular inputs](@ref) for details.
+Place a single `intracellular.xml` at `data/inputs/intracellulars/baseline/`, with root children `cell_definitions` and `intracellulars`. Only libRoadRunner (ODEs) is currently supported; see `sample_projects_intracellular/combined/template-combined` for an example and [Intracellular inputs](@ref intracellular_inputs_man) for details.
 
 ## ICs
 

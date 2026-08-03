@@ -32,17 +32,20 @@ makedocs(;
             "Sensitivity analysis" => "man/sensitivity_analysis.md",
             "Calibration" => "man/calibration.md",
         ],
-        "Analyzing Results" => Any[
+        "Results & Analysis" => Any[
             "Analyzing output" => "man/analyzing_output.md",
+            "Post-processing and quantities of interest" => "man/post_processing.md",
             "Querying parameters" => "man/querying_parameters.md",
+            "Movies" => "man/movies.md",
+            "Tagging and recovery" => "man/tagging.md",
         ],
         "Examples" => "man/examples.md",
         "Tools & Integrations" => Any[
-            "PhysiCell Studio" => "man/physicell_studio.md",
+            "Using PhysiCell Studio" => "man/physicell_studio.md",
         ],
         "Reference" => Any[
             "Best practices" => "man/best_practices.md",
-            "Data directory" => "man/data_directory.md",
+            "Data directory structure" => "man/data_directory.md",
             "Project configuration" => "man/project_configuration.md",
             "Known limitations" => "man/known_limitations.md",
         ],
@@ -58,7 +61,7 @@ makedocs(;
             ]),
             "Project & inputs" => map(s -> "lib/$(s)", [
                 "creation.md", "configuration.md", "components.md", "import.md",
-                "variations.md", "ic_cell.md", "ic_ecm.md",
+                "variations.md", "xml_utilities.md", "ic_cell.md", "ic_ecm.md",
             ]),
             "Running simulations" => map(s -> "lib/$(s)", [
                 "runner.md", "physicell_simulator.md", "abstract_simulator.md",
@@ -69,8 +72,9 @@ makedocs(;
                 "sensitivity.md", "calibration.md",
             ]),
             "Management & maintenance" => map(s -> "lib/$(s)", [
-                "database.md", "deletion.md", "pruner.md", "up.md", "deprecate_keywords.md",
-                "pcmm_version.md", "physicell_version.md", "physicell_studio.md",
+                "database.md", "tags.md", "deletion.md", "pruner.md", "up.md",
+                "deprecate_keywords.md", "pcmm_version.md", "physicell_version.md",
+                "physicell_studio.md",
             ]),
             "Alphabetical index" => "man/index.md",
         ],

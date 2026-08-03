@@ -1,5 +1,5 @@
-# LatentVariations
-[`LatentVariation`](@ref) extends [CoVariations](@ref) to vary parameters together under a constraint. The motivating case is varying low/high thresholds to create low-medium-high regimes, where the high threshold must always exceed the low one. A `LatentVariation` enforces this by introducing **latent parameters** that map to the **target parameters**.
+# [LatentVariations](@id latent_variations_man)
+[`LatentVariation`](@ref) extends [CoVariations](@ref covariations_man) to vary parameters together under a constraint. The motivating case is varying low/high thresholds to create low-medium-high regimes, where the high threshold must always exceed the low one. A `LatentVariation` enforces this by introducing **latent parameters** that map to the **target parameters**.
 
 To construct one, provide:
 - **Latent parameters** — each a vector of discrete values or a probability distribution.
@@ -22,7 +22,7 @@ lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; n
 
 When latent variations are constructed automatically from [`DiscreteVariation`](@ref), [`DistributedVariation`](@ref), or [`CoVariation`](@ref), those variation names are propagated into latent parameter names used by sensitivity sampling outputs.
 
-## `LatentVariation{Vector{<:Real}}`
+## [`LatentVariation{Vector{<:Real}}`](@id latent_variation_vector_real_section)
 Latent parameters given as vectors of discrete values produce a `LatentVariation{Vector{<:Real}}`. The vectors need not be the same length; requesting values uses all combinations of the latent values to compute the target values.
 
 ```jldoctest
@@ -50,7 +50,7 @@ LatentVariation (Discrete), 2 -> 2:
             Target: XMLPath: cell_definitions/cell_definition:name:default/custom_data/signal_threshold_high
 ```
 
-## `LatentVariation{Distribution}`
+## [`LatentVariation{Distribution}`](@id latent_variation_distribution_section)
 Latent parameters given as probability distributions produce a `LatentVariation{Distribution}`. Requesting values draws a sample from each distribution and computes the target values.
 
 ```jldoctest

@@ -2,6 +2,11 @@ using RecipesBase
 
 export finalPopulationCount, populationCount, populationTimeSeries
 
+#! Public despite not being exported: these are the concrete return types of the exported
+#! `populationTimeSeries`, and the manual's doctests construct them directly. A type users
+#! receive from a public function is public API, so `Private = false` must include them.
+@compat public SimulationPopulationTimeSeries, MonadPopulationTimeSeries
+
 """
     populationCount(snapshot, cell_type_to_name_dict::Dict{Int,String}=Dict{Int,String}(), labels::Vector{String}=String[]; include_dead::Bool=false)
 

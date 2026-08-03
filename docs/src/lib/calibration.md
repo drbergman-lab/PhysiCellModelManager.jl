@@ -6,16 +6,14 @@ CollapsedDocStrings = true
 
 Native Julia ABC-SMC parameter calibration.
 
-## Public API
-
-### Problem definition
+## Problem definition
 
 ```@docs
 CalibrationProblem
 CalibrationParameter
 ```
 
-### Calibration methods
+## Calibration methods
 
 ```@docs
 AbstractCalibrationMethod
@@ -26,7 +24,7 @@ LocalNNKernel
 LocalNNCovKernel
 ```
 
-### Result types
+## Result types
 
 ```@docs
 Calibration
@@ -35,7 +33,7 @@ ABCResult
 ConvergenceSummary
 ```
 
-### Running calibration
+## Running calibration
 
 ```@docs
 runCalibration
@@ -44,7 +42,7 @@ resumeABC
 posterior
 ```
 
-### Built-in summary statistics
+## Built-in summary statistics
 
 ```@docs
 endpointPopulationCounts
@@ -52,28 +50,9 @@ endpointPopulationFractions
 meanPopulationTimeSeries
 ```
 
-### Built-in distance functions
+## Built-in distance functions
 
 ```@docs
 mseDistance
 ```
 
-### Supporting types
-
-Internal source types stored on [`CalibrationParameter`](@ref) for provenance and JLD2
-serialization. Users do not construct these directly.
-
-```@docs
-ModelManager.DVSource
-ModelManager.CVSource
-ModelManager.LVSource
-```
-
-### Progress reporting
-
-Internal helper resolving the `progress` keyword of [`runCalibration`](@ref)/[`runABC`](@ref)
-into a console-feedback level.
-
-```@docs
-ModelManager._resolveVerbosity
-```

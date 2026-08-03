@@ -2,7 +2,9 @@ using PairCorrelationFunction, RecipesBase
 
 import PairCorrelationFunction: pcf
 
-@compat public pcf
+#! `PCMMPCFResult` is public despite not being exported: it is what `pcf` returns, and the
+#! manual shows users indexing into it. A type users receive from a public function is public API.
+@compat public pcf, PCMMPCFResult
 
 """
     PCMMPCFResult

@@ -21,7 +21,7 @@ Used internally in the [`importProject`](@ref) function to manage the import of 
 - `type::AbstractString`: The type of the source (e.g., file or folder).
 - `required::Bool`: Indicates if the source is required for the project.
 - `found::Bool`: Indicates if the source was found during import.
-- `copy_or_move::CopyOrMove`: Indicates if the source should be copied or moved to the destination folder. See [`CopyOrMove`](@ref).
+- `copy_or_move::CopyOrMove`: Indicates if the source should be copied or moved to the destination folder.
 """
 mutable struct ImportSource
     src_key::Symbol
@@ -128,7 +128,7 @@ A struct to hold the information about the destination folders to be created in 
 Used internally in the [`importProject`](@ref) function to manage the creation of folders in the PhysiCellModelManager.jl structure.
 
 # Fields
-- `import_dest_folders::NamedTuple`: A named tuple containing the destination folders. The keys are the project locations and the values are [`ImportDestFolder`](@ref) instances.
+- `import_dest_folders::NamedTuple`: A named tuple containing the destination folders. The keys are the project locations and the values are `ImportDestFolder` instances.
 """
 struct ImportDestFolders
     import_dest_folders::NamedTuple

@@ -50,16 +50,22 @@
 - `createProject(path)` initializes a PCMM project folder with the canonical subdirectory layout and an SQLite database.
 - `initializeModelManager(path)` connects an existing PCMM project to the current Julia session; sets module-level globals.
 - After initialization, all subsequent PCMM calls operate relative to that project root.
+- `using PhysiCellModelManager` registers the module globals and then auto-initializes from the working directory. Whenever that succeeds — and therefore whenever the globals change — the initialization banner is printed.
+- Loading the package does **not** auto-initialize while Julia is generating a precompilation cache file or a system image.
 
 **Acceptance criteria:**
 - A fresh directory becomes a valid project after one `createProject` call.
 - Re-initializing an already-initialized project does not corrupt the database.
 - `databaseDiagnostics()` passes with no errors after initialization.
+- A redundant `__init__` in a process that already initialized a PCMM project is a no-op: the existing globals object and database handle are kept, not rebuilt.
+- Precompiling a package that depends on PCMM emits no banner and touches no project database.
 
 **Edge cases:**
 - Path does not exist → create it.
 - Path already contains a PCMM database → re-attach, do not reinitialize.
 - Called without any path → use current working directory.
+- Another ModelManager backend already owns `mm_globals_ref` → PCMM claims it and registers its own `PhysiCellSimulator`, rather than deferring and then running against a foreign simulator. (`ModelManagerGlobals` holds exactly one `simulator`, so the two backends cannot coexist in one process; the last one loaded wins.)
+- Loaded inside a precompilation subprocess → globals are registered (cheap, in-process) but no project is initialized, so `mm_globals()` still works for any downstream precompilation workload.
 
 ---
 

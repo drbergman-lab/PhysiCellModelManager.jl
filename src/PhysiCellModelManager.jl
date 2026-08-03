@@ -61,7 +61,66 @@ struct PCMMMissingProject <: Exception
     msg::String
 end
 
+"""
+    _pcmmGlobalsRegistered()
+
+Return `true` when [`ModelManager.mm_globals_ref`](@ref) already holds initialized globals whose
+simulator is a [`PhysiCellSimulator`](@ref) — that is, when PhysiCellModelManager.jl has already
+initialized a project in this Julia process.
+
+`mm_globals_ref` is shared by every ModelManager backend but holds only one `simulator`, so the
+simulator type must be checked too: if another backend owns the globals, PhysiCellModelManager.jl
+has to claim them rather than defer and then run against a foreign simulator.
+
+# Returns
+- `Bool`: `true` only if PhysiCellModelManager.jl owns initialized globals.
+
+# Examples
+```julia
+julia> using PhysiCellModelManager   # auto-initializes when a project is in the working directory
+
+julia> PhysiCellModelManager._pcmmGlobalsRegistered()
+true
+```
+"""
+function _pcmmGlobalsRegistered()
+    globals = ModelManager.mm_globals_ref[]
+    return !isnothing(globals) && globals.simulator isa PhysiCellSimulator && globals.initialized
+end
+
+#! `Base.generating_output()` is itself only `ccall(:jl_generating_output, ...) == 1` when called
+#! with no argument, and is unexported either way. Prefer it where it exists so Base owns the
+#! mapping to the C entry point, and fall back to the `ccall` on versions that predate it.
+@static if isdefined(Base, :generating_output)
+    _generatingOutput() = Base.generating_output()
+else
+    _generatingOutput() = ccall(:jl_generating_output, Cint, ()) == 1
+end
+
+"""
+    _generatingOutput()
+
+Return `true` while this Julia process is writing a precompilation cache file or a system image.
+
+`__init__` also runs inside the precompilation subprocess of every package that depends on
+PhysiCellModelManager.jl, so work with effects outside the process must be skipped there.
+
+# Returns
+- `Bool`: `true` if a cache file or system image is being generated.
+
+# Examples
+```julia
+julia> PhysiCellModelManager._generatingOutput()   # in an ordinary session
+false
+```
+"""
+_generatingOutput
+
 function __init__()
+    #! Nothing to do if we already own initialized globals. Deliberately keyed on the simulator
+    #! type as well: when another backend owns them, fall through and claim them for PhysiCell.
+    _pcmmGlobalsRegistered() && return
+
     sim = PhysiCellSimulator()
     sim.compiler = haskey(ENV, "PHYSICELL_CPP") ? ENV["PHYSICELL_CPP"] : "g++"
     sim.path_to_python = haskey(ENV, "PCMM_PYTHON_PATH") ? ENV["PCMM_PYTHON_PATH"] : missing
@@ -71,6 +130,13 @@ function __init__()
 
     n_parallel = haskey(ENV, "PCMM_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCMM_NUM_PARALLEL_SIMS"]) : 1
     ModelManager.mm_globals_ref[] = ModelManagerGlobals(simulator=sim, max_number_of_parallel_simulations=n_parallel)
+
+    #! Registering the globals above is pure in-memory work, so it is safe to do while a cache file
+    #! is being written — and keeps `mm_globals()` usable by any precompilation workload downstream.
+    #! Auto-initializing a project is not safe there: this `__init__` runs in the precompilation
+    #! subprocess of every dependent package, where it would open (and create) the database of
+    #! whatever project `pwd()` happens to contain and print the banner from a throwaway process.
+    _generatingOutput() && return
 
     try
         initializeModelManager()

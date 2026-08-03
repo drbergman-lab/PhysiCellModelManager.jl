@@ -71,6 +71,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 ### Completed
 
 - [x] Project initialization (`createProject`, `initializeModelManager`)
+  - [x] Precompilation-safe loading — `using PhysiCellModelManager` auto-attaches to a project in the working directory, but skips it while Julia is writing a precompilation cache or system image, so precompiling a dependent package neither prints the banner nor opens a project database
 - [x] Model import from PhysiCell project folders (`importProject`, `InputFolders`)
   - [ ] Wizard for guiding users through the import process and recording their input folders
 - [x] Parameter variation — discrete, grid, distributed, latent, co-variation

@@ -5,6 +5,39 @@
 
 ---
 
+## 2026-08-03 — Stop `__init__` from auto-initializing during precompilation
+
+### Motivation
+The logo + status banner was being printed repeatedly — apparently once per package in the environment that did `using PhysiCellModelManager`.
+
+### The premise was wrong, and that determined the fix
+Julia runs a module's `__init__` **at most once per process per load** (`run_module_init` is reached only from the cache-deserialization path in `loading.jl`; `canstart_loading` short-circuits an already-loaded module). Verified: loading three separate packages that each `using` a banner-printing base package ran `__init__` exactly once.
+
+The repeats came from **separate processes** — specifically the precompilation subprocess of each *dependent* package. Only the package being precompiled has its own `__init__` skipped; its dependencies are loaded normally, so PCMM's `__init__` runs in every such worker. Julia 1.12 hands the worker the same pipe for stdout and stderr and surfaces it, live when a single package was requested and otherwise replayed boxed under `┌ <DependentPkg>` — which is why it looked like the *other* package was printing.
+
+### Rejected: guarding on `mm_globals_ref` being non-`nothing`
+The first attempt was `!isnothing(ModelManager.mm_globals_ref[]) && isInitialized() && return`. It cannot work: `mm_globals_ref` is a `const Ref` initialized to `nothing` and PCMM's own `__init__` is its only assignment site, so in a fresh precompile worker it is always `nothing` and the guard falls through. Measured directly — every reproduced duplicate had `ref == nothing` on entry. It was also doubly narrow, since it additionally required `isInitialized()`, which is false in a worker whose working directory holds no project (the common case).
+
+Worse, keying on `mm_globals_ref` alone introduced a regression. `ModelManagerGlobals` holds exactly one `simulator`, and the ref is shared by every ModelManager backend. If another backend had already initialized, PCMM's `__init__` would return **before** registering its own `PhysiCellSimulator`, leaving PCMM running against a foreign one: `simulator().compiler` throws `FieldError`, and `runSimulation`/`setupMonad` dispatch to the other backend. On the base commit PCMM's unconditional assignment always won, so the guard only flipped *which* package silently lost.
+
+### Chosen: gate on `jl_generating_output`, and check the simulator type
+Two helpers in `src/PhysiCellModelManager.jl`:
+- `_generatingOutput()` — true exactly while a cache file or sysimage is being written. Verified true in the worker, false in a real session. `@static if isdefined(Base, :generating_output)` prefers Base's wrapper, falling back to `ccall(:jl_generating_output, Cint, ()) == 1`. Reviewer (Copilot) suggested that as a stability win over the raw `ccall`; that premise is wrong — `Base.generating_output` is neither exported nor `public` (`ispublic` false on 1.12.6), and called with no argument its body *is* that same `ccall` (`base/runtime_internals.jl`). Adopted anyway, on the weaker but real ground that Base then owns the mapping to the C entry point. Written `@static` rather than as a runtime ternary, matching `DocstringRefTests.jl`'s `@static if isdefined(Base, :ispublic)`. Behaviour re-verified after the swap: a pure `Pkg.precompile()` from inside a project directory stayed silent and left `data/` empty.
+- `_pcmmGlobalsRegistered()` — `!isnothing(globals) && globals.simulator isa PhysiCellSimulator && globals.initialized`. The simulator-type conjunct is what closes the multi-backend hole above.
+
+Ordering matters: the globals are registered *before* the `_generatingOutput()` return, because registering them is pure in-memory work and keeps `mm_globals()` usable by any `PrecompileTools` workload in a dependent package. Only `initializeModelManager()` — which resolves `PhysiCell`/`data` from `pwd()`, opens the database, and prints the banner — is skipped.
+
+### Side effect this fixes, beyond the noise
+Because the worker inherits the parent's working directory, precompiling an unrelated package *from inside a project folder* had PCMM open the real project. Demonstrated: a worker created `data/pcmm.db` (12 KB) in a directory containing bare `PhysiCell/` and `data/` folders. With a real project it would also run `resolvePackageVersion` (which has an auto-upgrade path) and `initializeDatabase()` schema writes from a throwaway process. Investigated and ruled out: the `@async databaseDiagnostics` task does *not* trigger Julia's `waiting for IO to finish` precompile warning — zero occurrences across three forced recompiles with a faithful stub; it only appears if the async body is slow.
+
+### On "if the globals change, that should print"
+Read as an implication, not a biconditional — so no change needed. `postInitDisplay` already prints whenever `initializeModelManager` succeeds, which is exactly when the globals change. In the two paths that now return early, nothing changes, so printing nothing is correct.
+
+### Open questions
+- Whether two ModelManager backends should ever coexist in one process. Today they cannot (one `simulator` field); PCMM now reliably claims the globals instead of silently deferring. If coexistence is ever wanted, `ModelManagerGlobals` needs a per-backend registry, which is a ModelManager change.
+
+---
+
 ## 2026-08-02 — Absorb ModelManager's docs-findability pass; declare PCMM's public API
 
 ### Motivation

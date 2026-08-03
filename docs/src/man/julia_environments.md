@@ -47,6 +47,16 @@ pkg> instantiate    # installs the exact versions recorded in Manifest.toml
 
 Committing these files alongside your `inputs` and `scripts` directories (see [Best practices](@ref best_practices_man)) is what makes a PhysiCellModelManager.jl project fully reproducible.
 
+## What happens when the package loads
+
+`using PhysiCellModelManager` looks for `PhysiCell/` and `data/` directories in the working directory Julia was launched from. If it finds them it attaches to that project and prints the logo and status banner; if it does not, it prints a short hint telling you to run [`createProject`](@ref) or [`initializeModelManager`](@ref). Either way you can attach to a project explicitly at any time:
+
+```julia-repl
+julia> initializeModelManager("path/to/project")
+```
+
+The banner appears each time the globals change, so it is a reliable signal of which project a session is pointed at.
+
 ## Learn more
 
 See the [Pkg.jl documentation](https://pkgdocs.julialang.org/v1/environments/) for the complete reference on environments.

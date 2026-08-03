@@ -42,6 +42,7 @@ test_order = [
     "VariationsTests.jl",
     "HPCTests.jl",
     "ModuleTests.jl",
+    "InitializationTests.jl",
     "PhysiCellVersionTests.jl",
     "PhysiCellStudioTests.jl",
     "DeletionTests.jl",

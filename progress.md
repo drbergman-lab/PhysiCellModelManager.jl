@@ -5,6 +5,130 @@
 
 ---
 
+## 2026-08-05 — `-march` selection: investigation only, implementation deferred
+
+### Motivation
+`PhysiCellSimulator()` picks `march_flag` as `isRunningOnHPC() ? "x86-64" : "native"`
+(`src/physicell_simulator.jl:46`). `isRunningOnHPC()` is `which sbatch` (ModelManager
+`src/hpc.jl:19`), so the question was whether a better check exists. Investigated; a design brief
+was written and then deliberately shelved. Nothing implemented.
+
+### The predicate is about scheduler presence, not architecture
+`-march` is not about "am I on an HPC" and not about a login/compute split at compile time. The
+compiled executable is persisted to `inputs/custom_codes/<folder>/project`
+(`src/compilation.jl:74`) and reused on any later session unless the macros or the PhysiCell commit
+hash changed (`src/compilation.jl:19`). **The cache key contains no ISA or march component.** So the
+real question is "will this on-disk binary ever be executed by a machine that did not build it,"
+which cannot be answered from the current session:
+
+- Compile on a login node with `useHPC(false)` for a local test → `native` bakes in that node's ISA
+  → a later session flips `useHPC(true)` and `sbatch` ships the *same cached binary* to compute nodes.
+- Compile inside an allocation on compute node A → `native` is node A's ISA → the next array job
+  lands on older node B.
+
+Presence of a batch scheduler is a good proxy for that, because a scheduler is precisely the thing
+that hands a binary to a different machine. On a laptop the binary only ever runs on that laptop.
+
+Compilation is a plain `run(...)` from the Julia process (`src/compilation.jl:52`) and is never
+submitted through a scheduler — it always happens on whatever node Julia occupies. That does not make
+`native` safe on a cluster; it makes the binary arbitrarily tied to whichever node happened to run
+Julia.
+
+### Three distinct failure classes — only two are `-march`-addressable
+| Case | build → run | fails at | fixable by `-march`? |
+|---|---|---|---|
+| mixed µarch, one ISA | Haswell → Ivy Bridge | run (SIGILL) | yes — already fixed by the `x86-64` default |
+| uniform non-x86 cluster | aarch64 → aarch64 | compile (`unknown value 'x86-64' for -march`) | yes — needs an arch-aware fallback |
+| mixed-ISA cluster | x86 login → aarch64 nodes | run (`ENOEXEC`, "Exec format error") | **no** |
+
+The third row is real hardware (Ookami pairs x86 login nodes with A64FX compute nodes; Grace-Hopper
+partitions bolted onto x86 clusters are appearing). No `-march` value helps — an x86-64 ELF cannot
+exec on aarch64 regardless of ISA baseline. It is a cross-compilation problem, and PCMM's
+compile-then-submit structure cannot support it without an `sbatch`'d compile step on the target
+partition plus an ISA-keyed executable cache. **Recommendation: document as unsupported** ("run Julia
+on a node with the same architecture as your compute partition"). The failure is immediate and
+legible at job launch, not silent. Slurm does expose `Arch=` per node in `scontrol show nodes` if a
+warning is ever wanted, but it is not worth the parsing.
+
+### Findings that constrain any future design
+- **There is no public API for this.** `setMarchFlag` (`src/compilation.jl:415`) is not exported and
+  has no `@compat public`; the test suite reaches for it as
+  `PhysiCellModelManager.setMarchFlag` (`test/test-scripts/ClassesTests.jl:63`). A user whose
+  auto-detection guesses wrong has no supported recourse. This, not ergonomics, is the gap a
+  `PCMM_MARCH` env var closes.
+- **`run_on_hpc` and the march flag are already decoupled.** `isRunningOnHPC()` has exactly one
+  caller in either repo — the march default. `mm_globals().run_on_hpc` defaults to `false`
+  (ModelManager `globals.jl:52`) and is mutated only by `useHPC`, so `useHPC(false)` cannot affect
+  compilation. Using the global *would* be wrong, but for a subtler reason than "the user might turn
+  it off": its value at compile time does not constrain its value at run time, and the cached binary
+  spans both.
+- ModelManager's `globals.jl:24` still documents `run_on_hpc` as "`true` when `sbatch` is available
+  (auto-detected)". Stale — nothing wires the probe to it. ModelManager fix, different repo.
+- **`x86-64-v3` is exactly the Haswell feature level** (AVX2/FMA/BMI2). It is therefore the *risky*
+  choice on the cluster whose pre-Haswell nodes originally broke `native`. Never make it a default;
+  opt-in only after checking the oldest node in the target partition.
+- **`-m64` is hardcoded** in `cflags` (`src/compilation.jl:95`) and is x86-only. Fixing `-march` alone
+  will not make an ARM Linux cluster compile — the two must move together.
+- An env var override does not solve the arch problem (a dotfile follows you onto any machine). The
+  mitigation is to **validate the resolved flag against the actual compiler** before `make` runs —
+  `g++ -march=<flag> -fsyntax-only -x c++ /dev/null`, nonzero exit means unusable here. One cheap
+  subprocess that catches a stale dotfile, a typo, *and* an auto-detected `x86-64` on an ARM cluster,
+  turning an error buried in `compilation.err` into an actionable message.
+
+### Deferred design (PCMM side, ~70 lines src / ~50 test / ~15 docs, risk low–medium)
+1. `_defaultMarchFlag()` — `get(ENV, "PCMM_MARCH")` then fall back to the probe.
+2. `_mayRunOnOtherHosts()` — ``isRunningOnHPC() || shellCommandExists(`qsub`) || shellCommandExists(`bsub`)``
+   (Slurm / PBS-Torque-SGE / LSF). Keep it internal and ~6 lines: it is **deliberately disposable
+   scaffolding**, to be replaced by `scheduler() !== :none` once ModelManager grows a real scheduler
+   abstraction. Say so in a source comment so it is not preserved out of misplaced respect.
+3. `_marchFlagSupported(compiler, flag)` — validate at first compile (not `__init__`, where the
+   compiler may not be configured), memoized per `(compiler, flag)`; skip entirely when
+   `shellCommandExists(compiler)` is false so `make` keeps producing the error it always has.
+4. Promote `setMarchFlag` with `@compat public` — an env var for a knob whose function form is
+   internal is incoherent, and public status is what lets new docstrings `@ref` it.
+5. Docs: short section in `docs/src/man/installation.md` (there is no central env-var page —
+   `PCMM_PYTHON_PATH` is documented only in `physicell_studio.md` and `PHYSICELL_CPP` nowhere), plus
+   two lines in `known_limitations.md` for the mixed-ISA case.
+
+Behavioral break to call out in a release note: PBS/LSF/SGE users move from `native` to `x86-64` —
+correct, but slower for anyone on a homogeneous non-Slurm cluster who was getting away with `native`.
+`PCMM_MARCH=native` restores it.
+
+### Rejected
+- **Widening `isRunningOnHPC` itself.** That name honestly means "Slurm is available," and
+  `useHPC`/`prepareHPCCommand` are Slurm-specific; widening it would be wrong the moment anything
+  else consumes it. The march decision wants its own predicate.
+- **An Lmod / `MODULESHOME` check.** Proposed early, then dropped: it is a proxy for a proxy (Lmod ⇒
+  cluster ⇒ binary may relocate), it adds a false positive for Homebrew-Lmod workstations, and any
+  cluster with Lmod has a scheduler the three command probes already catch.
+- **Parsing `scontrol show nodes` to detect a genuinely heterogeneous partition.** Fragile, slow at
+  load, needs permissions.
+- **Compiling inside the job so `native` is safe and optimal.** Compilation already happens wherever
+  Julia is; the missing piece is that the cached executable is not keyed on the ISA it was built for.
+  Making `native` safe means keying the artifact on the march flag / detected ISA instead of
+  overwriting a single `project`. The `rand_suffix` temp dir (`src/compilation.jl:25`) already
+  anticipates concurrent compilation from multiple nodes, so the groundwork is half there — but this
+  is a real feature, and `x86-64-v3` gets most of the performance for a fraction of the work.
+
+### Open questions
+- Why deferred: the `x86-64` default is correct for the common case and has held up across all three
+  major OSes in the field. The live gap is only the silent `native` on non-Slurm sites.
+- **Multi-scheduler submission is a separate repo and a separate brief.** `prepareHPCCommand`
+  (ModelManager `src/runner.jl:79`) builds `sbatch --wrap="<command>"`, and **PBS has no `--wrap`** —
+  `qsub` requires an actual job script, so a per-simulation script file must be written to disk. That
+  is structural, not a flag rename. On top of it: `push!(flags, "--$k=$v")` (`runner.jl:96`) is Slurm
+  long-option syntax applied to every user option; `--output`/`--error`/`--chdir`/`--wait` map to
+  `-o`/`-e`/`-d`/`-W block=true` (PBS) and `-o`/`-e`/`-cwd`/`-K` (LSF); `defaultJobOptions()`'s
+  `"job-name"` and `"mem"` are Slurm key names. Needs a semantic job-options layer (portable keys →
+  per-scheduler rendering), a rename of `sbatch_options`, and a deprecation path, since
+  `defaultJobOptions` and `prepareHPCCommand` are both `@compat public`.
+- Ordering: the PCMM march branch is self-contained (needs only exported `isRunningOnHPC` and
+  already-public `ModelManager.shellCommandExists`), so it can land first with no compat bound bump —
+  at the cost of ~6 lines of throwaway. Doing ModelManager first yields no throwaway but leaves the
+  non-Slurm SIGILL live.
+
+---
+
 ## 2026-08-03 — Stop `__init__` from auto-initializing during precompilation
 
 ### Motivation

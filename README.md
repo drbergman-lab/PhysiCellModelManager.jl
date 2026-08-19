@@ -77,6 +77,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Parameter variation — discrete, grid, distributed, latent, co-variation
 - [x] Space-filling designs — LHS, Sobol, RBD
 - [x] Simulation execution — local multi-process runner
+  - [x] Executables named for the PhysiCell version they were built against (`project_<physicell-version>`), so the file's existence is the only record of a finished build — a failed compilation can no longer be mistaken for a ready one
 - [x] HPC job script generation and submission
 - [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
 - [x] Sensitivity analysis — MOAT, Sobol, and RBD

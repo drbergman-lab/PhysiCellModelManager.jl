@@ -198,7 +198,7 @@ function prepareSimulationCommand(simulation::Simulation)
     path_to_simulation_output = joinpath(trialFolder(simulation), "output")
     mkpath(path_to_simulation_output)
 
-    executable_str = joinpath(locationPath(:custom_code, simulation), baseToExecutable("project"))
+    executable_str = pathToExecutable(simulation)
     config_str = joinpath(locationPath(:config, simulation), locationVariationsFolder(:config), "config_variation_$(simulation.variation_id[:config]).xml")
     flags = ["-o", path_to_simulation_output]
     if simulation.inputs[:ic_cell].id != -1

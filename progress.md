@@ -5,6 +5,94 @@
 
 ---
 
+## 2026-08-19 — Name the executable for the PhysiCell version; drop `physicell_commit_hash.txt`
+
+### The bug
+`loadCustomCode` decided whether to recompile from two records that could disagree with each
+other. `physicell_commit_hash.txt` held the PhysiCell version, and `writePhysiCellCommitHash`
+**wrote it before `make` ran**; the executable was always named `project`, so a compile error
+left the old binary in place next to a file now claiming the new version. The next run read a
+matching hash, found `project`, concluded nothing had changed, and silently ran a binary built
+from different PhysiCell source.
+
+### The fix — one record instead of two
+The executable is named `project_<physicell-version>`, so its existence *is* the record that a
+build for that version finished. `physicell_commit_hash.txt` is gone. There is nothing left to
+fall out of step with: a failed compilation writes no executable, so the next run recompiles.
+
+`unreproduciblePhysiCellVersion()` replaces the old function's dirty/download branches. Those
+suffixes mean the source can change without the recorded version changing, so the name proves
+nothing and the code recompiles every run — the previous behaviour, now stated as its own
+predicate rather than a fall-through of the hash comparison.
+
+### `macros.txt` had the same defect
+Found while restructuring, and the same failure mode, so it is fixed in the same commit.
+`addMacrosIfNeeded` appended to `macros.txt` *before* compiling. A macro change sets both
+`recompile` and `clean` — the macros are part of every translation unit, so object files
+compiled without them must be discarded. If that compilation failed, `macros.txt` already
+listed the new macro, so the retry saw no macro change and skipped the `make clean` it needed.
+
+Now `neededMacros(S)` computes the list in memory, `compilerFlags` compares it against the file
+to decide `recompile`/`clean`, and `writeMacrosFile` runs only after `make` succeeds. Two bugs
+fell out of the restructure rather than being hunted:
+- `addMacrosIfNeeded` chained the checks with `||`, so PhysiECM being newly needed
+  short-circuited the RoadRunner check entirely. A project needing both got one macro, failed
+  to compile, and only picked up the second on the next attempt. The comment above the line
+  ("julia's `|=` operator seems to evaluate the RHS even if the LHS is already true, but I don't
+  trust that will always be the case") shows the `||` rewrite defeated its own intent.
+- `addPhysiECMIfNeeded` called `addMacro(M, ...)` with an undefined `M` — an `UndefVarError`
+  waiting on any project that enables `ecm_setup` in config without supplying an `ic_ecm` file.
+
+### Decisions
+- **Old executables are kept, not pruned.** A custom code folder can accumulate one binary per
+  PhysiCell version used there. That is deliberate: the name is now a cache key, so switching
+  PhysiCell versions back and forth no longer forces a rebuild. `clearSimulatorArtifacts`
+  (reached by `resetDatabase`) deletes all of them, which is the documented way to reclaim the
+  space. Pruning on each successful compile was considered and rejected — it would delete a
+  binary another session on a shared filesystem may be about to launch.
+- **Legacy artifacts are cleaned up in place, not via an `up.jl` milestone.** `project` and
+  `physicell_commit_hash.txt` are removed by `removeLegacyBuildArtifacts` after the first
+  successful compile under the new naming. A milestone would drag the whole
+  `continueMilestoneUpgrade` prompt in to delete two files, and the upgrade is self-healing
+  anyway: no hash-named executable exists, so the first run recompiles regardless.
+- **`isCompilationArtifact` matches `project*`**, mirroring what `createDefaultGitIgnore`
+  already declares generated. `clearSimulatorArtifacts` now walks the folder with that predicate
+  instead of deleting a fixed list of four names.
+- **The version string is sanitized before it becomes a file name.** It is either a git hash or
+  the first line of `VERSION.txt` from whatever PhysiCell the user downloaded; the latter is not
+  guaranteed tame. `sanitizedForFilename` replaces anything outside `[A-Za-z0-9._-]` with `_`.
+- **`make` is invoked with `PROGRAM_NAME` set to the final name.** It used to build
+  `project_ccid_<id>` and rename on the way out; the temp directory already carries a
+  `randstring(10)` suffix, so the intermediate name bought nothing.
+- **`make` exiting 0 without producing the executable is now a failure return**, not an
+  unhandled `mv` error.
+
+### What this does not fix
+The name carries no OS, architecture, or compiler-flag component, so copying a `data/` folder
+to a different platform still reuses an unrunnable binary. Called out in
+`docs/src/man/known_limitations.md` with the `force_recompile=true` workaround. This was the
+known limitation going in, not a regression.
+
+### Bearing on the deferred `-march` work (see 2026-08-05)
+That entry's analysis stands, but two of its statements are now out of date: the executable is
+no longer "a single `project`" that gets overwritten, and the cache key is no longer empty — it
+is the PhysiCell version. It still contains no ISA or march component, which is the part that
+matters there. The mechanism that entry called for now exists: making `native` safe is a matter
+of adding a march/ISA component to `executableName`, not of inventing artifact keying.
+
+### Testing
+`test/test-scripts/CompilationTests.jl`, run right after `RunnerTests.jl` so a real build
+exists to inspect. It asserts the naming and sanitizing, the `isCompilationArtifact`
+classification, that `removeLegacyBuildArtifacts` deletes the old pair and leaves `main.cpp`
+alone, and that a real build leaves a hash-named executable, a `macros.txt`, and no legacy
+files. The regression itself is driven end to end: swap in a `Makefile` whose only recipe is
+`@exit 1`, plant the exact state the old code was fooled by (a stale `project` plus a
+`physicell_commit_hash.txt` naming the current version), and check that `loadCustomCode` returns
+`false` and `executableExists` stays `false`. The real executable is moved aside and restored
+rather than deleted, so the failure path costs no rebuild.
+
+---
+
 ## 2026-08-05 — `-march` selection: investigation only, implementation deferred
 
 ### Motivation
@@ -15,9 +103,11 @@ was written and then deliberately shelved. Nothing implemented.
 
 ### The predicate is about scheduler presence, not architecture
 `-march` is not about "am I on an HPC" and not about a login/compute split at compile time. The
-compiled executable is persisted to `inputs/custom_codes/<folder>/project`
-(`src/compilation.jl:74`) and reused on any later session unless the macros or the PhysiCell commit
-hash changed (`src/compilation.jl:19`). **The cache key contains no ISA or march component.** So the
+compiled executable is persisted to `inputs/custom_codes/<folder>/` and reused on any later session
+unless the macros or the PhysiCell commit hash changed. **The cache key contains no ISA or march
+component.** (Updated 2026-08-19: the executable is now named `project_<physicell-version>` rather
+than a single overwritten `project`, so the PhysiCell version *is* the cache key — still with no ISA
+or march component. Line references in this entry predate that change.) So the
 real question is "will this on-disk binary ever be executed by a machine that did not build it,"
 which cannot be answered from the current session:
 
@@ -106,9 +196,11 @@ correct, but slower for anyone on a homogeneous non-Slurm cluster who was gettin
 - **Compiling inside the job so `native` is safe and optimal.** Compilation already happens wherever
   Julia is; the missing piece is that the cached executable is not keyed on the ISA it was built for.
   Making `native` safe means keying the artifact on the march flag / detected ISA instead of
-  overwriting a single `project`. The `rand_suffix` temp dir (`src/compilation.jl:25`) already
-  anticipates concurrent compilation from multiple nodes, so the groundwork is half there — but this
-  is a real feature, and `x86-64-v3` gets most of the performance for a fraction of the work.
+  overwriting a single `project`. The `rand_suffix` temp dir already anticipates concurrent
+  compilation from multiple nodes, so the groundwork is half there — but this is a real feature, and
+  `x86-64-v3` gets most of the performance for a fraction of the work.
+  *(2026-08-19: the artifact is now keyed, on the PhysiCell version. Adding a march/ISA component to
+  `executableName` is the remaining step.)*
 
 ### Open questions
 - Why deferred: the `x86-64` default is correct for the common case and has held up across all three

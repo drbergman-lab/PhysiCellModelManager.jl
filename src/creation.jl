@@ -502,7 +502,6 @@ function createDefaultGitIgnore(project_dir::String)
             ## custom codes
             compilation*
             macros.txt
-            physicell_commit_hash.txt
             project*
 
             ## outputs

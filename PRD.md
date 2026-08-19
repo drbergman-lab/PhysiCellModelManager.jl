@@ -159,11 +159,15 @@
 - Completed simulations write output to `outputs/<simulation_id>/`.
 - Database records each simulation with status (queued / running / completed / failed).
 - Rerunning an already-completed simulation with identical inputs is a no-op.
+- The compiled executable is named for the PhysiCell version it was built against (`project_<physicell-version>`), and its presence in the custom code folder is the only record that a build for that version succeeded. Recompilation happens when that file is absent, when the required macros differ from those recorded by the last successful compilation, or when the PhysiCell version cannot be pinned down (a dirty or downloaded PhysiCell).
 
 **Edge cases:**
 - PhysiCell binary not compiled → error with instructions.
 - Simulation process exits non-zero → mark as failed in database, do not crash caller.
 - `n_replicates=0` → error.
+- Compilation fails → the run fails, and nothing is written that a later run could read as a finished build: no executable for this PhysiCell version is produced and the macros file is left as the last successful compilation wrote it. The next run recompiles instead of reusing a stale executable. `compilation.log` / `compilation.err` are left in place for inspection.
+- Compilation reports success but produces no executable → treated as a failure.
+- A `data/` folder is moved to a machine with a different OS, architecture, or compiler → **not** detected; the executable name carries no ISA component. See [Known limitations](docs/src/man/known_limitations.md).
 
 ---
 

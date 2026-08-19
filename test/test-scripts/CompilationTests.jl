@@ -73,3 +73,39 @@ finally
 end
 
 @test PhysiCellModelManager.executableExists(custom_code_folder)
+
+#! Guard: PhysiCell can be pulled, checked out, or edited mid-session. Until this was wired,
+#! the version was resolved once at initialization and never revisited, so a changed PhysiCell
+#! was reused silently -- and any recompile forced for another reason built the new source while
+#! recording the old version.
+version_id_before = PhysiCellModelManager.currentPhysiCellVersionID()
+
+#! loadCustomCode must refresh before anything reads the version. With the id invalidated, a
+#! missing refresh cannot resolve an executable name at all, so this fails loudly.
+PhysiCellModelManager.simulator().current_version_id = -1
+@test PhysiCellModelManager.loadCustomCode(simulation)
+@test PhysiCellModelManager.currentPhysiCellVersionID() == version_id_before
+
+path_to_physicell_makefile = joinpath(PhysiCellModelManager.physicellDir(), "Makefile")
+original_physicell_makefile = read(path_to_physicell_makefile, String)
+try
+    write(path_to_physicell_makefile, original_physicell_makefile * "\n# edited mid-session\n")
+    @test !PhysiCellModelManager.gitDirectoryIsClean(PhysiCellModelManager.physicellDir(); verbose=false)
+
+    #! nothing has looked yet, so the session still believes the version it started with
+    @test PhysiCellModelManager.currentPhysiCellVersionID() == version_id_before
+    @test !endswith(PhysiCellModelManager.physiCellCommitHash(), "-dirty")
+
+    PhysiCellModelManager.refreshPhysiCellVersion()
+    @test PhysiCellModelManager.currentPhysiCellVersionID() != version_id_before
+    @test endswith(PhysiCellModelManager.physiCellCommitHash(), "-dirty")
+    @test PhysiCellModelManager.unreproduciblePhysiCellVersion()
+    @test !PhysiCellModelManager.executableExists(custom_code_folder) #! no build exists for the dirty version, so a compile is unavoidable
+finally
+    write(path_to_physicell_makefile, original_physicell_makefile)
+    PhysiCellModelManager.refreshPhysiCellVersion()
+end
+
+@test PhysiCellModelManager.currentPhysiCellVersionID() == version_id_before
+@test !PhysiCellModelManager.unreproduciblePhysiCellVersion()
+@test PhysiCellModelManager.executableExists(custom_code_folder)

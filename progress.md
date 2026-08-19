@@ -5,7 +5,7 @@
 
 ---
 
-## 2026-08-19 — Name the executable for the PhysiCell version; drop `physicell_commit_hash.txt`
+## 2026-08-19 — Name the executable for the PhysiCell version; drop `physicell_commit_hash.txt`; check that version at every compile
 
 ### The bug
 `loadCustomCode` decided whether to recompile from two records that could disagree with each
@@ -80,7 +80,80 @@ is the PhysiCell version. It still contains no ISA or march component, which is 
 matters there. The mechanism that entry called for now exists: making `native` safe is a matter
 of adding a march/ISA component to `executableName`, not of inventing artifact keying.
 
+### Second half: the PhysiCell version was only ever checked at initialization
+Flagged separately by the user as "guard against upgrading to new PhysiCell version mid-session.
+This might already be done?" It was not.
+
+`simulator().current_version_id` is assigned in exactly one place — `src/up.jl`, during database
+initialization — and never revisited. `physiCellCommitHash()` reads the database row for that
+cached id, so it cannot see the working tree. Measured directly: edit `PhysiCell/Makefile`
+mid-session and `gitDirectoryIsClean()` returns `false` while `physiCellCommitHash()` still
+returns the clean hash, `unreproduciblePhysiCellVersion()` returns `false`, and
+`loadCustomCode` returns `true` without compiling.
+
+Reusing a stale binary is the mild half. The damaging half: any recompile forced for another
+reason (macro change, `force_recompile=true`) builds the *new* source while naming the
+executable and writing `physicell_version_id` for the *old* version. The database then asserts a
+clean commit for a binary that is not that commit — precisely what the `-dirty` suffix exists to
+prevent, defeated by checking only at startup.
+
+`refreshPhysiCellVersion()` now runs as the first statement of `loadCustomCode`. Everything else
+follows from the naming change above, which is why the two belong in one PR:
+- HEAD moved → a different `commit_hash` row → a different `executableName()` → `executableExists`
+  is false → recompile.
+- Went dirty → the hash gains `-dirty` → `unreproduciblePhysiCellVersion()` → recompile.
+- ModelManager records each simulation from `currentSimulatorVersionID()`, which reads the same
+  field, and setup always precedes recording, so the recorded version is corrected too.
+
+Under the old naming this would have needed its own comparison against the hash file. With the
+hash in the executable name, re-resolving the version *is* the guard.
+
+### Decisions
+- **`loadCustomCode`, not per simulation.** It is the single funnel for compilation, runs once per
+  sampling, and precedes recording. Refreshing per simulation would let one sampling straddle two
+  PhysiCell versions. The cost is one `git status --porcelain` per sampling: measured 30 ms for
+  `resolvePhysiCellVersionID()` on the steady-state path, 20 ms of it the `git status`.
+- **Resolve quietly, report in one line.** `resolvePhysiCellVersionID` and `gitDirectoryIsClean`
+  gained `verbose::Bool=true` kwargs; the refresh passes `verbose=false` and prints
+  `PhysiCell version changed. Now using <info>.` only when the id actually moved. Without this, a
+  user with a permanently dirty PhysiCell would get the multi-line dirty warning plus a
+  modified-file listing once per sampling instead of once per session. The `-dirty` suffix in the
+  one-line message plus `unreproduciblePhysiCellVersion`'s own notice carries the actionable part;
+  the full listing still appears at initialization.
+- **A failed compile after a version change is safe.** The refreshed id is in place but
+  `setupSampling` returns false and the run aborts, so no simulation is recorded against it.
+- **No opt-out.** Recording the wrong commit hash is corruption, not a preference, so the
+  version-changed path is unconditional. See the `strict_check` note below for the dirty case.
+
+### `strict_check` is dead and always has been
+`PhysiCellSimulator.strict_check` is documented on an **exported** type as "If `true`, require a
+clean git directory to skip recompile", is set to `true` by the constructor, and is read nowhere.
+`git log -S` shows it entered at the 2026-04-08 modularization as a rename of
+`strict_physicell_check` from the old globals struct ("...requires a clean git folder (in
+particular, not downloaded) to skip recompile"), which was itself never read either. So it is not
+a refactor casualty — it was declared and never wired, under both names.
+
+The behaviour it describes already exists unconditionally in `unreproduciblePhysiCellVersion()`,
+covering both the dirty and the downloaded case. The field is therefore not missing behaviour; it
+is a missing *off-switch*. Left untouched pending a decision, with the options being to delete it
+or to wire it as that off-switch under a name that states the consequence.
+
 ### Testing
+Added to `CompilationTests.jl`. The wiring is pinned by setting `current_version_id` to the `-1`
+sentinel and calling `loadCustomCode`: with the refresh in place the id is corrected and the call
+returns `true`; without it, the first read of the version cannot resolve an executable name at
+all, so the test fails loudly. The semantics are pinned by editing a tracked PhysiCell file
+without re-initializing and asserting that the id is unchanged until `refreshPhysiCellVersion()`
+runs, then that the hash gains `-dirty`, `unreproduciblePhysiCellVersion()` flips, and no
+executable exists for the dirty version. Restored in `finally`.
+
+`PhysiCellVersionTests.jl` already dirties the repository exactly this way — it just
+re-initializes afterwards, which is why the gap was never caught.
+
+Not covered: the checked-out-a-different-commit case, which needs a second commit available in
+`test/PhysiCell`. It drives the identical code path as the dirty case.
+
+### Testing the naming change
 `test/test-scripts/CompilationTests.jl`, run right after `RunnerTests.jl` so a real build
 exists to inspect. It asserts the naming and sanitizing, the `isCompilationArtifact`
 classification, that `removeLegacyBuildArtifacts` deletes the old pair and leaves `main.cpp`

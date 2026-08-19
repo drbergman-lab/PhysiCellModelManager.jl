@@ -1,11 +1,41 @@
 using SQLite
 
 """
-    resolvePhysiCellVersionID()
+    refreshPhysiCellVersion()
+
+Re-resolve the PhysiCell version from what is on disk and store it in `simulator().current_version_id`.
+
+The version is resolved once during initialization, but nothing stops a user from pulling,
+checking out, or editing PhysiCell in the middle of a session. Call this before every compile
+decision so that the decision is made against PhysiCell as it is now: a different commit gives
+a different `executableName`, so no executable exists for it yet, and a newly dirty repository
+makes `unreproduciblePhysiCellVersion` true. It also keeps the version recorded against each
+simulation honest, since that is read from the same field.
+
+Resolves quietly and reports in one line when the version has changed; the full dirty-file
+listing belongs to initialization, not to every sampling in a sweep.
+
+# Returns
+- `physicell_version_id::Int`: The refreshed version ID, also stored in `simulator().current_version_id`.
+"""
+function refreshPhysiCellVersion()
+    previous_version_id = simulator().current_version_id
+    simulator().current_version_id = resolvePhysiCellVersionID(; verbose=false)
+    if previous_version_id != -1 && simulator().current_version_id != previous_version_id
+        println("PhysiCell version changed. Now using $(physicellInfo()).")
+    end
+    return simulator().current_version_id
+end
+
+"""
+    resolvePhysiCellVersionID(; verbose::Bool=true)
 
 Get the PhysiCell version ID from the database, adding it to the database if it doesn't exist.
+
+Pass `verbose=false` to skip the dirty-repository report, for callers that run repeatedly
+within a session; see `refreshPhysiCellVersion`.
 """
-function resolvePhysiCellVersionID()
+function resolvePhysiCellVersionID(; verbose::Bool=true)
     if !physicellIsGit()
 
         tag = readlines(joinpath(physicellDir(), "VERSION.txt"))[1]
@@ -23,8 +53,8 @@ function resolvePhysiCellVersionID()
     end
 
     repo_is_dirty = false
-    if !gitDirectoryIsClean(physicellDir())
-        println("""
+    if !gitDirectoryIsClean(physicellDir(); verbose=verbose)
+        verbose && println("""
         \nWARNING: PhysiCell repo is dirty. The latest commit hash will be marked with the "-dirty" suffix in the database.
         These results may not be reproducible.
         To regain reproducibility, make a new commit or stash changes to clean the repository.
@@ -102,11 +132,13 @@ function physicellIsGit()
 end
 
 """
-    gitDirectoryIsClean(dir::String)
+    gitDirectoryIsClean(dir::String; verbose::Bool=true)
 
 Check if the git directory is clean (i.e., no uncommitted changes).
+
+Pass `verbose=false` to suppress the listing of modified files.
 """
-function gitDirectoryIsClean(dir::String)
+function gitDirectoryIsClean(dir::String; verbose::Bool=true)
     cmd = `git -C $dir status --porcelain` #! -C flag is for changing directory, --porcelain flag is for machine-readable output (much easier to tell if clean this way)
     output = read(cmd, String)
     is_clean = length(output) == 0
@@ -127,7 +159,7 @@ function gitDirectoryIsClean(dir::String)
         filter!(x -> !contains(x, " $file"), lines)
     end
     is_clean = isempty(lines)
-    if !is_clean
+    if !is_clean && verbose
         println("PhysiCell repository is dirty. The following files are modified in the PhysiCell repository:")
         println(output)
         println("\nOf those, the following files are not in the folders to ignore for cleanliness:")

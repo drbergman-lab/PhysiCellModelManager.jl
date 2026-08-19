@@ -27,3 +27,16 @@ Keep each project's dependencies in its own environment and commit `Project.toml
 
 ## Use version control on `inputs` and `scripts` directories.
 These two directories plus the PhysiCell version are enough to reproduce a project. `createProject` adds a `.gitignore` in the data directory so the right files are tracked.
+
+## Update PhysiCell between campaigns, not during one.
+PhysiCell lives at `PhysiCell/` inside the project, so updating it is a git operation:
+```bash
+git -C PhysiCell fetch --tags
+git -C PhysiCell checkout <tag-or-commit>
+```
+If you added PhysiCell as a submodule, run `git submodule update --remote PhysiCell` from the project root instead.
+
+PhysiCellModelManager.jl re-reads the PhysiCell version before every compilation, so you do not need to restart Julia. The next `run` recompiles, and the executable is named for the new version, so switching back to a version you have already built does not rebuild. That check happens once per sampling, though, so a single `Trial` spanning several samplings can straddle two PhysiCell versions — finish a campaign before updating.
+
+## Keep the PhysiCell working tree clean.
+Uncommitted changes under `PhysiCell/` cannot be pinned to a commit, so the version is recorded with a `-dirty` suffix and the custom code is recompiled on every run. Commit the changes (or stash them): a real commit hash is reproducible, and its build is cached like every other version.

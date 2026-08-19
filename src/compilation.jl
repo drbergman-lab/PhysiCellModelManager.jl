@@ -12,6 +12,9 @@ The executable is named for the PhysiCell version it is built against (see
 build for that version finished. Nothing else is written before `make` succeeds, which is
 what keeps a failed compilation from looking like a finished one on the next run.
 
+The PhysiCell version is re-resolved first (see `refreshPhysiCellVersion`), so a PhysiCell
+that changed mid-session is compiled for and recorded as what it now is.
+
 Recompilation is necessary when the macros required by `S` differ from those recorded by the
 last successful compilation, when no executable exists for the PhysiCell version in use, or
 when that version cannot be pinned down at all (see `unreproduciblePhysiCellVersion`).
@@ -21,6 +24,7 @@ On success, move the compiled executable into the `custom_codes` folder, record 
 used, and delete the temporary PhysiCell folder.
 """
 function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
+    refreshPhysiCellVersion() #! PhysiCell may have been pulled, checked out, or edited since initialization; every decision below must be made against what is on disk now
     cflags, macros, recompile, clean = compilerFlags(S)
     recompile |= unreproduciblePhysiCellVersion() #! a dirty or downloaded PhysiCell can change without its recorded version changing, so the executable name is not a trustworthy cache key
 

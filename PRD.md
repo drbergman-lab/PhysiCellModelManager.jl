@@ -160,6 +160,7 @@
 - Database records each simulation with status (queued / running / completed / failed).
 - Rerunning an already-completed simulation with identical inputs is a no-op.
 - The compiled executable is named for the PhysiCell version it was built against (`project_<physicell-version>`), and its presence in the custom code folder is the only record that a build for that version succeeded. Recompilation happens when that file is absent, when the required macros differ from those recorded by the last successful compilation, or when the PhysiCell version cannot be pinned down (a dirty or downloaded PhysiCell).
+- The PhysiCell version is re-resolved from disk before every compilation, not only at initialization. A PhysiCell that is pulled, checked out, or edited mid-session is compiled for — and recorded as — what it is at that moment, with no restart required.
 
 **Edge cases:**
 - PhysiCell binary not compiled → error with instructions.
@@ -168,6 +169,7 @@
 - Compilation fails → the run fails, and nothing is written that a later run could read as a finished build: no executable for this PhysiCell version is produced and the macros file is left as the last successful compilation wrote it. The next run recompiles instead of reusing a stale executable. `compilation.log` / `compilation.err` are left in place for inspection.
 - Compilation reports success but produces no executable → treated as a failure.
 - A `data/` folder is moved to a machine with a different OS, architecture, or compiler → **not** detected; the executable name carries no ISA component. See [Known limitations](docs/src/man/known_limitations.md).
+- PhysiCell changes mid-session → detected at the next compilation. The check runs once per sampling, so a `Trial` spanning several samplings can straddle two PhysiCell versions; each sampling records the version it was actually built against.
 
 ---
 

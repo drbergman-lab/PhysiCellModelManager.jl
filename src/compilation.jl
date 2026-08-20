@@ -232,9 +232,14 @@ Whether `filename`, a bare file name in a custom code folder, is a file PCMM wri
 
 Covers the executables (`project_<physicell-version>`, plus `.exe` on Windows), the
 compilation logs, `macros.txt`, and what PCMM v0.3.3 and earlier left behind: an executable
-named `project` and a `physicell_commit_hash.txt`.
+named `project` and a `physicell_commit_hash.txt`. The legacy names are matched on either
+platform so that a data folder built elsewhere is still cleaned.
+
+Matched on the `project_` prefix rather than `project`, so an unrelated `projectile.cpp` is
+left alone. A file the user happened to name `project_notes.md` is not distinguishable from
+an executable and would be deleted; nothing but generated files belongs here.
 """
-isCompilationArtifact(filename::AbstractString) = startswith(filename, "project") || filename in ("compilation.log", "compilation.err", "macros.txt", "physicell_commit_hash.txt")
+isCompilationArtifact(filename::AbstractString) = startswith(filename, "project_") || filename in ("project", "project.exe", "compilation.log", "compilation.err", "macros.txt", "physicell_commit_hash.txt")
 
 """
     removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
@@ -247,7 +252,7 @@ project keeps looking like it has a build it does not have, so both go once a bu
 current naming has succeeded.
 """
 function removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
-    for filename in unique((baseToExecutable("project"), "project", "physicell_commit_hash.txt"))
+    for filename in ("project", "project.exe", "physicell_commit_hash.txt") #! both executable names, so a data folder built on another platform is cleaned too
         path_to_file = joinpath(path_to_custom_codes_folder, filename)
         if isfile(path_to_file)
             rm_hpc_safe(path_to_file; force=true)

@@ -43,7 +43,7 @@ fell out of the restructure rather than being hunted:
 - `addPhysiECMIfNeeded` called `addMacro(M, ...)` with an undefined `M` — an `UndefVarError`
   waiting on any project that enables `ecm_setup` in config without supplying an `ic_ecm` file.
 
-### Decisions
+### Decisions — the naming change
 - **Old executables are kept, not pruned.** A custom code folder can accumulate one binary per
   PhysiCell version used there. That is deliberate: the name is now a cache key, so switching
   PhysiCell versions back and forth no longer forces a rebuild. `clearSimulatorArtifacts`
@@ -55,9 +55,13 @@ fell out of the restructure rather than being hunted:
   successful compile under the new naming. A milestone would drag the whole
   `continueMilestoneUpgrade` prompt in to delete two files, and the upgrade is self-healing
   anyway: no hash-named executable exists, so the first run recompiles regardless.
-- **`isCompilationArtifact` matches `project*`**, mirroring what `createDefaultGitIgnore`
-  already declares generated. `clearSimulatorArtifacts` now walks the folder with that predicate
-  instead of deleting a fixed list of four names.
+- **`isCompilationArtifact` matches the `project_` prefix plus the exact legacy names**, and
+  `clearSimulatorArtifacts` walks the folder with that predicate instead of deleting a fixed list
+  of four names. `createDefaultGitIgnore` declares `project*` generated, but "do not track" is a
+  weaker claim than "delete", so the predicate is narrower than the ignore rule: `projectile.cpp`
+  survives. A file named `project_notes.md` would not, and cannot be distinguished from an
+  executable — nothing but generated files belongs in that folder. `project` and `project.exe` are
+  both matched regardless of platform so a data folder built elsewhere is still cleaned.
 - **The version string is sanitized before it becomes a file name.** It is either a git hash or
   the first line of `VERSION.txt` from whatever PhysiCell the user downloaded; the latter is not
   guaranteed tame. `sanitizedForFilename` replaces anything outside `[A-Za-z0-9._-]` with `_`.
@@ -66,6 +70,17 @@ fell out of the restructure rather than being hunted:
   `randstring(10)` suffix, so the intermediate name bought nothing.
 - **`make` exiting 0 without producing the executable is now a failure return**, not an
   unhandled `mv` error.
+
+### Testing the naming change
+`test/test-scripts/CompilationTests.jl`, run right after `RunnerTests.jl` so a real build
+exists to inspect. It asserts the naming and sanitizing, the `isCompilationArtifact`
+classification, that `removeLegacyBuildArtifacts` deletes the old pair and leaves `main.cpp`
+alone, and that a real build leaves a hash-named executable, a `macros.txt`, and no legacy
+files. The regression itself is driven end to end: swap in a `Makefile` whose only recipe is
+`@exit 1`, plant the exact state the old code was fooled by (a stale `project` plus a
+`physicell_commit_hash.txt` naming the current version), and check that `loadCustomCode` returns
+`false` and `executableExists` stays `false`. The real executable is moved aside and restored
+rather than deleted, so the failure path costs no rebuild.
 
 ### What this does not fix
 The name carries no OS, architecture, or compiler-flag component, so copying a `data/` folder
@@ -108,7 +123,7 @@ follows from the naming change above, which is why the two belong in one PR:
 Under the old naming this would have needed its own comparison against the hash file. With the
 hash in the executable name, re-resolving the version *is* the guard.
 
-### Decisions
+### Decisions — the guard
 - **`loadCustomCode`, not per simulation.** It is the single funnel for compilation, runs once per
   sampling, and precedes recording. Refreshing per simulation would let one sampling straddle two
   PhysiCell versions. The cost is one `git status --porcelain` per sampling: measured 30 ms for
@@ -138,7 +153,7 @@ covering both the dirty and the downloaded case. The field is therefore not miss
 is a missing *off-switch*. Left untouched pending a decision, with the options being to delete it
 or to wire it as that off-switch under a name that states the consequence.
 
-### Testing
+### Testing the guard
 Added to `CompilationTests.jl`. The wiring is pinned by setting `current_version_id` to the `-1`
 sentinel and calling `loadCustomCode`: with the refresh in place the id is corrected and the call
 returns `true`; without it, the first read of the version cannot resolve an executable name at
@@ -152,17 +167,6 @@ re-initializes afterwards, which is why the gap was never caught.
 
 Not covered: the checked-out-a-different-commit case, which needs a second commit available in
 `test/PhysiCell`. It drives the identical code path as the dirty case.
-
-### Testing the naming change
-`test/test-scripts/CompilationTests.jl`, run right after `RunnerTests.jl` so a real build
-exists to inspect. It asserts the naming and sanitizing, the `isCompilationArtifact`
-classification, that `removeLegacyBuildArtifacts` deletes the old pair and leaves `main.cpp`
-alone, and that a real build leaves a hash-named executable, a `macros.txt`, and no legacy
-files. The regression itself is driven end to end: swap in a `Makefile` whose only recipe is
-`@exit 1`, plant the exact state the old code was fooled by (a stale `project` plus a
-`physicell_commit_hash.txt` naming the current version), and check that `loadCustomCode` returns
-`false` and `executableExists` stays `false`. The real executable is moved aside and restored
-rather than deleted, so the failure path costs no rebuild.
 
 ---
 

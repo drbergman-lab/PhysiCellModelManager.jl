@@ -12,12 +12,14 @@ physicell_commit_hash = PhysiCellModelManager.physiCellCommitHash()
 @test PhysiCellModelManager.sanitizedForFilename("a/b c:d") == "a_b_c_d"
 @test PhysiCellModelManager.executableName("a/b") == PhysiCellModelManager.baseToExecutable("project_a_b")
 
-#! files PCMM writes while compiling, and so may delete
-for artifact in ["project", "project_abc123", PhysiCellModelManager.executableName(),
+#! files PCMM writes while compiling, and so may delete. The legacy names match on either
+#! platform, so a data folder built elsewhere is still cleaned.
+for artifact in ["project", "project.exe", "project_abc123", "project_abc123.exe",
+    PhysiCellModelManager.executableName(),
     "compilation.log", "compilation.err", "macros.txt", "physicell_commit_hash.txt"]
     @test PhysiCellModelManager.isCompilationArtifact(artifact)
 end
-for keeper in ["main.cpp", "Makefile", "custom_modules"]
+for keeper in ["main.cpp", "Makefile", "custom_modules", "metadata.xml", "projectile.cpp", "projects"]
     @test !PhysiCellModelManager.isCompilationArtifact(keeper)
 end
 

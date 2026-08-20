@@ -31,7 +31,7 @@ Place the following in `data/inputs/custom_codes/baseline/`, exactly as used in 
 - `Makefile`
 - `custom_modules/`
 
-PCMM compiles into this folder as well, adding an executable named for the PhysiCell version it was built against (`project_<version>`), the compilation logs, and `macros.txt`. These are generated files, ignored by the `.gitignore` [`createProject`](@ref) writes; delete them freely to force a fresh build.
+PCMM compiles into this folder as well, adding the compilation logs, `macros.txt`, and a `pcmm_build/` subfolder holding one executable per PhysiCell version it has built for (`pcmm_build/project_<version>`). These are generated files, ignored by the `.gitignore` [`createProject`](@ref) writes; delete `pcmm_build/` to force a fresh build.
 
 ## Rulesets collections
 

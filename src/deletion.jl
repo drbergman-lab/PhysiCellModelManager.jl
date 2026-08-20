@@ -3,13 +3,23 @@
 
 Remove build artifacts from all custom code folders for a PhysiCell project.
 
-Deletes every compiled executable, the compilation logs (`compilation.log`,
-`compilation.err`), and the macros file (`macros.txt`) from each subdirectory of the custom
-code location. Executables are named for the PhysiCell version they were built against, so a
-folder can hold one per version ever used there; all of them go.
+Deletes the build folder, which holds one executable per PhysiCell version ever compiled
+there, along with the compilation logs (`compilation.log`, `compilation.err`) and the macros
+file (`macros.txt`), from each subdirectory of the custom code location.
+
+Nothing is matched by pattern: the build folder is a directory PCMM owns and everything else
+is named exactly (see `isCompilationArtifact`), so a file the user keeps alongside their
+`main.cpp` is never at risk.
 """
 function ModelManager.clearSimulatorArtifacts(::PhysiCellSimulator)
     for custom_code_folder in (readdir(locationPath(:custom_code), sort=false, join=true) |> filter(x -> isdir(x)))
+        path_to_build_folder = joinpath(custom_code_folder, build_folder_name)
+        if isdir(path_to_build_folder)
+            for filename in readdir(path_to_build_folder; sort=false)
+                rm_hpc_safe(joinpath(path_to_build_folder, filename); force=true)
+            end
+            rm(path_to_build_folder; force=true, recursive=true)
+        end
         for filename in readdir(custom_code_folder; sort=false)
             path_to_file = joinpath(custom_code_folder, filename)
             if isfile(path_to_file) && isCompilationArtifact(filename)

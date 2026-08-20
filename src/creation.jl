@@ -502,7 +502,7 @@ function createDefaultGitIgnore(project_dir::String)
             ## custom codes
             compilation*
             macros.txt
-            project*
+            pcmm_build/
 
             ## outputs
             /outputs/

@@ -54,6 +54,8 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
     end
 
     executable_name = executableName()
+    path_to_build_folder = joinpath(path_to_input_custom_codes, build_folder_name)
+    path_to_executable = joinpath(path_to_build_folder, executable_name)
     cmd = Cmd(`make -j 8 CC=$(simulator().compiler) PROGRAM_NAME=$(executable_name) CFLAGS=$(cflags)`; env=ENV, dir=temp_physicell_dir) #! compile the custom code in the PhysiCell directory and return to the original directory
 
     println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.")
@@ -71,8 +73,7 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
         $(read(joinpath(path_to_input_custom_codes, "compilation.err"), String))
         """
         )
-        rm(temp_physicell_dir; force=true, recursive=true)
-        return false
+        return abandonBuild(path_to_executable, temp_physicell_dir)
     end
 
     #! check if the error file is empty, if it is, delete it
@@ -89,16 +90,32 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
         Check $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.
         """
         )
-        rm(temp_physicell_dir; force=true, recursive=true)
-        return false
+        return abandonBuild(path_to_executable, temp_physicell_dir)
     end
 
-    mv(path_to_compiled_executable, joinpath(path_to_input_custom_codes, executable_name), force=true)
+    mkpath(path_to_build_folder)
+    mv(path_to_compiled_executable, path_to_executable, force=true)
     writeMacrosFile(S, macros) #! only now that an executable exists is it true that this is what was compiled
     removeLegacyBuildArtifacts(path_to_input_custom_codes)
 
     rm(temp_physicell_dir; force=true, recursive=true)
     return true
+end
+
+"""
+    abandonBuild(path_to_executable::String, temp_physicell_dir::String)
+
+Clean up after a compilation that did not produce a usable executable, and return `false`.
+
+Deletes whatever executable is already sitting at `path_to_executable`. It was built for the
+same PhysiCell version, but from before whatever prompted this compilation — changed macros,
+a `force_recompile`, or an edited PhysiCell working tree — so it is exactly the file that
+would otherwise tell the next run its build was finished.
+"""
+function abandonBuild(path_to_executable::String, temp_physicell_dir::String)
+    rm(path_to_executable; force=true)
+    rm(temp_physicell_dir; force=true, recursive=true)
+    return false
 end
 
 """
@@ -210,13 +227,33 @@ shipped by whichever PhysiCell the user downloaded, so it is not guaranteed to b
 sanitizedForFilename(s::AbstractString) = replace(s, r"[^A-Za-z0-9._-]" => "_")
 
 """
+    build_folder_name
+
+Name of the subfolder of a custom code folder that holds compiled executables.
+
+Executables live in their own folder so that clearing them is an exact operation on a
+directory PCMM owns, rather than a name match against the custom code folder, where the user
+keeps `main.cpp`, `Makefile`, `custom_modules`, and anything else they please.
+"""
+const build_folder_name = "pcmm_build"
+
+"""
+    buildFolder(custom_code_folder::String)
+    buildFolder(S::AbstractSampling)
+
+Path to the folder holding a custom code folder's compiled executables.
+"""
+buildFolder(custom_code_folder::String) = joinpath(locationPath(:custom_code, custom_code_folder), build_folder_name)
+buildFolder(S::AbstractSampling) = joinpath(locationPath(:custom_code, S), build_folder_name)
+
+"""
     pathToExecutable(custom_code_folder::String)
     pathToExecutable(S::AbstractSampling)
 
-Path to the executable in a custom code folder for the PhysiCell version in use.
+Path to the executable for the PhysiCell version in use, inside a custom code folder's build folder.
 """
-pathToExecutable(custom_code_folder::String) = joinpath(locationPath(:custom_code, custom_code_folder), executableName())
-pathToExecutable(S::AbstractSampling) = joinpath(locationPath(:custom_code, S), executableName())
+pathToExecutable(custom_code_folder::String) = joinpath(buildFolder(custom_code_folder), executableName())
+pathToExecutable(S::AbstractSampling) = joinpath(buildFolder(S), executableName())
 
 """
     executableExists(custom_code_folder::String)
@@ -228,18 +265,15 @@ executableExists(custom_code_folder::String) = isfile(pathToExecutable(custom_co
 """
     isCompilationArtifact(filename::AbstractString)
 
-Whether `filename`, a bare file name in a custom code folder, is a file PCMM writes while compiling and may therefore delete.
+Whether `filename`, a bare file name at the top level of a custom code folder, is a file PCMM writes while compiling and may therefore delete.
 
-Covers the executables (`project_<physicell-version>`, plus `.exe` on Windows), the
-compilation logs, `macros.txt`, and what PCMM v0.3.3 and earlier left behind: an executable
-named `project` and a `physicell_commit_hash.txt`. The legacy names are matched on either
-platform so that a data folder built elsewhere is still cleaned.
-
-Matched on the `project_` prefix rather than `project`, so an unrelated `projectile.cpp` is
-left alone. A file the user happened to name `project_notes.md` is not distinguishable from
-an executable and would be deleted; nothing but generated files belongs here.
+Every name is matched exactly, so nothing the user keeps in the folder can be taken for a
+build artifact. Executables are not in this list at all — they live in the build folder (see
+`buildFolder`). `project`, `project.exe`, and `physicell_commit_hash.txt` are what PCMM
+v0.3.3 and earlier wrote at the top level, and are matched on either platform so a data
+folder built elsewhere is still cleaned.
 """
-isCompilationArtifact(filename::AbstractString) = startswith(filename, "project_") || filename in ("project", "project.exe", "compilation.log", "compilation.err", "macros.txt", "physicell_commit_hash.txt")
+isCompilationArtifact(filename::AbstractString) = filename in ("compilation.log", "compilation.err", "macros.txt", "project", "project.exe", "physicell_commit_hash.txt")
 
 """
     removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)

@@ -13,4 +13,4 @@ Does not support MaBoSS or dFBA.
 PCMM names each executable for the PhysiCell version it was built against, so it recompiles when that version changes.
 It does not track the operating system, architecture, or compiler flags used.
 Move a `data/` folder to a machine those differ on and PCMM will reuse an executable that cannot run there.
-Pass `force_recompile=true` to `run` once on the new machine, or delete the `project_*` files from `data/inputs/custom_codes/`.
+Pass `force_recompile=true` to `run` once on the new machine, or delete the `pcmm_build/` folders under `data/inputs/custom_codes/`.

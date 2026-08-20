@@ -55,13 +55,29 @@ fell out of the restructure rather than being hunted:
   successful compile under the new naming. A milestone would drag the whole
   `continueMilestoneUpgrade` prompt in to delete two files, and the upgrade is self-healing
   anyway: no hash-named executable exists, so the first run recompiles regardless.
-- **`isCompilationArtifact` matches the `project_` prefix plus the exact legacy names**, and
-  `clearSimulatorArtifacts` walks the folder with that predicate instead of deleting a fixed list
-  of four names. `createDefaultGitIgnore` declares `project*` generated, but "do not track" is a
-  weaker claim than "delete", so the predicate is narrower than the ignore rule: `projectile.cpp`
-  survives. A file named `project_notes.md` would not, and cannot be distinguished from an
-  executable — nothing but generated files belongs in that folder. `project` and `project.exe` are
-  both matched regardless of platform so a data folder built elsewhere is still cleaned.
+- **Executables live in a `pcmm_build/` subfolder, so clearing them needs no name match at all.**
+  Two earlier rounds tried to make a prefix safe — first `project*`, then `project_` — and review
+  rejected both: a glob that deletes can always swallow a file the user keeps for their own
+  records, and `project_notes.md` is genuinely indistinguishable from `project_<hash>`. A folder
+  PCMM owns ends the argument. `clearSimulatorArtifacts` removes that directory outright and
+  matches every remaining name exactly (`isCompilationArtifact`), so `projectile.cpp` and
+  `project_notes.md` are both safe. `project`, `project.exe`, and `physicell_commit_hash.txt` stay
+  in the exact list, matched on either platform, so a data folder built elsewhere is still cleaned.
+  `createDefaultGitIgnore` ignores `pcmm_build/` rather than `project*`.
+- **A build that does not finish takes the executable it was replacing with it** (`abandonBuild`).
+  Raised in review: is it possible to reach the failure paths with an executable for the current
+  version still present? Yes — the recompile may have been triggered by changed macros, a
+  `force_recompile`, or a dirty PhysiCell working tree, none of which imply the file is absent.
+  In the `force_recompile` case the hole was live: the next run without the flag would find that
+  executable, unchanged macros, and a clean repository, and reuse a binary the user had explicitly
+  asked to replace. Deleting it on failure makes "an executable exists" mean "a build for this
+  version finished" in the failure paths too.
+  Rejected: deleting it up front, before `make`. That would also cover an abnormal termination
+  mid-compile, which `abandonBuild` does not, but it removes the binary for the whole duration of
+  every rebuild, where the `mv` at the end is an atomic swap. On a shared filesystem a concurrent
+  session would fail to launch simulations for minutes rather than for an instant. Losing the
+  binary to a `kill -9` is the residual, and it fails loudly on the next launch rather than
+  silently returning wrong results.
 - **The version string is sanitized before it becomes a file name.** It is either a git hash or
   the first line of `VERSION.txt` from whatever PhysiCell the user downloaded; the latter is not
   guaranteed tame. `sanitizedForFilename` replaces anything outside `[A-Za-z0-9._-]` with `_`.

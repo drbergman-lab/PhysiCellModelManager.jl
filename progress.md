@@ -140,18 +140,31 @@ hash in the executable name, re-resolving the version *is* the guard.
 - **No opt-out.** Recording the wrong commit hash is corruption, not a preference, so the
   version-changed path is unconditional. See the `strict_check` note below for the dirty case.
 
-### `strict_check` is dead and always has been
-`PhysiCellSimulator.strict_check` is documented on an **exported** type as "If `true`, require a
-clean git directory to skip recompile", is set to `true` by the constructor, and is read nowhere.
+### `strict_check` deleted — it was dead and always had been
+`PhysiCellSimulator.strict_check` was documented on an **exported** type as "If `true`, require a
+clean git directory to skip recompile", was set to `true` by the constructor, and was read nowhere.
 `git log -S` shows it entered at the 2026-04-08 modularization as a rename of
 `strict_physicell_check` from the old globals struct ("...requires a clean git folder (in
-particular, not downloaded) to skip recompile"), which was itself never read either. So it is not
-a refactor casualty — it was declared and never wired, under both names.
+particular, not downloaded) to skip recompile"), which was itself never read either. Not a
+refactor casualty — declared and never wired, under both names, while its docstring rendered on
+the site as a promise the code did not keep.
 
-The behaviour it describes already exists unconditionally in `unreproduciblePhysiCellVersion()`,
-covering both the dirty and the downloaded case. The field is therefore not missing behaviour; it
-is a missing *off-switch*. Left untouched pending a decision, with the options being to delete it
-or to wire it as that off-switch under a name that states the consequence.
+The behaviour it described already exists unconditionally in `unreproduciblePhysiCellVersion()`,
+covering both the dirty and the downloaded case, so the field was never missing behaviour — it was
+a missing *off-switch*, for someone carrying a permanent local patch on PhysiCell who does not want
+a full rebuild every run.
+
+Deleted rather than wired up. Setting it to `false` would mean recording a clean commit hash for a
+tree that is not that commit, in the package whose job is reproducible bookkeeping, and PCMM
+already prints the better answer when it sees a dirty repository ("make a new commit or stash
+changes") — which yields a real hash that caches like any other version. The rejected alternative
+was to keep the hatch under a name stating its consequence (`recompile_if_unreproducible`, with a
+`@compat public` setter, since a knob with no API is the incoherence the 2026-08-05 entry flagged
+about `setMarchFlag`).
+
+Technically breaking for anyone constructing `PhysiCellSimulator` with nine positional arguments.
+Nothing in either repo does — every construction site is the no-argument constructor — and the
+package is pre-1.0.
 
 ### Testing the guard
 Added to `CompilationTests.jl`. The wiring is pinned by setting `current_version_id` to the `-1`

@@ -12,16 +12,18 @@ is named exactly (see `isCompilationArtifact`), so a file the user keeps alongsi
 `main.cpp` is never at risk.
 """
 function ModelManager.clearSimulatorArtifacts(::PhysiCellSimulator)
-    for custom_code_folder in (readdir(locationPath(:custom_code), sort=false, join=true) |> filter(x -> isdir(x)))
-        path_to_build_folder = joinpath(custom_code_folder, build_folder_name)
+    custom_code_folders = readdir(locationPath(:custom_code); sort=false) |> filter(x -> isdir(locationPath(:custom_code, x)))
+    for custom_code_folder in custom_code_folders
+        path_to_build_folder = buildFolder(custom_code_folder)
         if isdir(path_to_build_folder)
             for filename in readdir(path_to_build_folder; sort=false)
                 rm_hpc_safe(joinpath(path_to_build_folder, filename); force=true)
             end
             rm(path_to_build_folder; force=true, recursive=true)
         end
-        for filename in readdir(custom_code_folder; sort=false)
-            path_to_file = joinpath(custom_code_folder, filename)
+        path_to_custom_code_folder = locationPath(:custom_code, custom_code_folder)
+        for filename in readdir(path_to_custom_code_folder; sort=false)
+            path_to_file = joinpath(path_to_custom_code_folder, filename)
             if isfile(path_to_file) && isCompilationArtifact(filename)
                 rm_hpc_safe(path_to_file; force=true)
             end

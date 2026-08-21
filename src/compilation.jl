@@ -53,47 +53,48 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
         cd(()->quietRun(`make clean`), temp_physicell_dir)
     end
 
-    executable_name = executableName()
-    path_to_build_folder = joinpath(path_to_input_custom_codes, build_folder_name)
-    path_to_executable = joinpath(path_to_build_folder, executable_name)
+    path_to_executable = pathToExecutable(S)
+    executable_name = basename(path_to_executable) #! `make` must produce exactly the file we move into place
+    path_to_compilation_log = joinpath(path_to_input_custom_codes, "compilation.log")
+    path_to_compilation_err = joinpath(path_to_input_custom_codes, "compilation.err")
     cmd = Cmd(`make -j 8 CC=$(simulator().compiler) PROGRAM_NAME=$(executable_name) CFLAGS=$(cflags)`; env=ENV, dir=temp_physicell_dir) #! compile the custom code in the PhysiCell directory and return to the original directory
 
-    println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.")
+    println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(path_to_compilation_log) for more information.")
 
     try
-        run(pipeline(cmd; stdout=joinpath(path_to_input_custom_codes, "compilation.log"), stderr=joinpath(path_to_input_custom_codes, "compilation.err")))
+        run(pipeline(cmd; stdout=path_to_compilation_log, stderr=path_to_compilation_err))
     catch e
         println("""
         Compilation failed.
         Error: $e
-        Check $(joinpath(path_to_input_custom_codes, "compilation.err")) for more information.
+        Check $(path_to_compilation_err) for more information.
         Here is the compilation.log:
-        $(read(joinpath(path_to_input_custom_codes, "compilation.log"), String))
+        $(read(path_to_compilation_log, String))
         Here is the compilation.err:
-        $(read(joinpath(path_to_input_custom_codes, "compilation.err"), String))
+        $(read(path_to_compilation_err, String))
         """
         )
         return abandonBuild(path_to_executable, temp_physicell_dir)
     end
 
     #! check if the error file is empty, if it is, delete it
-    if filesize(joinpath(path_to_input_custom_codes, "compilation.err")) == 0
-        rm(joinpath(path_to_input_custom_codes, "compilation.err"); force=true)
+    if filesize(path_to_compilation_err) == 0
+        rm(path_to_compilation_err; force=true)
     else
-        println("Compilation exited without error, but check $(joinpath(path_to_input_custom_codes, "compilation.err")) for warnings.")
+        println("Compilation exited without error, but check $(path_to_compilation_err) for warnings.")
     end
 
     path_to_compiled_executable = joinpath(temp_physicell_dir, executable_name)
     if !isfile(path_to_compiled_executable)
         println("""
         Compilation exited without error, but produced no executable at $(path_to_compiled_executable).
-        Check $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.
+        Check $(path_to_compilation_log) for more information.
         """
         )
         return abandonBuild(path_to_executable, temp_physicell_dir)
     end
 
-    mkpath(path_to_build_folder)
+    mkpath(buildFolder(S))
     mv(path_to_compiled_executable, path_to_executable, force=true)
     writeMacrosFile(S, macros) #! only now that an executable exists is it true that this is what was compiled
     removeLegacyBuildArtifacts(path_to_input_custom_codes)
@@ -496,12 +497,19 @@ function libRoadRunnerOnPath(env_var::String, librr_lib_path::String; working_di
 end
 
 """
+    pathToMacrosFile(S::AbstractSampling)
+
+Path to the file recording the macros the custom code for the sampling object `S` was last compiled with.
+"""
+pathToMacrosFile(S::AbstractSampling) = joinpath(locationPath(:custom_code, S), "macros.txt")
+
+"""
     readMacrosFile(S::AbstractSampling)
 
 Read the macros recorded by the last successful compilation for the sampling object `S` into a vector of strings, one macro per entry.
 """
 function readMacrosFile(S::AbstractSampling)
-    path_to_macros = joinpath(locationPath(:custom_code, S), "macros.txt")
+    path_to_macros = pathToMacrosFile(S)
     if !isfile(path_to_macros)
         return String[]
     end
@@ -518,8 +526,7 @@ leave the file claiming macros no executable was ever built with, and the next r
 the `make clean` that a macro change requires.
 """
 function writeMacrosFile(S::AbstractSampling, macros::Vector{String})
-    path_to_macros = joinpath(locationPath(:custom_code, S), "macros.txt")
-    open(path_to_macros, "w") do f
+    open(pathToMacrosFile(S), "w") do f
         for macro_name in macros
             println(f, macro_name)
         end

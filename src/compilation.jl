@@ -7,14 +7,28 @@ using LightXML
 
 Load and compile custom code for a simulation, monad, or sampling.
 
-Determines if recompilation is necessary based on the previously used macros.
+The executable is named for the PhysiCell version it is built against (see `executableName`)
+and lives in the custom code folder's build folder (see `buildFolder`), so its presence there
+is itself the record that a build for that version finished. Nothing the decision below reads
+is written before `make` succeeds, and a compilation that does not finish deletes any
+executable it was replacing, so a failed compilation cannot look like a finished one on the
+next run.
+
+The PhysiCell version is re-resolved first (see `refreshPhysiCellVersion`), so a PhysiCell
+that changed mid-session is compiled for and recorded as what it now is.
+
+Recompilation is necessary when the macros required by `S` differ from those recorded by the
+last successful compilation, when no executable exists for the PhysiCell version in use, or
+when that version cannot be pinned down at all (see `unreproduciblePhysiCellVersion`).
 If compilation is required, copy the PhysiCell directory to a temporary directory to avoid conflicts.
 Then, compile the project, recording the output and error in the `custom_codes` folder used.
-Move the compiled executable into the `custom_codes` folder and the temporary PhysiCell folder deleted.
+On success, move the compiled executable into the build folder, record the macros used, and
+delete the temporary PhysiCell folder.
 """
 function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
-    cflags, recompile, clean = compilerFlags(S)
-    recompile = writePhysiCellCommitHash(S) || recompile #! no matter what, write the PhysiCell version; if it is different, make sure to set recompile to true
+    refreshPhysiCellVersion() #! PhysiCell may have been pulled, checked out, or edited since initialization; every decision below must be made against what is on disk now
+    cflags, macros, recompile, clean = compilerFlags(S)
+    recompile |= unreproduciblePhysiCellVersion() #! a dirty or downloaded PhysiCell can change without its recorded version changing, so the executable name is not a trustworthy cache key
 
     recompile |= force_recompile #! if force_recompile is true, then recompile no matter what
 
@@ -41,39 +55,70 @@ function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
         cd(()->quietRun(`make clean`), temp_physicell_dir)
     end
 
-    executable_name = baseToExecutable("project_ccid_$(S.inputs[:custom_code].id)")
+    path_to_executable = pathToExecutable(S)
+    executable_name = basename(path_to_executable) #! `make` must produce exactly the file we move into place
+    path_to_compilation_log = joinpath(path_to_input_custom_codes, "compilation.log")
+    path_to_compilation_err = joinpath(path_to_input_custom_codes, "compilation.err")
     cmd = Cmd(`make -j 8 CC=$(simulator().compiler) PROGRAM_NAME=$(executable_name) CFLAGS=$(cflags)`; env=ENV, dir=temp_physicell_dir) #! compile the custom code in the PhysiCell directory and return to the original directory
 
-    println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(joinpath(path_to_input_custom_codes, "compilation.log")) for more information.")
+    println("Compiling custom code for $(S.inputs[:custom_code].folder). See $(path_to_compilation_log) for more information.")
 
     try
-        run(pipeline(cmd; stdout=joinpath(path_to_input_custom_codes, "compilation.log"), stderr=joinpath(path_to_input_custom_codes, "compilation.err")))
+        run(pipeline(cmd; stdout=path_to_compilation_log, stderr=path_to_compilation_err))
     catch e
         println("""
         Compilation failed.
         Error: $e
-        Check $(joinpath(path_to_input_custom_codes, "compilation.err")) for more information.
+        Check $(path_to_compilation_err) for more information.
         Here is the compilation.log:
-        $(read(joinpath(path_to_input_custom_codes, "compilation.log"), String))
+        $(read(path_to_compilation_log, String))
         Here is the compilation.err:
-        $(read(joinpath(path_to_input_custom_codes, "compilation.err"), String))
+        $(read(path_to_compilation_err, String))
         """
         )
-        rm(temp_physicell_dir; force=true, recursive=true)
-        return false
+        return abandonBuild(path_to_executable, temp_physicell_dir)
     end
 
     #! check if the error file is empty, if it is, delete it
-    if filesize(joinpath(path_to_input_custom_codes, "compilation.err")) == 0
-        rm(joinpath(path_to_input_custom_codes, "compilation.err"); force=true)
+    if filesize(path_to_compilation_err) == 0
+        rm(path_to_compilation_err; force=true)
     else
-        println("Compilation exited without error, but check $(joinpath(path_to_input_custom_codes, "compilation.err")) for warnings.")
+        println("Compilation exited without error, but check $(path_to_compilation_err) for warnings.")
     end
 
-    mv(joinpath(temp_physicell_dir, executable_name), joinpath(path_to_input_custom_codes, baseToExecutable("project")), force=true)
+    path_to_compiled_executable = joinpath(temp_physicell_dir, executable_name)
+    if !isfile(path_to_compiled_executable)
+        println("""
+        Compilation exited without error, but produced no executable at $(path_to_compiled_executable).
+        Check $(path_to_compilation_log) for more information.
+        """
+        )
+        return abandonBuild(path_to_executable, temp_physicell_dir)
+    end
+
+    mkpath(buildFolder(S))
+    mv(path_to_compiled_executable, path_to_executable, force=true)
+    writeMacrosFile(S, macros) #! only now that an executable exists is it true that this is what was compiled
+    removeLegacyBuildArtifacts(path_to_input_custom_codes)
 
     rm(temp_physicell_dir; force=true, recursive=true)
     return true
+end
+
+"""
+    abandonBuild(path_to_executable::String, temp_physicell_dir::String)
+
+Clean up after a compilation that did not produce a usable executable, and return `false`.
+
+Deletes whatever executable is already sitting at `path_to_executable`. It was built for the
+same PhysiCell version, but from before whatever prompted this compilation — changed macros,
+a `force_recompile`, or an edited PhysiCell working tree — so it is exactly the file that
+would otherwise tell the next run its build was finished.
+"""
+function abandonBuild(path_to_executable::String, temp_physicell_dir::String)
+    rm(path_to_executable; force=true)
+    rm(temp_physicell_dir; force=true, recursive=true)
+    return false
 end
 
 """
@@ -81,11 +126,13 @@ end
 
 Generate the compiler flags for the given sampling object `S`.
 
-Generate the necessary compiler flags based on the system and the macros defined in the sampling object `S`.
-If the required macros differ from a previous compilation (as stored in macros.txt), then recompile.
+Generate the necessary compiler flags based on the system and the macros required by the sampling object `S`.
+If the required macros differ from those recorded by the last successful compilation (as stored in macros.txt), then recompile and clean.
+If no executable exists for the PhysiCell version in use, then recompile.
 
 # Returns
 - `cflags::String`: The compiler flags as a string.
+- `macros::Vector{String}`: The macros the compilation must define, to be recorded only once it succeeds.
 - `recompile::Bool`: A boolean indicating whether recompilation is needed.
 - `clean::Bool`: A boolean indicating whether cleaning is needed.
 """
@@ -106,19 +153,19 @@ function compilerFlags(S::AbstractSampling)
         cflags *= " -mfpmath=both"
     end
 
-    macros_updated = addMacrosIfNeeded(S)
-    updated_macros = readMacrosFile(S) #! this will get all macros already in the macros file
+    macros = neededMacros(S)
 
-    if macros_updated
+    if macros != readMacrosFile(S)
+        #! the macros are part of every translation unit, so a build that used different ones must be discarded entirely
         recompile = true
         clean = true
     end
 
-    for macro_flag in updated_macros
+    for macro_flag in macros
         cflags *= " -D $(macro_flag)"
     end
 
-    if "ADDON_ROADRUNNER" in updated_macros
+    if "ADDON_ROADRUNNER" in macros
         librr_dir = joinpath(physicellDir(), "addons", "libRoadrunner", "roadrunner")
         cflags *= " -I $(joinpath(librr_dir, "include", "rr", "C"))"
         cflags *= " -L $(joinpath(librr_dir, "lib"))"
@@ -127,102 +174,176 @@ function compilerFlags(S::AbstractSampling)
         prepareLibRoadRunner()
     end
 
-    recompile = recompile || !executableExists(S.inputs[:custom_code].folder) #! last chance to recompile: do so if the executable does not exist
+    recompile = recompile || !executableExists(S.inputs[:custom_code].folder) #! last chance to recompile: do so if no executable exists for the PhysiCell version in use
 
-    return cflags, recompile, clean
+    return cflags, macros, recompile, clean
 end
 
 """
-    writePhysiCellCommitHash(S::AbstractSampling)
+    unreproduciblePhysiCellVersion()
 
-Write the commit hash of the PhysiCell repository to a file associated with the custom code folder of the sampling object `S`.
+Whether the PhysiCell version in use cannot be pinned down by the version PCMM records for it.
 
-If the commit hash has changed since the last write, if the repository is in a dirty state, or if PhysiCell is downloaded (not cloned), recompile the custom code.
+`true` when the PhysiCell repository has uncommitted changes (`-dirty`) or when PhysiCell was
+downloaded rather than cloned (`-download`). In both cases the source can change without the
+recorded version changing, so the name of an existing executable proves nothing and the
+custom code is recompiled on every run.
 """
-function writePhysiCellCommitHash(S::AbstractSampling)
-    path_to_commit_hash = joinpath(locationPath(:custom_code, S), "physicell_commit_hash.txt")
+function unreproduciblePhysiCellVersion()
     physicell_commit_hash = physiCellCommitHash()
-    current_commit_hash = ""
-    if isfile(path_to_commit_hash)
-        current_commit_hash = readchomp(path_to_commit_hash)
-    end
-    recompile = true
-    if current_commit_hash != physicell_commit_hash
-        open(path_to_commit_hash, "w") do f
-            println(f, physicell_commit_hash)
-        end
-    elseif endswith(physicell_commit_hash, "-dirty")
+    if endswith(physicell_commit_hash, "-dirty")
         println("PhysiCell repo is dirty. Recompiling to be safe...")
-    elseif endswith(physicell_commit_hash, "-download")
-        println("PhysiCell repo is downloaded. Recompiling to be safe...")
-    else
-        recompile = false
+        return true
     end
-    return recompile
+    if endswith(physicell_commit_hash, "-download")
+        println("PhysiCell repo is downloaded. Recompiling to be safe...")
+        return true
+    end
+    return false
 end
+
+"""
+    executableName([physicell_commit_hash::AbstractString])
+
+Name of the compiled PhysiCell executable for a given PhysiCell version, defaulting to the version in use.
+
+The version is part of the file name so that the file's existence is proof that a build for
+that version completed; there is no separate bookkeeping file to fall out of step with it.
+Windows names carry a `.exe` extension.
+
+# Examples
+```julia-repl
+julia> PhysiCellModelManager.executableName("4a9ba0c1e0b4c1a8d9f70e0f6d4e6b8c1a2b3c4d")
+"project_4a9ba0c1e0b4c1a8d9f70e0f6d4e6b8c1a2b3c4d"
+```
+"""
+executableName(physicell_commit_hash::AbstractString=physiCellCommitHash()) = baseToExecutable("project_$(sanitizedForFilename(physicell_commit_hash))")
+
+"""
+    sanitizedForFilename(s::AbstractString)
+
+Replace each character of `s` outside `[A-Za-z0-9._-]` with `_` so that `s` is safe to use in a file name.
+
+A PhysiCell version is either a git commit hash or the first line of the `VERSION.txt`
+shipped by whichever PhysiCell the user downloaded, so it is not guaranteed to be tame.
+"""
+sanitizedForFilename(s::AbstractString) = replace(s, r"[^A-Za-z0-9._-]" => "_")
+
+"""
+    build_folder_name
+
+Name of the subfolder of a custom code folder that holds compiled executables.
+
+Executables live in their own folder so that clearing them is an exact operation on a
+directory PCMM owns, rather than a name match against the custom code folder, where the user
+keeps `main.cpp`, `Makefile`, `custom_modules`, and anything else they please.
+"""
+const build_folder_name = "pcmm_build"
+
+"""
+    buildFolder(custom_code_folder::String)
+    buildFolder(S::AbstractSampling)
+
+Path to the folder holding a custom code folder's compiled executables.
+"""
+buildFolder(custom_code_folder::String) = joinpath(locationPath(:custom_code, custom_code_folder), build_folder_name)
+buildFolder(S::AbstractSampling) = joinpath(locationPath(:custom_code, S), build_folder_name)
+
+"""
+    pathToExecutable(custom_code_folder::String)
+    pathToExecutable(S::AbstractSampling)
+
+Path to the executable for the PhysiCell version in use, inside a custom code folder's build folder.
+"""
+pathToExecutable(custom_code_folder::String) = joinpath(buildFolder(custom_code_folder), executableName())
+pathToExecutable(S::AbstractSampling) = joinpath(buildFolder(S), executableName())
 
 """
     executableExists(custom_code_folder::String)
 
-Check if the executable for the custom code folder exists.
+Check if the custom code folder holds an executable built against the PhysiCell version in use.
 """
-executableExists(custom_code_folder::String) = isfile(joinpath(locationPath(:custom_code, custom_code_folder), baseToExecutable("project")))
+executableExists(custom_code_folder::String) = isfile(pathToExecutable(custom_code_folder))
 
 """
-    addMacrosIfNeeded(S::AbstractSampling)
+    isCompilationArtifact(filename::AbstractString)
 
-Check if the macros needed for the sampling object `S` are already present in the macros file.
+Whether `filename`, a bare file name at the top level of a custom code folder, is a file PCMM writes while compiling and may therefore delete.
+
+Every name is matched exactly, so nothing the user keeps in the folder can be taken for a
+build artifact. Executables are not in this list at all — they live in the build folder (see
+`buildFolder`) — and the rest are `legacy_artifact_names`.
 """
-function addMacrosIfNeeded(S::AbstractSampling)
-    #! else get the macros neeeded
-    macros_updated = false
+isCompilationArtifact(filename::AbstractString) = filename in ("compilation.log", "compilation.err", "macros.txt") || filename in legacy_artifact_names
 
-    #! julia's |= operator seems to evaluate the RHS even if the LHS is already true, but I don't trust that will always be the case
-    macros_updated = macros_updated || addPhysiECMIfNeeded(S)
-    macros_updated = macros_updated || addRoadRunnerIfNeeded(S)
+"""
+    legacy_artifact_names
+
+Top-level names PCMM v0.3.3 and earlier wrote into a custom code folder and no longer reads.
+
+That version named every executable `project` and tracked the PhysiCell version in
+`physicell_commit_hash.txt`. Both spellings of the executable are listed so that a data
+folder built on another platform is cleaned too.
+"""
+const legacy_artifact_names = ("project", "project.exe", "physicell_commit_hash.txt")
+
+"""
+    removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
+
+Delete the build bookkeeping of PCMM v0.3.3 and earlier from a custom code folder.
+
+Leaving that pair in place is how a project keeps looking like it has a build it does not
+have, so it goes once a build under the current naming has succeeded.
+"""
+function removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
+    for filename in legacy_artifact_names
+        path_to_file = joinpath(path_to_custom_codes_folder, filename)
+        if isfile(path_to_file)
+            rm_hpc_safe(path_to_file; force=true)
+        end
+    end
+    return nothing
+end
+
+"""
+    neededMacros(S::AbstractSampling)
+
+The macros the custom code for the sampling object `S` must be compiled with.
+
+Starts from the macros recorded by the last successful compilation (macros.txt) and appends
+any that `S` newly requires, preserving the recorded order so the result can be compared
+against the file to decide whether a recompilation is needed. Every check runs, so a
+sampling needing more than one new macro gets all of them in one compilation.
+"""
+function neededMacros(S::AbstractSampling)
+    macros = readMacrosFile(S)
+    if !("ADDON_PHYSIECM" in macros) && isPhysiECMNeeded(S)
+        push!(macros, "ADDON_PHYSIECM")
+    end
+    if !("ADDON_ROADRUNNER" in macros) && isRoadRunnerNeeded(S)
+        push!(macros, "ADDON_ROADRUNNER")
+    end
 
     #! check others...
 
-    return macros_updated
+    return macros
 end
 
 """
-    addMacro(S::AbstractSampling, macro_name::String)
+    isPhysiECMNeeded(S::AbstractSampling)
 
-Add a macro to the macros file for the sampling object `S`.
+Check if the PhysiECM macro is needed for the sampling object `S`.
+
+The macro is needed if either 1) the `inputs` includes `ic_ecm` or 2) the configuration file has `ecm_setup` enabled.
 """
-function addMacro(S::AbstractSampling, macro_name::String)
-    path_to_macros = joinpath(locationPath(:custom_code, S), "macros.txt")
-    open(path_to_macros, "a") do f
-        println(f, macro_name)
-    end
-end
-
-"""
-    addPhysiECMIfNeeded(S::AbstractSampling)
-
-Check if the PhysiECM macro needs to be added for the sampling object `S`.
-
-The macro will need to be added if it is not present AND either 1) the `inputs` includes `ic_ecm` or 2) the configuration file has `ecm_setup` enabled.
-"""
-function addPhysiECMIfNeeded(S::AbstractSampling)
-    if "ADDON_PHYSIECM" in readMacrosFile(S)
-        #! if the custom codes folder for the sampling already has the macro, then we don't need to do anything
-        return false
-    end
+function isPhysiECMNeeded(S::AbstractSampling)
     if S.inputs[:ic_ecm].id != -1
-        #! if this sampling is providing an ic file for ecm, then we need to add the macro
-        addMacro(S, "ADDON_PHYSIECM")
+        #! if this sampling is providing an ic file for ecm, then we need the macro
         return true
     end
     #! check if ecm_setup element has enabled="true" in config files
     prepareVariedInputFolder(:config, S)
-    if isPhysiECMInConfig(S)
-        #! if the base config file says that the ecm is enabled, then we need to add the macro
-        addMacro(M, "ADDON_PHYSIECM")
-        return true
-    end
-    return false
+    return isPhysiECMInConfig(S)
 end
 
 """
@@ -252,25 +373,15 @@ function isPhysiECMInConfig(sampling::Sampling)
 end
 
 """
-    addRoadRunnerIfNeeded(S::AbstractSampling)
+    isRoadRunnerNeeded(S::AbstractSampling)
 
-Check if the RoadRunner macro needs to be added for the sampling object `S`.
+Check if the RoadRunner macro is needed for the sampling object `S`.
 
-The macro will need to be added if it is not present AND either 1) the `inputs` defines an `intracellular` file with `roadrunner` intracellulars or 2) the configuration file has `roadrunner` intracellulars defined.
+The macro is needed if either 1) the `inputs` defines an `intracellular` file with `roadrunner` intracellulars or 2) the configuration file has `roadrunner` intracellulars defined.
 """
-function addRoadRunnerIfNeeded(S::AbstractSampling)
-    if "ADDON_ROADRUNNER" in readMacrosFile(S)
-        #! if the custom codes folder for the sampling already has the macro, then we don't need to do anything
-        return false
-    end
-
-    macros_updated = false
+function isRoadRunnerNeeded(S::AbstractSampling)
     prepareVariedInputFolder(:config, S)
-    macros_updated = isRoadRunnerInInputs(S) || isRoadRunnerInConfig(S)
-    if macros_updated
-        addMacro(S, "ADDON_ROADRUNNER")
-    end
-    return macros_updated
+    return isRoadRunnerInInputs(S) || isRoadRunnerInConfig(S)
 end
 
 """
@@ -395,16 +506,41 @@ function libRoadRunnerOnPath(env_var::String, librr_lib_path::String; working_di
 end
 
 """
+    pathToMacrosFile(S::AbstractSampling)
+
+Path to the file recording the macros the custom code for the sampling object `S` was last compiled with.
+"""
+pathToMacrosFile(S::AbstractSampling) = joinpath(locationPath(:custom_code, S), "macros.txt")
+
+"""
     readMacrosFile(S::AbstractSampling)
 
-Read the macros file for the sampling object `S` into a vector of strings, one macro per entry.
+Read the macros recorded by the last successful compilation for the sampling object `S` into a vector of strings, one macro per entry.
 """
 function readMacrosFile(S::AbstractSampling)
-    path_to_macros = joinpath(locationPath(:custom_code, S), "macros.txt")
+    path_to_macros = pathToMacrosFile(S)
     if !isfile(path_to_macros)
-        return []
+        return String[]
     end
     return readlines(path_to_macros)
+end
+
+"""
+    writeMacrosFile(S::AbstractSampling, macros::Vector{String})
+
+Record `macros` as the macros the custom code for the sampling object `S` was compiled with.
+
+Called only after a compilation succeeds. Written any earlier, a failed compilation would
+leave the file claiming macros no executable was ever built with, and the next run would skip
+the `make clean` that a macro change requires.
+"""
+function writeMacrosFile(S::AbstractSampling, macros::Vector{String})
+    open(pathToMacrosFile(S), "w") do f
+        for macro_name in macros
+            println(f, macro_name)
+        end
+    end
+    return nothing
 end
 
 """

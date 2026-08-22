@@ -19,6 +19,7 @@ test_order = [
     "CreateProjectTests.jl",
     "ProjectConfigurationTests.jl",
     "RunnerTests.jl",
+    "CompilationTests.jl",
     "UserAPITests.jl",
     "ImportTests.jl",
     "PrunerTests.jl",

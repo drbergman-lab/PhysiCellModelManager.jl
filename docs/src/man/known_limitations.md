@@ -8,3 +8,9 @@ When launching PhysiCell Studio from PhysiCellModelManager.jl, the initial condi
 ## Limited intracellular models
 Currently only supports ODE intracellular models (using libRoadRunner).
 Does not support MaBoSS or dFBA.
+
+## Compiled executables are not keyed to the machine that built them
+PCMM names each executable for the PhysiCell version it was built against, so it recompiles when that version changes.
+It does not track the operating system, architecture, or compiler flags used.
+Move a `data/` folder to a machine those differ on and PCMM will reuse an executable that cannot run there.
+Pass `force_recompile=true` to `run` once on the new machine, or delete the `pcmm_build/` folders under `data/inputs/custom_codes/`.

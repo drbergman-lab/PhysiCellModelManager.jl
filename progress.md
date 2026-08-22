@@ -92,11 +92,15 @@ fell out of the restructure rather than being hunted:
 exists to inspect. It asserts the naming and sanitizing, the `isCompilationArtifact`
 classification, that `removeLegacyBuildArtifacts` deletes the old pair and leaves `main.cpp`
 alone, and that a real build leaves a hash-named executable, a `macros.txt`, and no legacy
-files. The regression itself is driven end to end: swap in a `Makefile` whose only recipe is
-`@exit 1`, plant the exact state the old code was fooled by (a stale `project` plus a
-`physicell_commit_hash.txt` naming the current version), and check that `loadCustomCode` returns
-`false` and `executableExists` stays `false`. The real executable is moved aside and restored
-rather than deleted, so the failure path costs no rebuild.
+files. The regression is driven end to end: with a real working executable in place, swap in a
+`Makefile` whose only recipe is `@exit 1`, plant the state the old code was fooled by (a stale
+`project` plus a `physicell_commit_hash.txt` naming the current version), and check that
+`loadCustomCode` returns `false` and that the executable it was replacing is gone rather than
+left to be trusted. The following call, without `force_recompile`, must then rebuild — which is
+the naming regression itself, since v0.3.3 would have returned `true` off the leftover pair, and
+the executable can only reappear if a compilation actually ran. That costs one real build; an
+earlier version of the test moved the executable aside to avoid it, which left the failure path
+with nothing to lose and missed the hole review found.
 
 ### What this does not fix
 The name carries no OS, architecture, or compiler-flag component, so copying a `data/` folder
@@ -154,7 +158,8 @@ hash in the executable name, re-resolving the version *is* the guard.
 - **A failed compile after a version change is safe.** The refreshed id is in place but
   `setupSampling` returns false and the run aborts, so no simulation is recorded against it.
 - **No opt-out.** Recording the wrong commit hash is corruption, not a preference, so the
-  version-changed path is unconditional. See the `strict_check` note below for the dirty case.
+  version-changed path is unconditional. The dirty case is not configurable either — see the
+  `strict_check` note below for why that off-switch was deleted rather than wired up.
 
 ### `strict_check` deleted — it was dead and always had been
 `PhysiCellSimulator.strict_check` was documented on an **exported** type as "If `true`, require a

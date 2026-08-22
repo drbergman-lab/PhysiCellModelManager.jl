@@ -7,10 +7,12 @@ using LightXML
 
 Load and compile custom code for a simulation, monad, or sampling.
 
-The executable is named for the PhysiCell version it is built against (see
-`executableName`), so its presence in the `custom_codes` folder is itself the record that a
-build for that version finished. Nothing else is written before `make` succeeds, which is
-what keeps a failed compilation from looking like a finished one on the next run.
+The executable is named for the PhysiCell version it is built against (see `executableName`)
+and lives in the custom code folder's build folder (see `buildFolder`), so its presence there
+is itself the record that a build for that version finished. Nothing the decision below reads
+is written before `make` succeeds, and a compilation that does not finish deletes any
+executable it was replacing, so a failed compilation cannot look like a finished one on the
+next run.
 
 The PhysiCell version is re-resolved first (see `refreshPhysiCellVersion`), so a PhysiCell
 that changed mid-session is compiled for and recorded as what it now is.
@@ -20,8 +22,8 @@ last successful compilation, when no executable exists for the PhysiCell version
 when that version cannot be pinned down at all (see `unreproduciblePhysiCellVersion`).
 If compilation is required, copy the PhysiCell directory to a temporary directory to avoid conflicts.
 Then, compile the project, recording the output and error in the `custom_codes` folder used.
-On success, move the compiled executable into the `custom_codes` folder, record the macros
-used, and delete the temporary PhysiCell folder.
+On success, move the compiled executable into the build folder, record the macros used, and
+delete the temporary PhysiCell folder.
 """
 function loadCustomCode(S::AbstractSampling; force_recompile::Bool=false)
     refreshPhysiCellVersion() #! PhysiCell may have been pulled, checked out, or edited since initialization; every decision below must be made against what is on disk now
@@ -270,24 +272,31 @@ Whether `filename`, a bare file name at the top level of a custom code folder, i
 
 Every name is matched exactly, so nothing the user keeps in the folder can be taken for a
 build artifact. Executables are not in this list at all — they live in the build folder (see
-`buildFolder`). `project`, `project.exe`, and `physicell_commit_hash.txt` are what PCMM
-v0.3.3 and earlier wrote at the top level, and are matched on either platform so a data
-folder built elsewhere is still cleaned.
+`buildFolder`) — and the rest are `legacy_artifact_names`.
 """
-isCompilationArtifact(filename::AbstractString) = filename in ("compilation.log", "compilation.err", "macros.txt", "project", "project.exe", "physicell_commit_hash.txt")
+isCompilationArtifact(filename::AbstractString) = filename in ("compilation.log", "compilation.err", "macros.txt") || filename in legacy_artifact_names
+
+"""
+    legacy_artifact_names
+
+Top-level names PCMM v0.3.3 and earlier wrote into a custom code folder and no longer reads.
+
+That version named every executable `project` and tracked the PhysiCell version in
+`physicell_commit_hash.txt`. Both spellings of the executable are listed so that a data
+folder built on another platform is cleaned too.
+"""
+const legacy_artifact_names = ("project", "project.exe", "physicell_commit_hash.txt")
 
 """
     removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
 
 Delete the build bookkeeping of PCMM v0.3.3 and earlier from a custom code folder.
 
-Those versions named every executable `project` and tracked the PhysiCell version in
-`physicell_commit_hash.txt`. Neither is read anymore, and leaving the pair in place is how a
-project keeps looking like it has a build it does not have, so both go once a build under the
-current naming has succeeded.
+Leaving that pair in place is how a project keeps looking like it has a build it does not
+have, so it goes once a build under the current naming has succeeded.
 """
 function removeLegacyBuildArtifacts(path_to_custom_codes_folder::String)
-    for filename in ("project", "project.exe", "physicell_commit_hash.txt") #! both executable names, so a data folder built on another platform is cleaned too
+    for filename in legacy_artifact_names
         path_to_file = joinpath(path_to_custom_codes_folder, filename)
         if isfile(path_to_file)
             rm_hpc_safe(path_to_file; force=true)

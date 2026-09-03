@@ -87,17 +87,24 @@ makeXMLPath(x, xml_path::AbstractString) = makeXMLPath(x, [xml_path])
 """
     prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
 
-Return the path to the base XML file for `input_folder`, or `nothing` when the location is
-unselected.
+Return the path to the base XML file for `input_folder`, or `nothing` when there is no base file
+to prepare — either the location is unselected, or it declares no basename.
 
-Handles `:rulesets_collection` specially; all other locations use the generic MM default.
+Handles `:rulesets_collection` specially, generating `base_rulesets.xml` from the CSV when only the
+CSV is present; all other locations use the generic MM default.
 """
 function prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
-    #! An unselected optional location has `basename === missing` and no folder to prepare, so
-    #! there is nothing to do for any location. This test must come first: `:rulesets_collection`
-    #! used to be checked ahead of it, so an unselected rulesets folder skipped this branch, went
-    #! looking for `base_rulesets.csv` under a path with no folder component, and tripped an
-    #! assertion inside PhysiCellXMLRules that named neither the location nor the folder.
+    #! `basename === missing` is the signal that there is no base file to prepare, and it covers
+    #! both cases: a location the user left unselected, and one that declares no basename at all
+    #! (`custom_code`). ModelManager guarantees the first -- its only inner `InputFolder`
+    #! constructor sets `basename = missing` whenever `folder` is empty, and the other two
+    #! constructors funnel into it -- so "unselected" and "basename names a real file" are mutually
+    #! exclusive states rather than something PCMM has to re-derive here.
+    #!
+    #! This test must come first. `:rulesets_collection` used to be checked ahead of it, so an
+    #! unselected rulesets folder never consulted `basename` at all: it went looking for
+    #! `base_rulesets.csv` under a path with no folder component and tripped an assertion inside
+    #! PhysiCellXMLRules that named neither the location nor the folder.
     ismissing(input_folder.basename) && return nothing
     if input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)

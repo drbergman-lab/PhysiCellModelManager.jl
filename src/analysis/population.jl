@@ -507,6 +507,10 @@ end
         time = Real[]
         cell_count_arrays = Dict{Any, Array{Int,2}}()
         sptss = SimulationPopulationTimeSeries.(simulation_ids; include_dead=include_dead, verbose=false)
+        #! Keep the IDs of the replicates that loaded, in the same order. Once `sptss` is filtered,
+        #! its index no longer lines up with `simulation_ids`, so every assertion message below that
+        #! wants to name the offending replicate has to index this instead.
+        kept_ids = [sid for (sid, spts) in zip(simulation_ids, sptss) if !ismissing(spts)]
         filter!(!ismissing, sptss) #! remove any that failed to load
         #! Size the arrays by the number of replicates that actually loaded, NOT by
         #! `length(simulation_ids)`. This used to be the unfiltered count: a replicate whose output
@@ -522,7 +526,7 @@ end
             if isempty(time)
                 time = spts.time
             else
-                @assert time == spts.time "Simulations $(simulation_ids[1]) and $(simulation_ids[i]) in monad $(monad.id) have different times in their time series."
+                @assert time == spts.time "Simulations $(kept_ids[1]) and $(kept_ids[i]) in monad $(monad.id) have different times in their time series."
             end
             for k in include_cell_type_names
                 if k isa String
@@ -535,7 +539,10 @@ end
                 if !haskey(cell_count_arrays, k)
                     cell_count_arrays[k] = zeros(Int, length(time), monad_length)
                 end
-                @assert [haskey(spts.cell_count, ct) for ct in k] |> all "A cell type in $k not found in simulation $simulation_id which has cell types $(keys(spts.cell_count))."
+                #! `kept_ids[i]`, not the `simulation_id` bound far above this loop -- that one is
+                #! the first simulation of the whole trial, so it named a simulation unrelated to the
+                #! failure.
+                @assert [haskey(spts.cell_count, ct) for ct in k] |> all "A cell type in $k not found in simulation $(kept_ids[i]) which has cell types $(keys(spts.cell_count))."
                 cell_count_arrays[k][:,i] = sum([spts.cell_count[ct] for ct in k])
             end
         end

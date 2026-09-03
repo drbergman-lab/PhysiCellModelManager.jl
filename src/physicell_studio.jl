@@ -21,11 +21,19 @@ function runStudio(simulation_id::Int; python_path::Union{Missing,String}=simula
     assertInitialized()
     resolveStudioGlobals(python_path, studio_path)
     path_to_temp_xml, path_to_input_rules = setUpStudioInputs(simulation_id)
-    out = executeStudio(path_to_temp_xml)
-    cleanUpStudioInputs(path_to_temp_xml, path_to_input_rules)
+    #! `finally`, not a plain call after `executeStudio`: that only cleaned up when `executeStudio`
+    #! returned, so a Ctrl-C during the launch (which `executeStudio` rethrows) left the temporary
+    #! config and rules files sitting in the simulation's output folder. The temporaries are removed
+    #! however this block exits.
+    out = try
+        executeStudio(path_to_temp_xml)
+    finally
+        cleanUpStudioInputs(path_to_temp_xml, path_to_input_rules)
+    end
     if out isa Exception
         throw(out)
     end
+    return nothing
 end
 
 runStudio(simulation::Simulation; kwargs...) = runStudio(simulation.id; kwargs...)

@@ -215,26 +215,67 @@ fallback would silently return a count from an *earlier* time point, undetectabl
 If a cache for `finalPopulationCount` is ever wanted, the right move is to write its own summary
 file at run time — same value, same snapshot — not to reinterpret a different series' endpoint.
 
+### The `QoI` migration, done: `Vector{QoI}` builders with per-function reducers
+`QoI` landed in ModelManager `main` as #43 (`d9539a5`, "Add the QoI seam") partway through this work
+— it had been on the unmerged `feature/qoi-seam` branch when `HANDOFF-QoI-unification.md` was
+written — so the migration became possible and was done here.
+
+**The handoff's option A, unchanged after reading the merged code.** Two facts in #43 decide the
+shape, and both match what the handoff predicted from PR #45:
+
+- `_asSummaryStatistic(qs::AbstractVector{QoI})` returns `monad_id -> Dict(q.name => reduced)`. So a
+  single QoI named `"counts"` would hand `mseDistance` a `Dict("counts" => Dict("tumor" => ...))`
+  where it expects cell-type keys. **One QoI per cell type, named for the cell type**, reproduces
+  the flat dict. That is also what makes `cell_types` a required argument: a `Vector{QoI}` is built
+  before any simulation runs, so cell types cannot be discovered from output. The monad-level
+  functions stay as the discover-everything path and are otherwise untouched.
+- `_reduceOverMonad` calls `red([f(sid) for sid in sim_ids])` — a materialised vector of **every**
+  replicate's value, `missing` included, unfiltered. So each `reduce` must filter `missing` itself;
+  the default `mean` would return `missing` for any monad with a pruned replicate.
+
+**Three reducers, deliberately not shared**, because the three statistics disagree with each other:
+
+| | cell type absent from a replicate | summation |
+|---|---|---|
+| counts | zero-filled (`get(c, k, 0)`) | `mean` over a **generator** |
+| fractions | zero-filled (`get(d, k, 0)`) | `mean` over a materialised **Vector** |
+| time series | **not** zero-filled — divides by replicates having the cell type | `mean(array, dims=2)` |
+
+Only two of the handoff's four divergences are reachable on healthy data: missing-replicate skipping
+(via pruning) and summation order. Zero-fill-vs-not and `union` vs `keys(first(dicts))` both need
+replicates of one monad to disagree about their cell-type roster, which means damaged output — see
+the ragged-column discussion above for why that is not guarded. They are reproduced anyway, because
+reproducing each function's own form is what makes the migration test `==` rather than a tolerance.
+
+**Choosing the summation test input took two tries, and the first was wrong instructively.** It
+searched 10,000 random 24-element vectors for a diverging case and found none, so the assertion
+silently tested nothing. Julia's `sum` only switches to pairwise summation above a blocksize of
+1024; below that, divergence comes from SIMD reassociation, which is rarer than a quick measurement
+suggests **and CPU-dependent** — a vector that diverges on an ARM Mac need not diverge on CI.
+`fill(0.1, 1200)` crosses the blocksize, so the difference follows from the algorithm and reproduces
+anywhere: `0.09999999999999988` against `0.09999999999999788`.
+
+**One deliberate deviation from bit-exactness.** Where *every* replicate is missing,
+`meanPopulationTimeSeries` raises a `KeyError` — `MonadPopulationTimeSeries` leaves `cell_count`
+empty and `mpts.cell_count[k]` then fails. The builder returns `missing`, matching the other two.
+That `KeyError` is incidental behaviour rather than contract, and `missing` is what a caller can act
+on.
+
+**A test-isolation trap worth remembering.** The first draft built its fixture with
+`Monad(1; n_replicates=3)` and pruned a replicate. PCMM reuses matching simulations, so that is *the
+same monad* `PopulationTests` builds — which then received a replicate whose output was already gone
+and failed with `FieldError: type Missing has no field cell_count`. A test that destroys output must
+build a monad nothing else can match; this one is distinguished by a phase duration no other test
+uses.
+
 ### Open questions
-- **The `QoI` migration is now unblocked but not done.** `QoI` landed in ModelManager `main` as
-  #43 (`d9539a5`, "Add the QoI seam") partway through this work; it had been on the unmerged
-  `feature/qoi-seam` branch when the analysis below was written. See
-  `HANDOFF-QoI-unification.md`. The decision on aggregation
-  is **bit-exact per-function reducers** (the handoff's option A): the migration's whole value is
-  removing a silent wrong-answer path, so it must not silently change numbers itself. Verified
-  empirically that `mean(vector)` (pairwise) and `mean(generator)` (sequential) first diverge at
-  **n = 16** with a worst relative difference of **7.1e-16** — and that the two existing functions
-  already disagree on this, `finalPopulationCount(::Monad)` using a generator and
-  `_averageStatDicts` a materialised `Vector`. Bit-exactness is worth matching only because it buys
-  a clean `==` regression test rather than an `isapprox` with a tuned tolerance; it is not a promise
-  to maintain.
-- **Which key-set divergences are actually reachable.** Of the four the handoff lists, only
-  missing-replicate skipping (via pruning) and float associativity are reachable on healthy data.
-  Zero-fill-vs-not and `union` vs `keys(first(dicts))` both require replicates of one monad to
-  disagree about their cell-type roster, which means damaged or stale output. An earlier draft
-  ranked the zero-fill divergence as the second most important; that overstated it.
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.
+- **ModelManager is still moving.** `main` advanced 13 commits *during* this work and broke two
+  calibration tests mid-review (`runCalibration`'s argument order, and generations becoming folders).
+  More is expected before the release this branch is preparing, so the drift has to be re-checked
+  rather than assumed settled — the suite is the only thing that catches it, and it catches only
+  what it exercises.
 
 ---
 

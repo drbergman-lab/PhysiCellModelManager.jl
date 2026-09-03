@@ -493,6 +493,21 @@ Useful when `observed_data` is a time series rather than a single endpoint value
 
 For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict the output to specific cell types.
 
+### [QoI form](@id qoi_form_ss)
+
+Each statistic also has a builder returning a `Vector{`[`QoI`](@ref ModelManager.QoI)`}` — one QoI per cell type, named for the cell type — so the same quantity can be handed to any QoI consumer rather than only to `CalibrationProblem`:
+
+```julia
+qois = endpointPopulationCountQoIs(["cancer", "immune"])
+problem = CalibrationProblem(inputs, params, observed, qois, mseDistance)
+```
+
+[`endpointPopulationFractionQoIs`](@ref) and [`meanPopulationTimeSeriesQoIs`](@ref) are the other two. The value reaching your distance function has the same shape as the monad-level statistic above, so `observed_data` does not change.
+
+`cell_types` is required here. The QoIs are built before any simulation runs, so they cannot discover cell types from output the way the monad-level functions do — use those when you want every cell type.
+
+A `QoI` is also accepted by `run(::GSAMethod, ...; functions=)`. The post-processing sink additionally requires one scalar per simulation, which the two endpoint builders satisfy but the time-series builder does not.
+
 ## Built-in distance functions
 
 ### [`mseDistance`](@id mse_distance_section)

@@ -1,4 +1,4 @@
-using DataFrames, Distributions
+using DataFrames, Distributions, Statistics
 
 filename = @__FILE__
 filename = split(filename, "/") |> last
@@ -108,6 +108,93 @@ end
     @test counts isa Dict{String,Float64}
     @test haskey(counts, cell_type)
     @test counts[cell_type] ≈ endpointPopulationCounts(1)[cell_type]
+end
+
+################## QoI-returning builders ##################
+#
+# These assert the builders reproduce their monad-level counterparts EXACTLY (`==`, not `isapprox`).
+# That is the point of the migration: handing the same quantity to a `QoI` consumer must not move
+# anyone's numbers. The three statistics disagree with each other in ways a shared reducer would
+# silently erase, so each divergence gets its own assertion.
+
+@testset "QoI builder reducers" begin
+    counts_q = endpointPopulationCountQoIs([cell_type]) |> first
+    fracs_q = endpointPopulationFractionQoIs([cell_type]) |> first
+
+    # Missing replicates are SKIPPED, not propagated. ModelManager hands `reduce` every replicate's
+    # value including `missing`, so a default `mean` would return `missing` for the whole monad --
+    # reachable on ordinary data, because pruning makes a replicate unreadable.
+    @test counts_q.reduce([1, missing, 3]) == 2
+    @test fracs_q.reduce([0.25, missing, 0.75]) == 0.5
+    # ...and all-missing is `missing`, matching the monad-level functions.
+    @test ismissing(counts_q.reduce([missing, missing]))
+    @test ismissing(fracs_q.reduce([missing, missing]))
+
+    # Float associativity is observable, and the two existing functions disagree about it:
+    # `finalPopulationCount(::Monad)` averages a generator (sequential summation) while
+    # `_averageStatDicts` averages a materialised Vector. 1200 copies of 0.1 is a deliberately
+    # boring input that separates them: `sum` over an array switches to pairwise summation above a
+    # blocksize of 1024, so the divergence here comes from Julia's algorithm rather than from SIMD
+    # width, and therefore reproduces on any machine. (Shorter vectors can differ too, but only via
+    # vectorised reassociation, which varies by CPU and would make this test machine-dependent.)
+    diverging = fill(0.1, 1200)
+    @test mean(diverging) != mean(x for x in diverging)
+
+    # Each reducer matches its OWN original form on that input...
+    @test counts_q.reduce(diverging) == mean(x for x in diverging)
+    @test fracs_q.reduce(diverging) == mean(Float64[x for x in diverging])
+    # ...and therefore differ from each other, which is what makes the two assertions above
+    # load-bearing rather than two spellings of the same check.
+    @test counts_q.reduce(diverging) != fracs_q.reduce(diverging)
+end
+
+@testset "QoI builders match the monad-level functions" begin
+    # `_asSummaryStatistic` is ModelManager's own calibration seam and has no public equivalent.
+    # Going through it rather than calling `compute`/`reduce` directly is deliberate: it is what
+    # wraps the reduced value as `Dict(name => value)`, so this is the assertion that catches the
+    # nesting hazard -- one QoI named "counts" would produce `Dict("counts" => Dict(...))` and break
+    # `mseDistance`, which compares cell-type keys elementwise.
+    evaluate(qois, monad_id) = ModelManager._asSummaryStatistic(qois)(monad_id)
+
+    # A monad of this test's own, distinguished by a phase duration nothing else uses. PCMM reuses
+    # matching simulations, so pruning a replicate of a monad another file also builds -- Monad(1)
+    # with three replicates, which PopulationTests does -- would hand that file a replicate whose
+    # output is already gone.
+    probe = createTrial(inputs, [dv_max_time, dv_full_data, dv_svg,
+                                 DiscreteVariation(xml_path_phase, 321.0)]; n_replicates=3)
+    run(probe)
+    monad_id = probe.id
+    sids = simulationIDs(probe)
+    @test length(sids) == 3
+
+    for (builder, monadwise) in [(endpointPopulationCountQoIs, endpointPopulationCounts),
+                                 (endpointPopulationFractionQoIs, endpointPopulationFractions),
+                                 (meanPopulationTimeSeriesQoIs, meanPopulationTimeSeries)]
+        via_qoi = evaluate(builder([cell_type]), monad_id)
+        direct = monadwise(monad_id; cell_types=[cell_type])
+        @test keys(via_qoi) == keys(direct)          # flat, keyed by cell type -- not nested
+        @test via_qoi[cell_type] == direct[cell_type]
+    end
+
+    # Now prune one replicate and assert the equality survives the path that actually differs.
+    # A clean monad agrees under any reducer and proves nothing.
+    victim = last(sids)
+    rm(joinpath(PhysiCellModelManager.trialFolder(Simulation, victim), "summary"); recursive=true, force=true)
+    let outdir = PhysiCellModelManager.pathToOutputFolder(victim)
+        for f in readdir(outdir)
+            endswith(f, ".xml") && rm(joinpath(outdir, f); force=true)
+        end
+    end
+    @test ismissing(PhysiCellModelManager.SimulationPopulationTimeSeries(victim; verbose=false))
+    @test ismissing(finalPopulationCount(victim))
+
+    for (builder, monadwise) in [(endpointPopulationCountQoIs, endpointPopulationCounts),
+                                 (endpointPopulationFractionQoIs, endpointPopulationFractions),
+                                 (meanPopulationTimeSeriesQoIs, meanPopulationTimeSeries)]
+        via_qoi = evaluate(builder([cell_type]), monad_id)
+        direct = monadwise(monad_id; cell_types=[cell_type])
+        @test via_qoi[cell_type] == direct[cell_type]
+    end
 end
 
 ################## ABC-SMC End-to-End Test (with PhysiCell) ##################

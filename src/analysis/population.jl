@@ -202,6 +202,15 @@ function finalPopulationCount(monad::Monad; include_dead::Bool=false)
     counts_per_sim = [finalPopulationCount(sim_id; include_dead=include_dead) for sim_id in sim_ids]
     filter!(!ismissing, counts_per_sim)
     isempty(counts_per_sim) && return missing
+    #! `maxlog=1` is load-bearing: calibration calls this once per monad across thousands of
+    #! particles, and a pruned project would otherwise bury the run in identical lines. `@info`
+    #! rather than `@warn` because pruning is a deliberate act; this reports a consequence, it
+    #! does not scold. Inlined at each of the four aggregation sites rather than factored into a
+    #! helper, because `maxlog` is scoped per call site — a shared helper would report once for
+    #! all four and hide which computation lost data. The sites do not share an implementation
+    #! either, which is how `plotbycelltype` came to have a zero-fill bug the others did not.
+    length(counts_per_sim) < length(sim_ids) &&
+        @info "Excluding $(length(sim_ids) - length(counts_per_sim))/$(length(sim_ids)) replicates of monad $(monad.id) with no output on disk (deleted or pruned)." maxlog=1
     all_keys = union(keys.(counts_per_sim)...)
     return Dict{String,Float64}(k => mean(get(c, k, 0) for c in counts_per_sim) for k in all_keys)
 end
@@ -239,11 +248,13 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
     time = Real[]
     cell_count = Dict{String, NamedTuple}()
     _counts = Dict{String,Any}()
+    n_kept = 0
     for (i, simulation_id) in enumerate(simulation_ids)
         spts = SimulationPopulationTimeSeries(simulation_id; include_dead=include_dead)
         if ismissing(spts)
             continue
         end
+        n_kept += 1
         if isempty(time)
             time = spts.time
         else
@@ -257,6 +268,17 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
             end
         end
     end
+    #! See the note in `finalPopulationCount(::Monad)` for why this is `@info ... maxlog=1` and
+    #! why it is inlined here rather than shared.
+    n_kept < monad_length &&
+        @info "Excluding $(monad_length - n_kept)/$(monad_length) replicates of monad $(monad.id) with no output on disk (deleted or pruned)." maxlog=1
+    #! Every replicate of a monad shares a config, and `spts.cell_count`'s keys come from the
+    #! output XML's `cell_types` roster, so each `_counts[name]` holds exactly `n_kept` columns and
+    #! the mean below divides by the same denominator for every cell type. That assumption is not
+    #! verified: producing a ragged roster means editing files under `data/`, which
+    #! `best_practices.md` forbids, and PCMM trusts its own data directory. Note this denominator
+    #! is therefore equivalent to the zero-filling one used by `finalPopulationCount(::Monad)` and
+    #! `_averageStatDicts`; they differ only on rosters that cannot occur. Do not "reconcile" them.
     _mean = Dict{String, Vector{Real}}()
     _std = Dict{String, Vector{Real}}()
     for (name, vectors) in _counts
@@ -482,11 +504,20 @@ end
     all_cell_types = Set()
     for monad in monads
         simulation_ids = simulationIDs(monad)
-        monad_length = length(simulation_ids)
         time = Real[]
         cell_count_arrays = Dict{Any, Array{Int,2}}()
         sptss = SimulationPopulationTimeSeries.(simulation_ids; include_dead=include_dead, verbose=false)
         filter!(!ismissing, sptss) #! remove any that failed to load
+        #! Size the arrays by the number of replicates that actually loaded, NOT by
+        #! `length(simulation_ids)`. This used to be the unfiltered count: a replicate whose output
+        #! had been pruned left an all-zero column in the array, and `mean(array, dims=2)` below
+        #! then divided by a denominator that included it -- so plotting a monad with one of three
+        #! replicates pruned understated every curve by a third, silently. Dropping the replicate
+        #! entirely also matches what `MonadPopulationTimeSeries` does with the same situation.
+        monad_length = length(sptss)
+        #! See the note in `finalPopulationCount(::Monad)` for why this is `@info ... maxlog=1`.
+        monad_length < length(simulation_ids) &&
+            @info "Excluding $(length(simulation_ids) - monad_length)/$(length(simulation_ids)) replicates of monad $(monad.id) with no output on disk (deleted or pruned)." maxlog=1
         for (i, spts) in enumerate(sptss)
             if isempty(time)
                 time = spts.time

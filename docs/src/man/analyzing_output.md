@@ -46,6 +46,10 @@ Finer control is available:
 - select a subset of cell types to exclude: `plot(...; ..., exclude_cell_type_names="cancer", ...)`
 - choose time units for the x-axis: `plot(...; ..., time_unit=:h, ...)`
 
+One panel per `Monad`, with each cell type a series and the shaded band its standard deviation across replicates:
+
+![Population counts, one panel per monad](../assets/plot_by_monad.png)
+
 The `include_cell_type_names` and `exclude_cell_type_names` can also accept a `Vector{String}` to include or exclude certain cell types, respectively.
 Furthermore, if the value of `include_cell_type_names` is a `Vector` and one of its entries is a `Vector{String}`, PhysiCellModelManager.jl will interpret this to sum up those cell types.
 In other words, to get the total tumor cell count in addition to the epithelial (`"epi"`) and mesenchymal (`"mes"`) components, you could use
@@ -70,6 +74,21 @@ Everything above for `plot` applies here.
 using Plots
 plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"]], color=[:blue :red :purple], labels=["epi" "mes" "both"], legend=true)
 ```
+
+The same simulations as the figure above, regrouped — one panel per cell type, each series a `Monad`:
+
+![Population counts, one panel per cell type](../assets/plot_by_cell_type.png)
+
+Note the inversion when reading a legend: in `plot` a series is a cell type, in `plotbycelltype` a series is a monad.
+
+A single `Simulation` has no replicates to summarize, so it plots one line per cell type with no band:
+
+![Population counts for a single simulation](../assets/plot_single_simulation.png)
+
+!!! note "Regenerating these figures"
+    They are committed under `docs/src/assets/` rather than rendered during the docs build, which has
+    no compiled PhysiCell. Run `julia --project=docs docs/generate_figures.jl <path/to/project>` to
+    remake them after changing a plot recipe.
 
 ## Substrate analysis
 PhysiCellModelManager.jl supports two ways to summarize substrate information over time.

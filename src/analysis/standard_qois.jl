@@ -65,6 +65,10 @@ function endpointPopulationFractions(monad_id::Int; cell_types::Union{Nothing,Ve
         push!(fractions_per_sim, d)
     end
     isempty(fractions_per_sim) && return missing
+    #! See the note in `finalPopulationCount(::Monad)` for why this is `@info ... maxlog=1` and
+    #! why it is inlined here rather than shared.
+    length(fractions_per_sim) < length(sim_ids) &&
+        @info "Excluding $(length(sim_ids) - length(fractions_per_sim))/$(length(sim_ids)) replicates of monad $(monad_id) with no output on disk (deleted or pruned)." maxlog=1
     return _averageStatDicts(fractions_per_sim, cell_types)
 end
 

@@ -5,6 +5,237 @@
 
 ---
 
+## 2026-09-02 — ModelManager 0.9 migration and the release backlog
+
+### Scope, and why the triage is recorded
+Seven backlog items were handed over. **Two were already implemented**, one is a test-side
+contract change rather than a source change, and one new defect surfaced from the baseline test
+run. The triage is recorded here because items 1 and 4 should not be re-investigated.
+
+| # | Item | Outcome |
+|---|---|---|
+| 1 | Compile error leaves a stale executable | Already done — see the 2026-08-19 entry |
+| 2 | Studio `e.code` `FieldError` | Real; fixed here |
+| 3 | Bump to MM 0.9 | Source parts mechanical; `rm_hpc_safe` is a test-contract change |
+| 4 | PhysiCell-update docs + mid-session guard | Already done — see the 2026-08-19 entry |
+| 5 | `prepareBaseFile` on an unselected folder | Real; cause is in PCMM, not PhysiCellXMLRules |
+| 6 | PhysiPKPD inputs | Deferred to a to-do; needs a schema design |
+| 7 | Visualization in the docs | Real gap; zero rendered figures existed |
+
+Baseline before any work, against MM 0.9.0-dev: **614 pass, 4 fail, 6 errors**.
+
+### Items 1 and 4 were already done
+`loadCustomCode` calls `refreshPhysiCellVersion()` as its first statement
+(`src/compilation.jl:29`), so the PhysiCell version is re-read before every compile decision —
+which is what item 4 asked for. `best_practices.md` already carries the "Update PhysiCell between
+campaigns, not during one" section. Item 1's executable-naming scheme landed in the same commit.
+The residual granularity limit (the check is once per sampling, so a `Trial` spanning several
+samplings can straddle two PhysiCell versions) is documented in `best_practices.md` and is not
+addressed here.
+
+### Item 3 — what MM 0.9 actually broke
+Three mechanical source changes, all required before PCMM would even load:
+`ModelManager = "0.8"` → `"0.9"`; `packageName` removed from `src/simulator_interface.jl` (MM
+derives package identity from the module defining the simulator type); `getPackageVersion` →
+`getInstalledVersion`. With those, PCMM compiles and loads cleanly.
+
+`pcmmVersion()`'s docstring became wrong rather than broken. It says "runtime version", but
+`getInstalledVersion` is deliberately the *installed* version — MM 0.9 separates installed from
+loaded precisely because they diverge when the environment changes mid-session. The docstring
+follows the function.
+
+`rm_hpc_safe` changed contract: it now attempts the real removal first, stages only the residue,
+returns `:removed`/`:staged`, and still throws for a missing path with `force=false`. `HPCTests.jl`
+asserted the old "always stage, return `nothing`" behaviour. **This is a test change, not a source
+change** — PCMM has no `rm_hpc_safe` of its own. Note that the two `.trash` assertions cannot hold
+on any healthy filesystem under the new contract, because `rm` succeeds and nothing is ever staged.
+The staging path is left uncovered rather than faked; simulating an unremovable file portably is not
+worth the machinery.
+
+### Item 2 — the studio error had two exception types and handled one
+`quietRun` is `run(pipeline(cmd, ...))`, which throws `Base.IOError` (which has `.code`) when the
+binary cannot be spawned, and `ProcessFailedException` (which has `.procs` and **no** `.code`) when
+the process runs and exits non-zero. `executeStudio` built its return value as
+`Base.IOError(msg, e.code)`, so the second case raised a `FieldError` from inside the error handler.
+
+The existing test only ever passed a *nonexistent* `fake_python_path`, which takes the `IOError`
+branch — so the reachable real-world path had never been exercised. That gap is why the bug
+survived.
+
+### Item 5 — the assertion was PhysiCellXMLRules being right
+Reproduced: `prepareBaseFile` on an unselected (`""`) `:rulesets_collection` throws
+`AssertionError: The path to the CSV file must be a file` from inside PhysiCellXMLRules, while every
+other unselected location returns `nothing`.
+
+The cause is branch order in `src/configuration.jl`: `location == :rulesets_collection` is tested
+**before** the `ismissing(input_folder.basename)` guard, and an unselected folder has
+`basename === missing`. So the unselected rulesets case skips the `nothing` path that every other
+location takes and goes on to compute a CSV path that cannot exist.
+
+Answering ModelManagerStudio's question directly: **no, this does not belong in
+PhysiCellXMLRules.** The assertion correctly describes that package's own contract; PCMM should
+never have made the call. Reordering the two branches is the whole fix.
+
+A typed `PCMMMissingInputFile` was written for the *selected*-folder-missing-its-CSV case and then
+**removed as unreachable**, by the same reasoning that rejected the ragged-column guard. `basename`
+for `:rulesets_collection` is the vector `["base_rulesets.csv", "base_rulesets.xml"]`, so
+`InputFolder`'s constructor already refuses a selected folder containing neither — verified by
+constructing one, which fails with `ErrorException: No basename files found in folder ...`. By the
+time `prepareBaseFile` runs, at least one of the two files exists, so a check for their joint
+absence can never fire. It was deleted rather than shipped.
+
+*Observation for the ModelManager side:* that `InputFolder` rejection **is** reachable by ordinary
+user error — creating a rulesets folder and forgetting to put a rules file in it — and it currently
+raises a bare `ErrorException`. If typed errors for GUI consumption are wanted, that is a better
+candidate than anything PCMM can offer here, and it belongs in ModelManager.
+
+### `PCMM_PUBLIC_REPO_AUTH` — bound the cascade, do not fix the token
+`src/creation.jl:141` uses `haskey(ENV, ...)`, so a set-but-empty value is sent as
+`Authorization: token ` and GitHub answers 401. **Decision: leave it.** The token stays a GitHub
+secret rather than being stored locally, and the resulting local failure is accepted — on the
+condition that the number of errors stays bounded.
+
+It was not bounded. `PhysiCellVersionTests.jl:40` calls `createProject(...)`, which performs the
+download that 401s; ten lines later, line 50 restores the original project with
+`initializeModelManager(original_project_dir)`. That line never ran, so every subsequent testset
+failed with "has not been initialized for a project" — one 401 became six errors across
+`PhysiCellStudioTests`, `DeletionTests`, `DepsTests`, and `DocstringRefTests`.
+
+Two of those matter beyond the noise: `PhysiCellStudioTests` is where item 2's fix has to be
+verified, and `DocstringRefTests` guards the docs cross-reference rule that needs no docs build.
+Both were silently not running. Fixed by wrapping the download section so the restore always
+happens; the 401 now costs exactly one error, in the testset that genuinely needs the token.
+
+### Making missing data audible
+Three functions silently drop replicates whose output is gone:
+`finalPopulationCount(::Monad)` (`filter!(!ismissing, ...)`), `endpointPopulationFractions`
+(`continue`), and `MonadPopulationTimeSeries` (`ismissing(spts) && continue`). Pruning makes this
+reachable on healthy data.
+
+**`@info`, not `@warn`, and `maxlog=1`.** Pruning is a deliberate user action, so warning about its
+consequence is scolding rather than informing; the message states that data was deleted and is
+therefore not contributing. `maxlog=1` is load-bearing: calibration calls these once per monad
+across thousands of particles, and without it a pruned project buries the run in identical lines.
+Julia scopes `maxlog` per callsite, so each of the three sites still reports independently and names
+which computation lost data.
+
+**A ragged column is not guarded.** Considered and rejected, after going back and forth on it, so
+the reasoning is worth keeping.
+
+A cell type present in some replicates of a monad but not others cannot occur in a healthy project:
+`spts.cell_count`'s keys come from the output XML's `cell_types` roster, which is shared by every
+snapshot in a simulation and, since replicates share a config, by every replicate in a monad. The
+tempting conclusion is that an unreachable state is exactly what one should assert, since the error
+path costs nothing at runtime.
+
+**The deciding argument is that the trust boundary has to sit somewhere, and it already sits at the
+data directory.** Producing a ragged roster requires editing files under `data/`. So does renaming
+`base_rulesets.csv`, or hand-editing the database, or mangling an output XML. Guarding one of those
+implies the others are worth guarding too, and writing detection machinery for a state that only
+deliberate tampering can produce asserts that we think it might happen accidentally. It cannot.
+`best_practices.md` opens with "Do NOT manually edit files inside `inputs`" — the boundary is
+already documented policy, and PCMM is entitled to rely on it.
+
+The stale-`summary/population_time_series.csv` path was offered as a non-tampering route to the same
+state, but it does not survive scrutiny: the cache lives inside a single simulation's folder, and a
+simulation's config is fixed at creation, so the columns cannot drift from the output under the same
+simulation ID. No demonstrable non-tampering path exists.
+
+What remains is a comment at the aggregation site recording that the roster is assumed shared, and
+why — so that a future reader who notices the two denominator conventions does not "fix" one of them.
+The reasoning is here rather than in production code.
+
+### A real zero-fill bug, found while generating the docs figures
+Unlike the ragged-roster case, this one **is** reachable on healthy data, and it was silently wrong.
+
+`plotbycelltype` does not go through `MonadPopulationTimeSeries`; it re-implements the aggregation.
+It sized its count arrays by `monad_length = length(simulation_ids)` — the *unfiltered* replicate
+count — then filtered `sptss` for `missing` and filled one column per replicate that survived. A
+pruned replicate therefore left an all-zero column, and `mean(array, dims=2)` divided by a
+denominator that included it.
+
+Measured on a monad with one of three replicates pruned: the plotted curve came back as
+`[46.7, 44.7, 44.0, 44.0]` where the mean over the two survivors is `[70.0, 67.0, 66.0, 66.0]` — a
+one-third understatement, with no error and no warning. Fixed by taking the denominator from
+`length(sptss)` after filtering, which also makes it agree with `MonadPopulationTimeSeries`.
+`plot(::AbstractMonad)` was checked and is unaffected: it delegates to `MonadPopulationTimeSeries`,
+which drops missing replicates correctly.
+
+This is the fourth silent-skip site, and it is why the `@info` was worth adding at each of them
+rather than at one shared helper — the sites do not share an implementation, so they did not share
+a bug either.
+
+### `configPath("<cell type>", "motility", "speed")` resolved into `<options>`
+Reported mid-session, unrelated to the rest of this work, fixed here because it is small and
+self-contained.
+
+**A footgun rather than a correctness bug, and the distinction is worth recording.** The three-token
+branch read `token2 == "motility"` and sent **every** third token through `<options>`. But
+`<motility>` holds `speed`, `persistence_time` and `migration_bias` as direct children and reserves
+`<options>` for `enabled`, `use_2D`, `chemotaxis` and `advanced_chemotaxis`. So
+`configPath("default", "motility", "speed")` produced `.../motility/options/speed`, which is not in
+the schema.
+
+No results were ever silently wrong. Variations are written through `setSimpleContent`, which calls
+`retrieveElement(...; required=true)` and therefore throws
+`ArgumentError("Element not found: ... Failed at: speed")`. The element-creating `makeXMLPath` —
+the one that would have quietly invented `<options><speed>` and let PhysiCell ignore it — is not in
+the variation write path at all; it is used only by studio, export and configuration. What the user
+actually got was a confusing failure deep in the XML layer for a spelling that reads as obviously
+correct.
+
+That is the shape of the hazard: `configPath`'s own docstring invites guessing ("Take a guess at
+what you think the inputs should be"), so a natural guess must either resolve correctly or be
+rejected by name — not resolve to a plausible path that fails later somewhere else.
+
+**The fix closes the class, not the instance.** Both `<motility>`'s and `<chemotaxis>`'s tag sets are
+closed, so an unrecognized third token now raises an `ArgumentError` naming the valid ones — the same
+thing every other `configPath` branch does with a token it cannot honour. `advanced_chemotaxis` is
+deliberately left open-ended, because its third token is a substrate name rather than a fixed tag.
+
+The two-token spelling — `configPath("default", "speed")` — dispatches through a different branch
+and was always correct. That is why this survived: the two spellings of the same parameter disagreed
+with each other, and only one of them was ever used. The regression test asserts their equality
+rather than a literal path, which states the invariant more sharply and costs nothing to maintain.
+
+### Rejected — falling back to the time-series CSV for `finalPopulationCount`
+Pruning degrades the analysis functions asymmetrically: `meanPopulationTimeSeries` has a
+`summary/population_time_series.csv` cache that, once written, survives any prune, while
+`finalPopulationCount` has no cache and always loses the data. The tempting fix is to have
+`finalPopulationCount` fall back to the last row of that CSV.
+
+**Rejected, for a reason independent of taste.** `finalPopulationCount` reads `final.xml`/`final.mat`
+— `indexToFilename(:final)` returns the literal string `"final"` — whereas `PhysiCellSequence`
+enumerates *only* indexed outputs (`while isfile(pathToOutputXML(folder, index))`) and never
+includes `final`. The CSV's last row is therefore the last full-save interval, not the simulation's
+true end. The two coincide only when total time is an exact multiple of the save interval, so the
+fallback would silently return a count from an *earlier* time point, undetectably. The honest
+`missing` is better.
+
+If a cache for `finalPopulationCount` is ever wanted, the right move is to write its own summary
+file at run time — same value, same snapshot — not to reinterpret a different series' endpoint.
+
+### Open questions
+- **The `QoI` migration cannot land yet.** `QoI` is not in ModelManager `main`; it lives on the
+  unmerged `feature/qoi-seam` branch. See `HANDOFF-QoI-unification.md`. The decision on aggregation
+  is **bit-exact per-function reducers** (the handoff's option A): the migration's whole value is
+  removing a silent wrong-answer path, so it must not silently change numbers itself. Verified
+  empirically that `mean(vector)` (pairwise) and `mean(generator)` (sequential) first diverge at
+  **n = 16** with a worst relative difference of **7.1e-16** — and that the two existing functions
+  already disagree on this, `finalPopulationCount(::Monad)` using a generator and
+  `_averageStatDicts` a materialised `Vector`. Bit-exactness is worth matching only because it buys
+  a clean `==` regression test rather than an `isapprox` with a tuned tolerance; it is not a promise
+  to maintain.
+- **Which key-set divergences are actually reachable.** Of the four the handoff lists, only
+  missing-replicate skipping (via pruning) and float associativity are reachable on healthy data.
+  Zero-fill-vs-not and `union` vs `keys(first(dicts))` both require replicates of one monad to
+  disagree about their cell-type roster, which means damaged or stale output. An earlier draft
+  ranked the zero-fill divergence as the second most important; that overstated it.
+- **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
+  schedules are represented, where they live under `inputs/`, and how they are varied.
+
+---
+
 ## 2026-08-19 — Name the executable for the PhysiCell version; drop `physicell_commit_hash.txt`; check that version at every compile
 
 ### The bug

@@ -66,6 +66,8 @@
 - Called without any path → use current working directory.
 - Another ModelManager backend already owns `mm_globals_ref` → PCMM claims it and registers its own `PhysiCellSimulator`, rather than deferring and then running against a foreign simulator. (`ModelManagerGlobals` holds exactly one `simulator`, so the two backends cannot coexist in one process; the last one loaded wins.)
 - Loaded inside a precompilation subprocess → globals are registered (cheap, in-process) but no project is initialized, so `mm_globals()` still works for any downstream precompilation workload.
+- An **unselected** (`""`) optional input folder → `prepareBaseFile` returns `nothing`, for every location including `:rulesets_collection`. Nothing is generated and no error is raised, because there is no folder to prepare.
+- A **selected** `:rulesets_collection` folder containing neither `base_rulesets.csv` nor `base_rulesets.xml` is rejected by `InputFolder` construction, before `prepareBaseFile` runs. PCMM adds no second check for it.
 
 ---
 
@@ -208,15 +210,22 @@
 - `meanPopulationTimeSeries(monad_id)` → mean time series across replicates.
 - `populationCount(sim_id, t)` → counts at a specific time point.
 - All functions accept `include_dead=true` to include dead cells.
+- Replicates whose output is no longer on disk (deleted or pruned) are **excluded** from monad-level aggregates, and their exclusion is reported once per call site with `@info ... maxlog=1`. Pruning is a deliberate user action, so this is informational, not a warning.
+- Plot recipes are provided for `Simulation`, `Monad`, `Sampling`, `Trial`, `run` results, and `plotbycelltype`; the manual shows rendered figures for each.
 
 **Acceptance criteria:**
 - Results match values read directly from PhysiCell SVG/output files.
 - Empty monad (no simulations) → error, not silent zero.
+- A monad with some replicates' output removed still returns a value, computed over the survivors, and says so once.
+- The user manual displays at least one rendered figure per plot recipe.
 
 **Edge cases:**
 - Simulation has no output files → error with simulation ID.
 - Requested cell type not present in output → return 0 / empty entry.
 - `include_dead=false` is default; dead cells excluded from all counts unless specified.
+- Replicates of a monad are **assumed** to declare the same cell-type roster, because they share a config and the roster is read from the output XML. PCMM does not verify this: producing a ragged roster requires editing files inside the data directory, which `best_practices.md` already forbids, and PCMM trusts its own data directory rather than guarding each way a user could corrupt it by hand.
+- A monad-level plot with some replicates' output removed averages over the survivors only; the removed replicates are not counted in the denominator.
+- Pruning degrades the analysis functions asymmetrically, and this is accepted: `meanPopulationTimeSeries` reads a `summary/population_time_series.csv` cache that survives any prune, while `finalPopulationCount` reads `final.xml`/`final.mat` and has no cache. `finalPopulationCount` does **not** fall back to the time series' last row — that row is the last full-save interval, not the simulation's true end, so the substitution would be undetectable.
 
 ---
 
@@ -262,6 +271,7 @@
 **Edge cases:**
 - All replicates in a monad have missing output → return `missing`, not an error.
 - `cell_types` filter names a type not present in the simulation → entry is omitted from result.
+- Some replicates missing output → averaged over the survivors, reported once via `@info ... maxlog=1`. `maxlog` is required: calibration evaluates these once per monad across thousands of particles.
 
 ---
 
@@ -382,6 +392,50 @@
 
 ---
 
+## Feature: PhysiCell Studio Integration
+
+**One-line description:** Launch PhysiCell Studio against a completed simulation's output for interactive inspection.
+
+**Priority:** Should-have
+
+**Behavioral specification:**
+- `runStudio(simulation_id | Simulation | PCMMOutput{Simulation})` writes temporary config and rules files into the simulation's output folder, launches Studio, and removes the temporary files afterwards.
+- The Python interpreter and Studio directory come from `PCMM_PYTHON_PATH` / `PCMM_STUDIO_PATH`, or from the `python_path` / `studio_path` keywords, which are then remembered for the session.
+- The intent is visualization of results, not modification of the simulation.
+
+**Acceptance criteria:**
+- Temporary files are cleaned up whether or not the launch succeeds.
+- A launch failure raises a typed PCMM error carrying the command and the underlying cause.
+
+**Edge cases:**
+- `python_path` or `studio_path` unset and not supplied → `ArgumentError` naming the missing one.
+- The Python executable cannot be spawned (bad path) → typed PCMM error.
+- Studio runs but exits non-zero → typed PCMM error. Both failure modes must be covered; `run` raises a different exception type for each (`Base.IOError` vs `ProcessFailedException`), and only the first was previously handled.
+- The simulation's parsed rules file is absent → Studio still launches, without rules.
+
+---
+
+## Feature: Error Handling — Typed Exceptions
+
+**One-line description:** PCMM's own failure modes raise typed exceptions so that a GUI can catch them programmatically.
+
+**Priority:** Should-have
+
+**Behavioral specification:**
+- `PCMMException` is an abstract supertype; every PCMM-specific exception subtypes it. A caller can catch `PCMMException` for "PCMM said no" or a concrete type for a specific condition.
+- Concrete types cover: no project found; PhysiCell Studio failed to launch. The set grows only when a genuinely reachable failure needs to be distinguished.
+- Each carries the specific identifiers a caller needs to act — a location and folder, a command, a monad and simulation IDs — rather than only a message string.
+
+**Acceptance criteria:**
+- Every PCMM-specific exception is catchable both as its concrete type and as `PCMMException`.
+- Adding the supertype does not break existing code catching a concrete type.
+- Failures originating in a dependency's own contract (e.g. a PhysiCellXMLRules assertion) are either prevented by PCMM checking first, or wrapped in a typed PCMM error — they do not escape raw.
+
+**Edge cases:**
+- A dependency assertion that fires because PCMM called it with input it should have rejected is a PCMM bug, not a candidate for wrapping; the call is prevented instead.
+
+---
+
 ## Non-Functional Requirements
 
 ### Performance
@@ -435,7 +489,8 @@
 ### Open Questions
 1. **Model Manager Studio scope:** The PCMM GUI companion (Model Manager Studio) is partially implemented. Which PCMM features should be accessible through it, and in what release phase?
 2. **Windows CI validation:** Windows support is targeted but not yet validated in CI. Build environment and compiler chain need to be confirmed.
-3. **QoI builders for sensitivity/calibration:** `post_processor` QoI builders (e.g. `populationCountQoI`) currently only target `run(...; post_processor=...)` and its sink DB. Not yet done: wiring their output into sensitivity analysis or `CalibrationProblem` workflows (which currently take separate `summary_statistic`/`functions` callbacks of their own).
+3. **QoI builders for sensitivity/calibration:** `post_processor` QoI builders (e.g. `populationCountQoI`) currently only target `run(...; post_processor=...)` and its sink DB. Not yet done: wiring their output into sensitivity analysis or `CalibrationProblem` workflows (which currently take separate `summary_statistic`/`functions` callbacks of their own). **Blocked:** ModelManager's `QoI` type is not yet in its `main` branch. When it lands, the summary statistics migrate to `Vector{QoI}`-returning builders with **bit-exact per-function reducers** — see `HANDOFF-QoI-unification.md` and the 2026-09-02 progress entry.
+4. **PhysiPKPD inputs:** PhysiPKPD is not yet representable as a PCMM input location. Needs a design covering how dosing schedules are described, where they live under `inputs/`, and how they participate in parameter variation.
 
 ### Assumptions
 1. PhysiCell is the only supported ABM framework in this release; generalization is deferred to v2.

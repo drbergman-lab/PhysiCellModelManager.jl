@@ -36,15 +36,23 @@ end
 # test with PhysiCell download
 original_project_dir = dirname(PhysiCellModelManager.dataDir())
 
-project_dir = "./test-project-download"
-createProject(project_dir; clone_physicell=false)
-data_dir = joinpath(project_dir, "data")
-physicell_dir = joinpath(project_dir, "PhysiCell")
-@test PhysiCellModelManager.isInitialized()
-@test PhysiCellModelManager.dataDir() == normpath(abspath(data_dir))
-@test PhysiCellModelManager.physicellDir() == normpath(abspath(physicell_dir))
-@test initializeModelManager(physicell_dir, data_dir)
-PhysiCellModelManager.resolvePhysiCellVersionID()
-
-@test initializeModelManager(original_project_dir)
-PhysiCellModelManager.resolvePhysiCellVersionID()
+#! This block downloads PhysiCell, so it can fail for reasons that have nothing to do with PCMM:
+#! no network, or no valid PCMM_PUBLIC_REPO_AUTH token (the local case -- the token is a GitHub
+#! secret and is not stored in the repo). Restore the original project either way. Without the
+#! `finally`, a failure here left the session uninitialized and every subsequent testset failed
+#! with "has not been initialized for a project", turning one error into six and hiding real
+#! failures in PhysiCellStudioTests, DeletionTests, DepsTests and DocstringRefTests.
+try
+    project_dir = "./test-project-download"
+    createProject(project_dir; clone_physicell=false)
+    data_dir = joinpath(project_dir, "data")
+    physicell_dir = joinpath(project_dir, "PhysiCell")
+    @test PhysiCellModelManager.isInitialized()
+    @test PhysiCellModelManager.dataDir() == normpath(abspath(data_dir))
+    @test PhysiCellModelManager.physicellDir() == normpath(abspath(physicell_dir))
+    @test initializeModelManager(physicell_dir, data_dir)
+    PhysiCellModelManager.resolvePhysiCellVersionID()
+finally
+    @test initializeModelManager(original_project_dir)
+    PhysiCellModelManager.resolvePhysiCellVersionID()
+end

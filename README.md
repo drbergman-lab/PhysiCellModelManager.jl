@@ -75,12 +75,16 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Model import from PhysiCell project folders (`importProject`, `InputFolders`)
   - [ ] Wizard for guiding users through the import process and recording their input folders
 - [x] Parameter variation — discrete, grid, distributed, latent, co-variation
+  - [x] Fixed: `configPath(<cell type>, "motility", <tag>)` routed `speed`, `persistence_time` and `migration_bias` through `<options>`, so a natural spelling resolved to a path not in the PhysiCell schema and failed later with a confusing "Element not found". The two-token spelling was always correct, so the two disagreed
 - [x] Space-filling designs — LHS, Sobol, RBD
 - [x] Simulation execution — local multi-process runner
   - [x] Executables named for the PhysiCell version they were built against, in a `pcmm_build/` subfolder of the custom code folder, so the file's existence is the only record of a finished build — a failed compilation can no longer be mistaken for a ready one
   - [x] PhysiCell version re-resolved before every compilation, so pulling, checking out, or editing PhysiCell mid-session is picked up without restarting Julia
 - [x] HPC job script generation and submission
 - [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
+  - [x] Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and reported once per call site (`@info ... maxlog=1`), instead of vanishing silently
+  - [x] Plot recipes documented with rendered figures in the manual
+  - [x] Fixed: `plotbycelltype` divided by the full replicate count while filling only the replicates that loaded, so plotting a monad with a pruned replicate understated every curve
 - [x] Sensitivity analysis — MOAT, Sobol, and RBD
 - [x] Calibration — PhysiCell-specific summary statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for use with ModelManager's `CalibrationProblem`; ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
   - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
@@ -94,6 +98,9 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management
 - [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
+- [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; both launch failure modes (interpreter not spawnable, Studio exiting non-zero) raise `PCMMStudioLaunchError`
+- [x] Typed exceptions — every PCMM-specific failure subtypes `PCMMException`, so a GUI consumer can catch the family or a concrete type
+- [x] ModelManager 0.9 compatibility — `packageName` removed, `getInstalledVersion` in place of `getPackageVersion`, and `rm_hpc_safe`'s new `:removed`/`:staged` contract reflected in the test suite
 
 ### Remaining
 

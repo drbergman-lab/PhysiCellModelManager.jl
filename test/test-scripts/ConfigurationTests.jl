@@ -231,3 +231,73 @@ xml_path = PhysiCellModelManager.phenotypePath(cell_definition, "volume")
 
 xml_path = ["save", "SVG", "plot_substrate", "min_conc"]
 @test_throws AssertionError createTrial(inputs, DiscreteVariation(xml_path, [0.1, 1.0]))
+################## prepareBaseFile on unselected input folders ##################
+#
+# Regression: `prepareBaseFile` tested `location == :rulesets_collection` before the
+# `ismissing(basename)` guard, so an unselected ("") rulesets folder skipped the `nothing` path
+# that every other location takes. It went on to look for base_rulesets.csv under a path with no
+# folder component and tripped an assertion inside PhysiCellXMLRules that named neither the
+# location nor the folder -- uncatchable in any useful way by a GUI.
+
+# an unselected optional location has no folder to prepare, whatever the location is
+for loc in [:rulesets_collection, :ic_cell, :ic_ecm, :intracellular]
+    unselected = PhysiCellModelManager.InputFolder(loc, -1, "")
+    @test ismissing(unselected.basename)
+    @test isnothing(PhysiCellModelManager.prepareBaseFile(unselected))
+end
+
+# a selected rulesets folder still resolves to its base XML, and generates it when absent
+selected = PhysiCellModelManager.InputFolder(:rulesets_collection, -1, "0_template")
+path_to_base_xml = PhysiCellModelManager.prepareBaseFile(selected)
+@test !isnothing(path_to_base_xml)
+@test isfile(path_to_base_xml)
+@test basename(path_to_base_xml) == "base_rulesets.xml"
+
+# a selected folder holding neither base_rulesets file is refused by InputFolder itself, before
+# prepareBaseFile is reached -- which is why PCMM adds no second check for that case
+let probe = "empty-rules-probe"
+    mkpath(PhysiCellModelManager.locationPath(:rulesets_collection, probe))
+    @test_throws ErrorException PhysiCellModelManager.InputFolder(:rulesets_collection, -1, probe)
+    rm(PhysiCellModelManager.locationPath(:rulesets_collection, probe); recursive=true, force=true)
+end
+
+################## configPath: motility scalars are not options ##################
+#
+# Regression: the three-token motility branch sent every third token through `<options>`, so
+# `configPath("default", "motility", "speed")` resolved to `.../motility/options/speed`, which is
+# not in the schema. `<motility>` holds speed/persistence_time/migration_bias directly and reserves
+# `<options>` for enabled/use_2D/chemotaxis. The two-token spelling was always correct, so the two
+# disagreed -- which is the sharpest way to state the bug, and the cheapest way to catch it again.
+
+for tag in ["speed", "persistence_time", "migration_bias"]
+    two_token = PhysiCellModelManager.configPath("default", tag)
+    three_token = PhysiCellModelManager.configPath("default", "motility", tag)
+    @test two_token == three_token
+    @test three_token == PhysiCellModelManager.motilityPath("default", tag)
+    @test !("options" in three_token)
+end
+
+# ...while the genuine options still go through <options>
+for tag in ["enabled", "use_2D"]
+    path = PhysiCellModelManager.configPath("default", "motility", tag)
+    @test path == PhysiCellModelManager.motilityPath("default", "options", tag)
+    @test "options" in path
+end
+
+# and the chemotaxis branches are untouched
+@test PhysiCellModelManager.configPath("default", "chemotaxis", "substrate") ==
+      PhysiCellModelManager.motilityPath("default", "options", "chemotaxis", "substrate")
+
+# An unrecognized tag in either closed set is rejected by name, matching how every other configPath
+# branch handles a token it cannot honour. Previously it resolved into <options> and failed later
+# with "Element not found", pointing at the XML rather than at the call.
+@test_throws ArgumentError PhysiCellModelManager.configPath("default", "motility", "not_a_motility_tag")
+@test_throws ArgumentError PhysiCellModelManager.configPath("default", "chemotaxis", "not_a_chemotaxis_tag")
+
+# ...but advanced_chemotaxis stays open-ended: its third token is a substrate name, not a fixed tag.
+@test PhysiCellModelManager.configPath("default", "advanced_chemotaxis", "some_substrate") ==
+      PhysiCellModelManager.motilityPath("default", "options", "advanced_chemotaxis",
+                                         "chemotactic_sensitivities",
+                                         "chemotactic_sensitivity:substrate:some_substrate")
+@test PhysiCellModelManager.configPath("default", "advanced_chemotaxis", "enabled") ==
+      PhysiCellModelManager.motilityPath("default", "options", "advanced_chemotaxis", "enabled")

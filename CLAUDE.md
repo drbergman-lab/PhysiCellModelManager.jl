@@ -185,4 +185,10 @@ Note an explicit `@id` *replaces* a heading's title slug rather than aliasing it
 ## To-dos
 When setting you off on a task, check this list and assess if any of these should be done first.
 - Wire the `post_processor` QoI builders (e.g. `populationCountQoI`) into sensitivity analysis and calibration workflows, so a builder's output can feed `runSensitivity`/`CalibrationProblem` directly instead of only landing in the post-processing sink. Not yet done — these builders currently only target `run(...; post_processor=...)`.
+- Represent PhysiPKPD in the inputs. Needs a design brief before any code: how a dosing schedule is
+  described (the hard part -- PhysiPKPD supports several schedule shapes), where schedules live under
+  `inputs/`, whether they are a new input location or an extension of an existing one, and how they
+  participate in parameter variation so a schedule parameter can be swept like any other. Raised as a
+  release-backlog item on 2026-09-02 and deliberately deferred: every other backlog item was
+  independent of it, and bundling a schema design with bug fixes would have held those up.
 - Fix `-march` selection for non-Slurm clusters. `isRunningOnHPC()` probes only for `sbatch`, so PBS/Torque, LSF, and SGE sites silently compile with `-march=native` and hit the same SIGILL the `x86-64` default exists to prevent. The fix is a `PCMM_MARCH` env var (there is currently **no** public API for this — `setMarchFlag` is internal), a broadened scheduler probe, and compiler-side validation of the resolved flag. Deferred deliberately, not a regression. **Full findings, three failure classes, the deferred design, and rejected alternatives are in [progress.md](progress.md) under `2026-08-05` — read that entry before touching `march_flag`.** Related and larger: real multi-scheduler *submission* is a ModelManager change (`prepareHPCCommand`'s `sbatch --wrap` has no PBS analogue), so it needs its own brief in that repo.

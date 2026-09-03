@@ -1,5 +1,3 @@
-using Dates
-
 filename = @__FILE__
 filename = split(filename, "/") |> last
 str = "TESTING WITH $(filename)"
@@ -40,33 +38,32 @@ fake_simulation_process = PhysiCellModelManager.SimulationProcess(simulation, mo
 @test contains(read(path_to_err, String), "no output.err file was found")
 rm(path_to_err; force=true)
 
-# test hpc removal of file that does not exist
-@test isnothing(PhysiCellModelManager.rm_hpc_safe("not_a_file.txt"))
+# ModelManager 0.9 changed rm_hpc_safe: it now attempts the real removal first and stages only
+# what it could not remove, returning :removed or :staged. Before, every HPC deletion was
+# relocated into data/.trash and left there, so a cluster project never reclaimed any space.
+# These tests assert the 0.9 contract.
 
-# test hpc removal of file that does exist
-current_time = Dates.now()
-threshold_seconds = 15
-end_of_day = DateTime(Dates.year(current_time), Dates.month(current_time), Dates.day(current_time), 23, 59, 59)
-threshold_time = end_of_day - Second(threshold_seconds)
-is_about_to_be_next_day = current_time >= threshold_time
-if is_about_to_be_next_day
-    #! if it's about to be the next day, wait until it is the next day
-    sleep(threshold_seconds + 1)
-end
+# a missing path with force=false still throws, exactly as rm does
+@test_throws Base.IOError PhysiCellModelManager.rm_hpc_safe("not_a_file.txt")
+
+# ...and force=true makes it a no-op, as rm does
+@test PhysiCellModelManager.rm_hpc_safe("not_a_file.txt"; force=true) == :removed
+
+# a file that does exist is really removed, not staged
 path_to_dummy_file = joinpath(PhysiCellModelManager.dataDir(), "test.txt")
 open(path_to_dummy_file, "w") do f
     write(f, "test")
 end
-PhysiCellModelManager.rm_hpc_safe(path_to_dummy_file)
-@test joinpath(PhysiCellModelManager.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test.txt") |> isfile
+#! `:removed` is returned only on the branch where `rm` itself succeeded, so it already proves
+#! nothing was staged. Asserting the absence of `data/.trash` would additionally couple this test
+#! to whatever every other testset did with the same data directory.
+@test PhysiCellModelManager.rm_hpc_safe(path_to_dummy_file) == :removed
+@test !isfile(path_to_dummy_file)
 
-# test hpc removal of file with same name
-path_to_dummy_file = joinpath(PhysiCellModelManager.dataDir(), "test.txt")
-open(path_to_dummy_file, "w") do f
-    write(f, "test")
-end
-PhysiCellModelManager.rm_hpc_safe(path_to_dummy_file)
-@test joinpath(PhysiCellModelManager.dataDir(), ".trash", "data-$(Dates.format(now(), "yymmdd"))", "test-1.txt") |> isfile
+# NOTE: the :staged branch is deliberately uncovered. Reaching it requires rm to fail on a path
+# that still exists afterwards -- a busy or held file -- which cannot be produced portably. The
+# old tests appeared to cover it only because staging was unconditional; under 0.9 they would
+# assert something that never happens on a healthy filesystem.
 
 # revert back to not using HPC for remainder of tests
 PhysiCellModelManager.useHPC(false)

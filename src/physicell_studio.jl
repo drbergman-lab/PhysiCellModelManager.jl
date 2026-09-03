@@ -108,23 +108,25 @@ end
     executeStudio(path_to_temp_xml::String)
 
 Run PhysiCell Studio with the given temporary XML file.
+
+Returns `nothing` on success, or a [`PCMMStudioLaunchError`](@ref) describing the failure. The
+error is *returned* rather than thrown so that [`runStudio`](@ref) can delete the temporary input
+files before raising it.
 """
 function executeStudio(path_to_temp_xml::String)
     cmd = `$(simulator().path_to_python) $(joinpath(simulator().path_to_studio, "bin", "studio.py")) -c $(path_to_temp_xml)`
     try
         quietRun(cmd)
     catch e
-        msg = """
-        Error running PhysiCell Studio. Please check the paths and ensure that PhysiCell Studio is installed correctly.
-        The command that was run was:
-            $(cmd)
-
-        The error message was:
-            $(sprint(showerror, e))
-        """
-
-        return Base.IOError(msg, e.code)
+        #! `run` raises two different types here and they share no fields: `Base.IOError` (with
+        #! `.code`) when the executable cannot be spawned, and `ProcessFailedException` (with
+        #! `.procs`, no `.code`) when Studio runs and exits non-zero. Reading `.code`
+        #! unconditionally turned the second case into a `FieldError` from inside the handler.
+        #! Keep the cause intact instead and let the caller distinguish them.
+        (e isa InterruptException || !(e isa Exception)) && rethrow()
+        return PCMMStudioLaunchError(cmd, e)
     end
+    return nothing
 end
 
 """

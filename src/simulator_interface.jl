@@ -5,7 +5,7 @@
 import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
                      simulatorVersionTableName, simulatorVersionIDName, resolveSimulatorVersionID,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
-                     packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
+                     dbVersionTableName, upgradeMilestones, upgradeToMilestone,
                      postSimulationCleanup, initializeInputFolder, getInputFolderDescription,
                      shortLocationVariationID, shortVariationName
 
@@ -96,14 +96,6 @@ simulatorInfo(::PhysiCellSimulator) = physicellInfo()
 ########################################################
 ############   Upgrade interface   #####################
 ########################################################
-
-"""
-    packageName(::PhysiCellSimulator)
-
-Return `"PhysiCellModelManager"` — the registered Julia package name used for Pkg
-version lookups.
-"""
-packageName(::PhysiCellSimulator) = "PhysiCellModelManager"
 
 """
     dbVersionTableName(::PhysiCellSimulator)

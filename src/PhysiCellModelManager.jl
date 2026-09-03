@@ -2,7 +2,7 @@ module PhysiCellModelManager
 
 using Reexport
 @reexport using ModelManager
-using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, QuasiMonteCarlo, Sobol, Compat
+using SQLite, DataFrames, LightXML, Dates, CSV, Tables, Distributions, Statistics, Random, Sobol, Compat
 using PhysiCellXMLRules, PhysiCellCellCreator
 using PhysiCellOutput
 

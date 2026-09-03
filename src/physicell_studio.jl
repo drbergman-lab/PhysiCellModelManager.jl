@@ -21,13 +21,21 @@ function runStudio(simulation_id::Int; python_path::Union{Missing,String}=simula
     assertInitialized()
     resolveStudioGlobals(python_path, studio_path)
     path_to_temp_xml, path_to_input_rules = setUpStudioInputs(simulation_id)
-    #! The temporaries are removed however this block exits: a normal return, a launch failure, or
-    #! a Ctrl-C during the launch. This `finally` is also why `executeStudio` can throw directly
-    #! rather than returning its error for this function to re-raise -- that indirection existed
-    #! only so that cleanup could happen before the throw.
+    cmd = `$(simulator().path_to_python) $(joinpath(simulator().path_to_studio, "bin", "studio.py")) -c $(path_to_temp_xml)`
     try
-        executeStudio(path_to_temp_xml)
+        quietRun(cmd)
+    catch e
+        #! `run` raises two different types here and they share no fields: `Base.IOError` (with
+        #! `.code`) when the executable cannot be spawned, and `ProcessFailedException` (with
+        #! `.procs`, no `.code`) when Studio runs and exits non-zero. Reading `.code`
+        #! unconditionally turned the second case into a `FieldError` from inside the handler.
+        #! Keep the cause intact instead and let the caller distinguish them.
+        (e isa InterruptException || !(e isa Exception)) && rethrow()
+        throw(PCMMStudioLaunchError(cmd, e))
     finally
+        #! Runs however the block above exits -- a normal return, a wrapped launch failure, or a
+        #! Ctrl-C during the launch -- so the temporaries never outlive the call. `finally` runs
+        #! even when the `catch` block itself throws.
         cleanUpStudioInputs(path_to_temp_xml, path_to_input_rules)
     end
     return nothing
@@ -107,31 +115,6 @@ function setUpStudioInputs(simulation_id::Int)
     free(xml_doc)
 
     return path_to_temp_xml, path_to_input_rules
-end
-
-"""
-    executeStudio(path_to_temp_xml::String)
-
-Run PhysiCell Studio with the given temporary XML file.
-
-Throws [`PCMMStudioLaunchError`](@ref) if Studio could not be launched or exited with an error.
-Cleaning up the temporary inputs is [`runStudio`](@ref)'s job, and it does so in a `finally`, so
-this function does not have to hold an error back in order for that to happen.
-"""
-function executeStudio(path_to_temp_xml::String)
-    cmd = `$(simulator().path_to_python) $(joinpath(simulator().path_to_studio, "bin", "studio.py")) -c $(path_to_temp_xml)`
-    try
-        quietRun(cmd)
-    catch e
-        #! `run` raises two different types here and they share no fields: `Base.IOError` (with
-        #! `.code`) when the executable cannot be spawned, and `ProcessFailedException` (with
-        #! `.procs`, no `.code`) when Studio runs and exits non-zero. Reading `.code`
-        #! unconditionally turned the second case into a `FieldError` from inside the handler.
-        #! Keep the cause intact instead and let the caller distinguish them.
-        (e isa InterruptException || !(e isa Exception)) && rethrow()
-        throw(PCMMStudioLaunchError(cmd, e))
-    end
-    return nothing
 end
 
 """

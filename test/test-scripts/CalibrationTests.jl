@@ -161,10 +161,13 @@ end
     # Out-of-range generation throws
     @test_throws ArgumentError posterior(result; generation=99)
 
-    # Generation files saved to disk
+    # Generation artifacts saved to disk. Deliberately layout-agnostic: ModelManager moved from a
+    # flat `generation_<t>.csv` to a folder per generation (and still reads both), so pinning a
+    # filename here pins ModelManager's internal layout from PCMM's test suite. That generation 1
+    # was persisted *and* is readable is already asserted above, via `posterior(result; generation=1)`.
     gen_dir = joinpath(ModelManager.calibrationFolder(result.calibration), "generations")
     @test isdir(gen_dir)
-    @test isfile(joinpath(gen_dir, "generation_1.csv"))
+    @test !isempty(readdir(gen_dir))
 end
 
 @testset "resumeABC" begin
@@ -179,7 +182,8 @@ end
 
     # Initial run: 1 generation, tiny population
     method_initial = ABCSMC(population_size=3, max_nr_populations=1, minimum_epsilon=0.0)
-    result1 = runCalibration(problem, method_initial; description="resume test")
+    #! ModelManager takes the method first: `runCalibration(::ABCSMC, ::CalibrationProblem; ...)`.
+    result1 = runCalibration(method_initial, problem; description="resume test")
     @test length(result1.generations) == 1
 
     # Resume with a method that allows 2 more generations

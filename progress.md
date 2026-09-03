@@ -216,8 +216,10 @@ If a cache for `finalPopulationCount` is ever wanted, the right move is to write
 file at run time — same value, same snapshot — not to reinterpret a different series' endpoint.
 
 ### Open questions
-- **The `QoI` migration cannot land yet.** `QoI` is not in ModelManager `main`; it lives on the
-  unmerged `feature/qoi-seam` branch. See `HANDOFF-QoI-unification.md`. The decision on aggregation
+- **The `QoI` migration is now unblocked but not done.** `QoI` landed in ModelManager `main` as
+  #43 (`d9539a5`, "Add the QoI seam") partway through this work; it had been on the unmerged
+  `feature/qoi-seam` branch when the analysis below was written. See
+  `HANDOFF-QoI-unification.md`. The decision on aggregation
   is **bit-exact per-function reducers** (the handoff's option A): the migration's whole value is
   removing a silent wrong-answer path, so it must not silently change numbers itself. Verified
   empirically that `mean(vector)` (pairwise) and `mean(generator)` (sequential) first diverge at

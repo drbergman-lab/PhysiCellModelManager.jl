@@ -21,17 +21,14 @@ function runStudio(simulation_id::Int; python_path::Union{Missing,String}=simula
     assertInitialized()
     resolveStudioGlobals(python_path, studio_path)
     path_to_temp_xml, path_to_input_rules = setUpStudioInputs(simulation_id)
-    #! `finally`, not a plain call after `executeStudio`: that only cleaned up when `executeStudio`
-    #! returned, so a Ctrl-C during the launch (which `executeStudio` rethrows) left the temporary
-    #! config and rules files sitting in the simulation's output folder. The temporaries are removed
-    #! however this block exits.
-    out = try
+    #! The temporaries are removed however this block exits: a normal return, a launch failure, or
+    #! a Ctrl-C during the launch. This `finally` is also why `executeStudio` can throw directly
+    #! rather than returning its error for this function to re-raise -- that indirection existed
+    #! only so that cleanup could happen before the throw.
+    try
         executeStudio(path_to_temp_xml)
     finally
         cleanUpStudioInputs(path_to_temp_xml, path_to_input_rules)
-    end
-    if out isa Exception
-        throw(out)
     end
     return nothing
 end
@@ -117,9 +114,9 @@ end
 
 Run PhysiCell Studio with the given temporary XML file.
 
-Returns `nothing` on success, or a [`PCMMStudioLaunchError`](@ref) describing the failure. The
-error is *returned* rather than thrown so that [`runStudio`](@ref) can delete the temporary input
-files before raising it.
+Throws [`PCMMStudioLaunchError`](@ref) if Studio could not be launched or exited with an error.
+Cleaning up the temporary inputs is [`runStudio`](@ref)'s job, and it does so in a `finally`, so
+this function does not have to hold an error back in order for that to happen.
 """
 function executeStudio(path_to_temp_xml::String)
     cmd = `$(simulator().path_to_python) $(joinpath(simulator().path_to_studio, "bin", "studio.py")) -c $(path_to_temp_xml)`
@@ -132,7 +129,7 @@ function executeStudio(path_to_temp_xml::String)
         #! unconditionally turned the second case into a `FieldError` from inside the handler.
         #! Keep the cause intact instead and let the caller distinguish them.
         (e isa InterruptException || !(e isa Exception)) && rethrow()
-        return PCMMStudioLaunchError(cmd, e)
+        throw(PCMMStudioLaunchError(cmd, e))
     end
     return nothing
 end

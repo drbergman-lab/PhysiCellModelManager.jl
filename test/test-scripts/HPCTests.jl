@@ -8,24 +8,30 @@ PhysiCellModelManager.useHPC()
 simulation = Simulation(1)
 monad = Monad(simulation)
 
+# PCMM's job is now only to say what to run; ModelManager v0.9.0 owns the sbatch wrapping, the
+# submission and the wait, and `prepareHPCCommand` is gone. So the assertions about `--wrap` and
+# `--wait` moved to ModelManager with the code -- `--wait` in particular no longer exists, since #47
+# replaced polling with a completion sentinel on the shared filesystem. What is left to check here is
+# the contract PCMM must satisfy.
 cmd_local = PhysiCellModelManager.prepareSimulationCommand(simulation)
-cmd_local_str = string(Cmd(cmd_local.exec))
-cmd_local_str = strip(cmd_local_str, '`')
-cmd_hpc = PhysiCellModelManager.ModelManager.prepareHPCCommand(cmd_local, simulation.id)
-
-cmd_string = string(cmd_hpc)
-cmd_string = strip(cmd_string, '`')
-
-@test startswith(cmd_string, "sbatch")
-@test contains(cmd_string, "--wrap=$(cmd_local_str)")
-@test contains(cmd_string, "--wait")
-
-# test prep of command
-# gh actions runners not expected to have `sbatch` installed
 spec = PhysiCellModelManager.ModelManager.SimulationSpec(simulation, monad.id)
+
+#! `simulationCommand` is what PCMM implements now, and it must hand back exactly the command.
+@test PhysiCellModelManager.simulationCommand(PhysiCellModelManager.simulator(), spec) == cmd_local
+
+#! No environment on the Cmd. ModelManager rejects one with an ArgumentError, because `Cmd.env`
+#! replaces the environment while `sbatch --export` extends it -- so a command carrying an env would
+#! behave one way locally and the opposite on a cluster. `dir` is set and is honoured on both paths.
+@test isnothing(cmd_local.env)
+@test cmd_local.dir == PhysiCellModelManager.physicellDir()
+
+# gh actions runners are not expected to have `sbatch` installed, so the submission fails here
 simulation_process = PhysiCellModelManager.ModelManager.runSimulation(PhysiCellModelManager.simulator(), spec)
 @test isnothing(simulation_process.process)
 @test !simulation_process.success
+#! ...but a command *was* built, which is what `cmd` records and what distinguishes this from a
+#! simulation that never launched at all.
+@test !isnothing(simulation_process.cmd)
 
 # test postSimulationCleanup does not crash on a failed process whose output.err was never
 # created (e.g. an sbatch submission failure on HPC before the job ever ran and redirected
@@ -33,7 +39,10 @@ simulation_process = PhysiCellModelManager.ModelManager.runSimulation(PhysiCellM
 path_to_err = joinpath(PhysiCellModelManager.trialFolder(simulation), "output.err")
 rm(path_to_err; force=true)
 fake_process = Base.run(pipeline(ignorestatus(`false`)); wait=true)
-fake_simulation_process = PhysiCellModelManager.SimulationProcess(simulation, monad.id, fake_process, false)
+#! Five arguments: `cmd` must be set, because `postSimulationCleanup` now reads it to answer "did
+#! this ever launch?". A four-argument construction defaults `cmd` to `nothing`, which correctly
+#! means "never launched" and would skip the annotation asserted below.
+fake_simulation_process = PhysiCellModelManager.SimulationProcess(simulation, monad.id, fake_process, false, cmd_local)
 @test_nowarn PhysiCellModelManager.postSimulationCleanup(PhysiCellModelManager.simulator(), fake_simulation_process)
 @test contains(read(path_to_err, String), "no output.err file was found")
 rm(path_to_err; force=true)
@@ -71,12 +80,12 @@ PhysiCellModelManager.useHPC(false)
 new_hpc_options = Dict("cpus-per-task" => "2",
                        "job-name" => simulation_id -> "test_$(simulation_id)")
 PhysiCellModelManager.setJobOptions(new_hpc_options)
+#! What PCMM can still check is that the options reach the globals `setJobOptions` writes to,
+#! including the callable form that is resolved per simulation. Asserting they appear in the
+#! generated `sbatch` line is no longer PCMM's to make: `prepareHPCCommand` is gone in v0.9.0 and
+#! ModelManager builds and tests that command itself.
+#! (These were `@assert`, which does not register as a test failure at all.)
 @test PhysiCellModelManager.mm_globals().sbatch_options["cpus-per-task"] == "2"
-hpc_command = PhysiCellModelManager.ModelManager.prepareHPCCommand(cmd_local, 78)
-
-cmd_string = string(hpc_command)
-cmd_string = strip(cmd_string, '`')
-@assert contains(cmd_string, "--cpus-per-task=2")
-@assert contains(cmd_string, "--job-name=test_78")
+@test PhysiCellModelManager.mm_globals().sbatch_options["job-name"](78) == "test_78"
 
 deleteSimulationsByStatus("Failed"; user_check=false)

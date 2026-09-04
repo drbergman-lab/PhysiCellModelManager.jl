@@ -359,6 +359,44 @@ untyped measurement function is not merely unidiomatic here, it is what lets a s
 looking healthy.
 
 
+### ModelManager #47 merged: `runSimulation` becomes `simulationCommand`
+`HANDOFF-MM-v0.9.0-START-HERE.md` is the wrap-up over the other three and wins where they disagree.
+Most of its checklist was already done on this branch — `env=ENV` deleted, the #46 call sites fixed,
+compat at `"0.9"`, version at `0.4.0` — because it was written against PCMM at `bc60cdca6`. Three
+items remained, all now done against MM at `295f749` (v0.9.0).
+
+**`simulationCommand` replaces `runSimulation`.** PCMM's implementation is one line returning
+`prepareSimulationCommand(spec.simulation)`; ModelManager owns the local/HPC branch, the output
+redirection, the sbatch wrapping, waiting for completion, and constructing the `SimulationProcess`.
+Deleted with it: the `runSimulation` method, its import, the `prepareHPCCommand` call, and PCMM's own
+`hpc.out`/`hpc.err` redirection — ModelManager writes those files now, and two writers would race.
+`prepareSimulationCommand`'s `mkpath` of the `output` subfolder stays: ModelManager creates the trial
+folder, not that subdirectory.
+
+**Both `.process` reads became `.cmd` reads.** `process === nothing` used to mean one thing, "no
+command could be built". Under v0.9.0 it also means "ran as a SLURM job", because the work happened
+on a compute node and there is no local process object. `isnothing(cmd)` is now exactly what
+`isnothing(process)` used to be, so:
+
+- `postSimulationCleanup`'s early return: had it kept testing `process`, it would have fired for
+  *every* simulation on a cluster — no pruning for an entire campaign, `output.err` never cleaned or
+  annotated, and nothing reported. This was the addenda doc's most valuable find precisely because
+  it is silent.
+- the failure annotation: `p.cmd` would have thrown on any failed simulation with `run_on_hpc` set,
+  inside a hook `run()` treats as fail-fast, so one failed job aborted the campaign. Reading
+  `simulation_process.cmd` is also *better* output — PhysiCell's own command line on both paths,
+  where `p.cmd` on HPC printed the whole `sbatch` wrapper.
+
+**`HPCTests` lost three assertions and gained better ones.** It was testing `prepareHPCCommand`
+(deleted), `--wrap=` and `--wait` (that flag is gone — the sentinel file replaced the poll), and it
+built a four-argument `SimulationProcess`, which now defaults `cmd` to `nothing` and would therefore
+correctly skip the cleanup the test asserts. What is left is what PCMM is actually responsible for:
+that `simulationCommand` returns the command, that the `Cmd` carries no environment and does carry
+`dir`, that a failed submission yields no process but a non-`nothing` `cmd`, and that `setJobOptions`
+reaches the globals — including the callable form resolved per simulation. Two of the dropped
+assertions were `@assert` rather than `@test`, so they had never been able to fail the suite.
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

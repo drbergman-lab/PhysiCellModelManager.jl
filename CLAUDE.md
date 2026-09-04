@@ -192,26 +192,6 @@ When setting you off on a task, check this list and assess if any of these shoul
   the simulation's own output, and a `QoI` names its single column at construction. That needs
   either a rename (cheap, and worth doing regardless) or a ModelManager change letting one QoI
   contribute a `Dict` of `name => scalar`. See §3d of `HANDOFF-QoI-unification.md`.
-- Finish the ModelManager v0.9.0 `simulationCommand` migration. **Blocked on ModelManager PR #47**
-  (`feature/hpc-completion-signal`), which is fetched locally but not merged — `main` still has
-  `prepareHPCCommand` and no `simulationCommand`. Read `HANDOFF-MM-v0.9.0-simulationCommand.md` and
-  `HANDOFF-MM-v0.9.0-addenda.md` in the repo root; everything below is already reflected in them.
-  Nothing here is decided-but-unwritten — it is all waiting on the merge.
-  - **The `env=ENV` blocker is already fixed** (addenda §1). `prepareSimulationCommand` no longer
-    sets `env`, so the one-liner migration is viable as written.
-  - **Keep `prepareSimulationCommand`'s `mkpath` of the output subfolder** (addenda §3). MM creates
-    the *trial* folder, not `output/`, despite upstream wording that suggests otherwise. Dropping it
-    would break every simulation.
-  - **Delete PCMM's `hpc.out`/`hpc.err` redirection** along with `runSimulation` (§5). MM writes
-    both files itself now; two writers would race.
-  - **`postSimulationProcessing` and `postSimulationCleanup` share one bug** with one fix.
-    `process === nothing` currently means "never launched" but will also mean "ran as a SLURM job",
-    so the `p.cmd` interpolation crashes and the cleanup guard silently skips *all* pruning on HPC.
-    #47 adds `SimulationProcess.cmd`, making `isnothing(sp.cmd)` the exact "did this launch?" test —
-    use it in both places rather than inventing a predicate.
-  - **Hazard MM has not fixed:** `run()` marks a simulation `"Running"` before calling
-    `runSimulation`, so a validation throw leaves rows stuck at `"Running"`, which `isStarted` reads
-    as started — a later re-run silently skips them. Clear such rows by hand if it happens.
 - Represent PhysiPKPD in the inputs. Needs a design brief before any code: how a dosing schedule is
   described (the hard part -- PhysiPKPD supports several schedule shapes), where schedules live under
   `inputs/`, whether they are a new input location or an extension of an existing one, and how they

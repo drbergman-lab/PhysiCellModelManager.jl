@@ -80,7 +80,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Simulation execution — local multi-process runner
   - [x] Executables named for the PhysiCell version they were built against, in a `pcmm_build/` subfolder of the custom code folder, so the file's existence is the only record of a finished build — a failed compilation can no longer be mistaken for a ready one
   - [x] PhysiCell version re-resolved before every compilation, so pulling, checking out, or editing PhysiCell mid-session is picked up without restarting Julia
-- [x] HPC job script generation and submission
+- [x] HPC job script generation and submission — ModelManager v0.9.0 owns launching; PCMM implements `simulationCommand` and says only what to run. SLURM completion is detected from a filesystem sentinel rather than `sbatch --wait`, so controller load no longer scales with the parallel-simulation count
 - [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
   - [x] Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and reported once per call site (`@info ... maxlog=1`), instead of vanishing silently
   - [x] Plot recipes documented with rendered figures in the manual

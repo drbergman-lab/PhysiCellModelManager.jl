@@ -445,6 +445,44 @@ the sink never calls `reduce`.
 The tests probed the returned closure by calling it directly, so they now go through `compute`.
 
 
+### Assuming ModelManager #48: what could actually be written, and what could not
+Stacked on the branch above, on the premise that ModelManager spreads a `Dict`-valued measurement
+into one sensitivity analysis per key in v0.9.1 (issue #48).
+
+**Most of what looked writable was not**, and the useful output of surveying it was a set of
+corrections to the *base* branch rather than anything contingent — those landed there, not here. Of
+what remains, the dividing line is whether a statement survives ModelManager's three open questions:
+key-set consistency, naming, and whether vector *values* spread too.
+
+**Written here** (true under the premise, and independent of all three):
+
+- `[compat] ModelManager = "0.9.1"`. Verified against `Pkg.Types.semver_spec`: `"0.9"` resolves to
+  `[0.9.0, 0.10.0)` and would let a project resolve 0.9.0 while the docs promise behaviour it does
+  not have; `"0.9.1"` resolves to `[0.9.1, 0.10.0)`. No version bump — 0.4.0 is not yet tagged, so
+  this folds into it.
+- The "Sensitivity analysis needs a scalar" admonition inverts for the **two endpoint builders**.
+
+**Deliberately not written**, each for a stated reason:
+
+- *Anything about `meanPopulationTimeSeriesQoI` and sensitivity analysis.* Its value is
+  `Dict{String,Vector{Float64}}`, so it works only if #48 spreads vector values, which is open
+  question (c). Silence is correct under either answer; naming it as supported or unsupported is
+  wrong under one.
+- *A test.* The obvious one — `functions=[endpointPopulationCountQoI()]` produces per-cell-type
+  analyses — cannot assert anything about the results until (b) settles how they are named and
+  retrieved. A test that only asserts "does not throw" would be a placeholder, and it cannot run
+  before 0.9.1 exists in any case.
+- *Retrieval examples in the docs.* Same reason: they would name results, which is (b).
+
+**One thing this survey established that is worth keeping regardless of #48.** `populationCountQoI`
+will not gain sensitivity-analysis support even after it lands. It passes no `reduce`, so it inherits
+the default `mean`, and `mean` over a vector of `Dict`s raises
+`MethodError: no method matching /(::Dict{String,Int64}, ::Int64)` — verified directly. It is
+sink-only because it has no reducer, not because the sink is special. The base branch now says so;
+the note here keeps it visible next to the newly broadened claim, so nobody reads "these builders
+work with GSA" as covering all four.
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

@@ -263,7 +263,7 @@
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
 - Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. A single QoI's value is passed through unwrapped by ModelManager, which is what keeps that dict flat for `mseDistance`.
 - `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
-- Sensitivity analysis requires each measurement to reduce to a `Real`, so these `Dict`-valued builders serve calibration and the sink. A scalar quantity is a one-line `QoI`.
+- From ModelManager 0.9.1, sensitivity analysis spreads a `Dict`-valued measurement into one analysis per key, so the two endpoint builders serve all three consumers. `populationCountQoI` remains sink-only: it defines no `reduce`, and the default `mean` cannot combine a vector of `Dict`s.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
 **Acceptance criteria:**
@@ -494,7 +494,7 @@
 ### Open Questions
 1. **Model Manager Studio scope:** The PCMM GUI companion (Model Manager Studio) is partially implemented. Which PCMM features should be accessible through it, and in what release phase?
 2. **Windows CI validation:** Windows support is targeted but not yet validated in CI. Build environment and compiler chain need to be confirmed.
-3. **Sensitivity analysis over a `Dict`-valued QoI:** ModelManager's sensitivity path requires each measurement to reduce to a `Real`, while its post-processing sink spreads a `Dict` return into one column per key. So a `Dict`-valued QoI — which is the shape all four PCMM builders use — serves calibration and the sink but not `functions=`. Raised upstream as ModelManager issue #48; a scalar `QoI` is the one-line workaround meanwhile.
+3. **Vector-valued QoIs in sensitivity analysis:** ModelManager 0.9.1 spreads a `Dict`-valued measurement into one analysis per key, which covers the two endpoint builders. Whether it also spreads a `Dict` whose *values* are vectors — the shape `meanPopulationTimeSeriesQoI` produces — was left open on ModelManager issue #48. Until that settles, a time series reaches sensitivity analysis only by reducing it to a scalar first.
 4. **PhysiPKPD inputs:** PhysiPKPD is not yet representable as a PCMM input location. Needs a design covering how dosing schedules are described, where they live under `inputs/`, and how they participate in parameter variation.
 
 ### Assumptions

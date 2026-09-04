@@ -27,7 +27,7 @@ One QoI covers every cell type, rather than one QoI each, because the cell types
 simulation's own output and so are not known until it has run — a `QoI` names its column at
 construction, but ModelManager expands a `Dict` return into one column per key. That is also why
 this suits the sink specifically: `reduce` is never called there. To measure named cell types across
-a monad's replicates instead, use [`endpointPopulationCountQoIs`](@ref).
+a monad's replicates instead, use [`endpointPopulationCountQoI`](@ref).
 
 # Arguments
 - `index`: Which snapshot to count — `:final`, `:initial`, or an integer snapshot index.

@@ -49,7 +49,7 @@ If the requested snapshot doesn't exist for a given simulation (e.g. it was prun
 *earlier* run before this feature's ordering guarantee applied to it), the builder returns
 `nothing` for that simulation rather than erroring.
 
-The population summary statistics have `QoI`-returning builders too — [`endpointPopulationCountQoIs`](@ref) and [`endpointPopulationFractionQoIs`](@ref) — which work here as well as in calibration and sensitivity analysis. See [QoI form](@ref qoi_form_ss).
+The population summary statistics have `QoI`-returning builders too — [`endpointPopulationCountQoI`](@ref) and [`endpointPopulationFractionQoI`](@ref) — which work here as well as in calibration and sensitivity analysis. See [QoI form](@ref qoi_form_ss).
 
 ## Reading the stored quantities back
 

@@ -35,11 +35,11 @@ end
     #! The monad-level statistics are no longer valid `summary_statistic` arguments: since #46 a
     #! measurement function receives a `Simulation`, and these take a monad ID. The QoI builders are
     #! the replacement for that role; the monad-level functions remain monad-level analysis.
-    prob = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoIs([cell_type]), mseDistance)
+    prob = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoI(), mseDistance)
     @test prob.n_replicates == 1
     @test prob.reference_variation_id == PhysiCellModelManager.VariationID(inputs)
 
-    prob_with_ref = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoIs([cell_type]), mseDistance;
+    prob_with_ref = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoI(), mseDistance;
         n_replicates=3, reference_variation_id=ref.variation_id)
     @test prob_with_ref.n_replicates == 3
     @test !ismissing(prob_with_ref.reference_variation_id)
@@ -121,17 +121,20 @@ end
 # silently erase, so each divergence gets its own assertion.
 
 @testset "QoI builder reducers" begin
-    counts_q = endpointPopulationCountQoIs([cell_type]) |> first
-    fracs_q = endpointPopulationFractionQoIs([cell_type]) |> first
+    counts_q = endpointPopulationCountQoI()
+    fracs_q = endpointPopulationFractionQoI()
 
     # Missing replicates are SKIPPED, not propagated. ModelManager hands `reduce` every replicate's
     # value including `missing`, so a default `mean` would return `missing` for the whole monad --
     # reachable on ordinary data, because pruning makes a replicate unreadable.
-    @test counts_q.reduce([1, missing, 3]) == 2
-    @test fracs_q.reduce([0.25, missing, 0.75]) == 0.5
+    @test counts_q.reduce([Dict("a" => 1), missing, Dict("a" => 3)]) == Dict("a" => 2.0)
+    @test fracs_q.reduce([Dict("a" => 0.25), missing, Dict("a" => 0.75)]) == Dict("a" => 0.5)
     # ...and all-missing is `missing`, matching the monad-level functions.
     @test ismissing(counts_q.reduce([missing, missing]))
     @test ismissing(fracs_q.reduce([missing, missing]))
+    # A cell type absent from a replicate is zero-filled by both endpoint builders, and the counts
+    # builder unions the keys rather than taking the first replicate's.
+    @test counts_q.reduce([Dict("a" => 3), Dict("a" => 3, "b" => 6)]) == Dict("a" => 3.0, "b" => 3.0)
 
     # Float associativity is observable, and the two existing functions disagree about it:
     # `finalPopulationCount(::Monad)` averages a generator (sequential summation) while
@@ -143,12 +146,15 @@ end
     diverging = fill(0.1, 1200)
     @test mean(diverging) != mean(x for x in diverging)
 
-    # Each reducer matches its OWN original form on that input...
-    @test counts_q.reduce(diverging) == mean(x for x in diverging)
-    @test fracs_q.reduce(diverging) == mean(Float64[x for x in diverging])
+    # Each reducer matches its OWN original form on that input: the counts builder reuses
+    # `finalPopulationCount(::Monad)`'s generator mean, the fractions builder reuses
+    # `_averageStatDicts`' materialised one.
+    as_dicts = [Dict("a" => x) for x in diverging]
+    @test counts_q.reduce(as_dicts)["a"] == mean(x for x in diverging)
+    @test fracs_q.reduce(as_dicts)["a"] == mean(Float64[x for x in diverging])
     # ...and therefore differ from each other, which is what makes the two assertions above
     # load-bearing rather than two spellings of the same check.
-    @test counts_q.reduce(diverging) != fracs_q.reduce(diverging)
+    @test counts_q.reduce(as_dicts)["a"] != fracs_q.reduce(as_dicts)["a"]
 end
 
 @testset "QoI builders match the monad-level functions" begin
@@ -157,9 +163,10 @@ end
     # `ModelManager._asSummaryStatistic`, which was renamed to `_validateSummaryStatistic` in #46 and
     # took the test with it. Pinning another package's internals is the same mistake as pinning its
     # on-disk layout: the flat-vs-nested dict shape is ModelManager's contract to keep, not ours.
-    evaluate(qois, monad_id) = Dict(q.name => q.reduce([q.compute(Simulation(sid))
-                                                        for sid in simulationIDs(Monad(monad_id))])
-                                    for q in qois)
+    #! A single QoI's value is what ModelManager passes through unwrapped, so this is the whole of
+    #! what `_evaluateSummary` does for one -- no MM internals reached into.
+    evaluate(q, monad_id) = q.reduce([q.compute(Simulation(sid))
+                                      for sid in simulationIDs(Monad(monad_id))])
 
     # A monad of this test's own, distinguished by a phase duration nothing else uses. PCMM reuses
     # matching simulations, so pruning a replicate of a monad another file also builds -- Monad(1)
@@ -172,13 +179,16 @@ end
     sids = simulationIDs(probe)
     @test length(sids) == 3
 
-    for (builder, monadwise) in [(endpointPopulationCountQoIs, endpointPopulationCounts),
-                                 (endpointPopulationFractionQoIs, endpointPopulationFractions),
-                                 (meanPopulationTimeSeriesQoIs, meanPopulationTimeSeries)]
-        via_qoi = evaluate(builder([cell_type]), monad_id)
+    for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
+                                 (endpointPopulationFractionQoI, endpointPopulationFractions),
+                                 (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
+        via_qoi = evaluate(builder(; cell_types=[cell_type]), monad_id)
         direct = monadwise(monad_id; cell_types=[cell_type])
         @test keys(via_qoi) == keys(direct)          # flat, keyed by cell type -- not nested
         @test via_qoi[cell_type] == direct[cell_type]
+        #! ...and with no `cell_types`, the QoI discovers them exactly as the monad-level function
+        #! does -- the thing the previous `Vector{QoI}` shape could not do.
+        @test evaluate(builder(), monad_id) == monadwise(monad_id)
     end
 
     # Now prune one replicate and assert the equality survives the path that actually differs.
@@ -193,12 +203,11 @@ end
     @test ismissing(PhysiCellModelManager.SimulationPopulationTimeSeries(victim; verbose=false))
     @test ismissing(finalPopulationCount(victim))
 
-    for (builder, monadwise) in [(endpointPopulationCountQoIs, endpointPopulationCounts),
-                                 (endpointPopulationFractionQoIs, endpointPopulationFractions),
-                                 (meanPopulationTimeSeriesQoIs, meanPopulationTimeSeries)]
-        via_qoi = evaluate(builder([cell_type]), monad_id)
-        direct = monadwise(monad_id; cell_types=[cell_type])
-        @test via_qoi[cell_type] == direct[cell_type]
+    for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
+                                 (endpointPopulationFractionQoI, endpointPopulationFractions),
+                                 (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
+        @test evaluate(builder(; cell_types=[cell_type]), monad_id)[cell_type] ==
+              monadwise(monad_id; cell_types=[cell_type])[cell_type]
     end
 end
 
@@ -210,7 +219,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCountQoIs([cell_type]), mseDistance;
+        endpointPopulationCountQoI(), mseDistance;
         reference_variation_id=ref.variation_id
     )
 
@@ -268,7 +277,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCountQoIs([cell_type]), mseDistance;
+        endpointPopulationCountQoI(), mseDistance;
         reference_variation_id=ref.variation_id
     )
 

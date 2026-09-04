@@ -261,7 +261,7 @@
 - `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
 - `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
-- Each statistic also has a `Vector{QoI}`-returning builder — `endpointPopulationCountQoIs`, `endpointPopulationFractionQoIs`, `meanPopulationTimeSeriesQoIs` — so the same quantity can be passed to any ModelManager QoI consumer rather than only to `CalibrationProblem`. One QoI per cell type, each named for its cell type, which keeps the value reaching `distance` the same shape as the monad-level statistic.
+- Each statistic also has a `Vector{QoI}`-returning builder — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — so the same quantity can be passed to any ModelManager QoI consumer rather than only to `CalibrationProblem`. One QoI per cell type, each named for its cell type, which keeps the value reaching `distance` the same shape as the monad-level statistic.
 - `cell_types` is **required** for the builders: a `Vector{QoI}` is constructed before any simulation runs, so cell types cannot be discovered from output. The monad-level functions remain the discover-everything path.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
@@ -275,7 +275,7 @@
 - All replicates in a monad have missing output → return `missing`, not an error.
 - `cell_types` filter names a type not present in the simulation → entry is omitted from result.
 - Some replicates missing output → averaged over the survivors, reported once via `@info ... maxlog=1`. `maxlog` is required: calibration evaluates these once per monad across thousands of particles.
-- A builder must return **exactly** what its monad-level counterpart returns, asserted with `==` rather than `isapprox`. The three statistics disagree with one another about whether an absent cell type is zero-filled and about summation order, so each builder carries its own reducer; a shared one would silently change results. The one deliberate difference: where every replicate is missing, `meanPopulationTimeSeriesQoIs` returns `missing` while `meanPopulationTimeSeries` raises a `KeyError`.
+- A builder must return **exactly** what its monad-level counterpart returns, asserted with `==` rather than `isapprox`. The three statistics disagree with one another about whether an absent cell type is zero-filled and about summation order, so each builder carries its own reducer; a shared one would silently change results. The one deliberate difference: where every replicate is missing, `meanPopulationTimeSeriesQoI` returns `missing` while `meanPopulationTimeSeries` raises a `KeyError`.
 
 ---
 

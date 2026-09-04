@@ -81,9 +81,9 @@ One [`QoI`](@ref ModelManager.QoI) per cell type, named for the cell type, so th
 `distance` has the same shape as the monad-level statistic above.
 
 ```@docs
-endpointPopulationCountQoIs
-endpointPopulationFractionQoIs
-meanPopulationTimeSeriesQoIs
+endpointPopulationCountQoI
+endpointPopulationFractionQoI
+meanPopulationTimeSeriesQoI
 ```
 
 ## Built-in distance functions

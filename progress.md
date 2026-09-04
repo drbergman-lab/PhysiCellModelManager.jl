@@ -220,20 +220,42 @@ file at run time — same value, same snapshot — not to reinterpret a differen
 — it had been on the unmerged `feature/qoi-seam` branch when `HANDOFF-QoI-unification.md` was
 written — so the migration became possible and was done here.
 
-**The handoff's option A, unchanged after reading the merged code.** Two facts in #43 decide the
-shape, and both match what the handoff predicted from PR #45:
+**The handoff's `Vector{QoI}` shape was obsolete, and shipping it created a gratuitous
+inconsistency.** It was written against PR #45, where *every* summary statistic value was wrapped as
+`Dict(q.name => value)` — so a single QoI named `"counts"` would have handed `mseDistance` a
+`Dict("counts" => Dict("tumor" => ...))` and broken the comparison, and one QoI per cell type was the
+only way to keep the dict flat. Merged ModelManager does not do that:
 
-- `_asSummaryStatistic(qs::AbstractVector{QoI})` returns `monad_id -> Dict(q.name => reduced)`. So a
-  single QoI named `"counts"` would hand `mseDistance` a `Dict("counts" => Dict("tumor" => ...))`
-  where it expects cell-type keys. **One QoI per cell type, named for the cell type**, reproduces
-  the flat dict. That is also what makes `cell_types` a required argument: a `Vector{QoI}` is built
-  before any simulation runs, so cell types cannot be discovered from output. The monad-level
-  functions stay as the discover-everything path and are otherwise untouched.
+```julia
+_evaluateSummary(q::QoI, monad_id) = _reduceOverMonad(q, monad_id)   # one QoI: passed through
+```
+
+A single QoI's value is unwrapped, and only a *vector* is keyed by QoI name. So one Dict-valued QoI
+gives `mseDistance` exactly the flat cell-type-keyed dict it wants. The builders are therefore one
+QoI each, matching `populationCountQoI` — the plural shape had shipped an asymmetry with no reason
+behind it, since both are measuring the same thing.
+
+Three things fall out of the single-QoI shape, and all of them are better:
+
+- **`cell_types` is optional again.** One QoI discovers cell types from the simulation exactly as the
+  monad-level functions do. Required-ness was a consequence of the vector shape, not of anything real.
+- **Exactness is structural, not tested.** Each `reduce` *is* the corresponding monad-level
+  function's aggregation step — `_averageStatDicts` for fractions, `finalPopulationCount(::Monad)`'s
+  union-and-generator-mean for counts. The `==` assertions still run, but they now guard a
+  transcription rather than a reimplementation.
+- **One shape across the whole file**, so `populationCountQoI` no longer looks like an exception.
+
+The cost, stated because it is the one thing the vector shape bought: sensitivity analysis needs a
+`Real` from `reduce`, so a `Dict`-valued QoI cannot feed `functions=`. A vector of per-cell-type QoIs
+could. Naming the one quantity wanted is a one-liner —
+`QoI("tumor", sim -> finalPopulationCount(sim)["tumor"])` — and that is the documented answer.
 - `_reduceOverMonad` calls `red([f(sid) for sid in sim_ids])` — a materialised vector of **every**
   replicate's value, `missing` included, unfiltered. So each `reduce` must filter `missing` itself;
   the default `mean` would return `missing` for any monad with a pruned replicate.
 
-**Three reducers, deliberately not shared**, because the three statistics disagree with each other:
+**Three reducers, deliberately not shared**, because the three statistics disagree with each other
+(each is now its monad-level counterpart's own aggregation, so the disagreement is inherited rather
+than re-encoded):
 
 | | cell type absent from a replicate | summation |
 |---|---|---|
@@ -412,7 +434,7 @@ simulation whose output could not be read.
 So the conversion is wrapping the existing closure in `QoI("population_count", …)`. Note what that
 avoids: the handoff's other option was renaming the function, because it was named `…QoI` and did not
 return one. Making it return one fixes the name instead, with no breaking rename — and the name had
-become actively misleading now that `endpointPopulationCountQoIs`, which does return QoIs, sits
+become actively misleading now that `endpointPopulationCountQoI`, which does return QoIs, sits
 beside it.
 
 One QoI covers every cell type rather than one QoI each, and that asymmetry with the

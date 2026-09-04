@@ -505,18 +505,24 @@ For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict t
 
 ### [QoI form](@id qoi_form_ss)
 
-Each statistic also has a builder returning a `Vector{`[`QoI`](@ref ModelManager.QoI)`}` — one QoI per cell type, named for the cell type — so the same quantity can be handed to any QoI consumer rather than only to `CalibrationProblem`:
+Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same measurement can go to a `CalibrationProblem` or to the post-processing sink:
 
 ```julia
-qois = endpointPopulationCountQoIs(["cancer", "immune"])
-problem = CalibrationProblem(inputs, params, observed, qois, mseDistance)
+problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)
 ```
 
-[`endpointPopulationFractionQoIs`](@ref) and [`meanPopulationTimeSeriesQoIs`](@ref) are the other two. The value reaching your distance function has the same shape as the monad-level statistic above, so `observed_data` does not change.
+[`endpointPopulationFractionQoI`](@ref) and [`meanPopulationTimeSeriesQoI`](@ref) are the other two. Each yields a `Dict` keyed by cell type — the same shape as the monad-level statistic above — so `observed_data` does not change between them.
 
-`cell_types` is required here. The QoIs are built before any simulation runs, so they cannot discover cell types from output the way the monad-level functions do — use those when you want every cell type.
+Pass `cell_types` to restrict the measurement; omit it and every cell type present is measured, exactly as the monad-level functions do.
 
-A `QoI` is also accepted by `run(::GSAMethod, ...; functions=)`. The post-processing sink additionally requires one scalar per simulation, which the two endpoint builders satisfy but the time-series builder does not.
+```julia
+endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
+```
+
+!!! note "Sensitivity analysis needs a scalar"
+    `run(::GSAMethod, ...; functions=)` requires each measurement to reduce to a `Real`, so these
+    `Dict`-valued builders do not suit it. Name the one quantity you want instead:
+    `QoI("cancer", sim -> finalPopulationCount(sim)["cancer"])`.
 
 ## Built-in distance functions
 

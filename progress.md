@@ -268,6 +268,49 @@ and failed with `FieldError: type Missing has no field cell_count`. A test that 
 build a monad nothing else can match; this one is distinguished by a phase duration no other test
 uses.
 
+### ModelManager v0.9.0's `simulationCommand`: what could be folded in, and two corrections
+`HANDOFF-MM-v0.9.0-simulationCommand.md` (repo root) describes replacing PCMM's `runSimulation` with
+a one-line `simulationCommand`, because ModelManager takes over launching. **The core of it is
+blocked:** it is written from MM PR #47, which is not merged — `main` still has `prepareHPCCommand`
+and no `simulationCommand`, so the method cannot be written against anything. Neither is #46, so
+`post_processor` still receives a `SimulationProcess` and the doc's correction about that does not
+apply to us yet either.
+
+Two things were foldable now, and reading the code to do them corrected the document twice.
+
+**§8's unchecked question was the blocker, and the answer was yes.** The doc lists "whether
+`prepareSimulationCommand` ever sets `env` or `dir`" as not checked. It set **both**:
+`Cmd(...; env=ENV, dir=physicellDir())`. v0.9.0 refuses a `Cmd` carrying an environment, so the §3
+one-liner would have failed on contact. Removing `env` is safe and is done here: a child inherits
+the parent's environment regardless, including the `DYLD_LIBRARY_PATH` entry `compilation.jl` adds
+for libRoadrunner, so it was a no-op locally — verified by the intracellular tests, which are what
+exercise that path. It is *not* a no-op on a cluster, and that asymmetry is precisely why MM refuses
+it: `Cmd.env` replaces the environment where `sbatch --export` extends it. `dir` stays; the doc
+confirms MM honours it on both paths.
+
+**§6 describes a crash that cannot happen.** It says `postSimulationCleanup`'s
+`println(io, "Execution command: $(p.cmd)")` throws today when the command could not be built,
+because that path yields `process === nothing`. It does not: the function opens with
+`isnothing(simulation_process.process) && return`, so the line is unreachable in exactly that case.
+
+The real v0.9.0 hazard is the inverse, and worth stating because a guard written against the
+described crash would not address it. Under #47, `process === nothing` becomes the norm for
+**successful** HPC simulations — the work happened on a compute node, so there is no local process
+to hold. That early return would then skip the entire hook: `output.err`/`hpc.err` never cleaned up
+on success, failed jobs never annotated with their command. The fix is not a `p.cmd` guard but a way
+to distinguish "no process because it ran remotely" from "no process because the command could not
+be built", which the current `SimulationProcess` boolean cannot express.
+
+**Version bumped to 0.4.0 rather than 0.3.4**, per §2. The doc argues it from the HPC completion
+mechanism changing under anyone pinning `"0.3"`, which is not in this branch — but this branch has
+its own breaking changes (`runStudio`'s error type, `configPath` rejecting unrecognised tokens,
+`plotbycelltype`'s corrected numbers), so a minor bump is right on its own terms.
+
+Still open on the ModelManager side, and both change what PCMM eventually writes: whether
+`simulationCommand` may return `nothing` to fail a single simulation (§4 — today that would abort
+the whole campaign), and whether `hpc.out`/`hpc.err` survive (§5).
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

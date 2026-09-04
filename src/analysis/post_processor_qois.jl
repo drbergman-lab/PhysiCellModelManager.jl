@@ -23,11 +23,13 @@ ModelManager.run) in the post-processing sink and readable back with
 If the requested snapshot doesn't exist (e.g. it was pruned), `compute` returns `nothing` and
 nothing is recorded for that simulation rather than throwing.
 
-One QoI covers every cell type, rather than one QoI each, because the cell types are read from the
-simulation's own output and so are not known until it has run — a `QoI` names its column at
-construction, but ModelManager expands a `Dict` return into one column per key. That is also why
-this suits the sink specifically: `reduce` is never called there. To measure named cell types across
-a monad's replicates instead, use [`endpointPopulationCountQoI`](@ref).
+One QoI covers every cell type: they are read from the simulation's own output and so are not known
+until it has run, and ModelManager expands a `Dict` return into one column per key.
+
+**This QoI defines no `reduce`, so it is for the sink only.** The sink never reduces — it fires once
+per simulation — but every other consumer does, and the default `mean` cannot combine a vector of
+`Dict`s. Use [`endpointPopulationCountQoI`](@ref) for calibration; it measures the same thing and
+carries a reducer.
 
 # Arguments
 - `index`: Which snapshot to count — `:final`, `:initial`, or an integer snapshot index.

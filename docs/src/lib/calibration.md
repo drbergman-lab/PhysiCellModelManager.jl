@@ -77,8 +77,9 @@ meanPopulationTimeSeries
 
 ### QoI builders
 
-One [`QoI`](@ref ModelManager.QoI) per cell type, named for the cell type, so the value reaching
-`distance` has the same shape as the monad-level statistic above.
+One [`QoI`](@ref ModelManager.QoI) each, whose value is a `Dict` keyed by cell type — the same
+shape as the monad-level statistic above, so `observed_data` keeps the same keys. Pass `cell_types`
+to restrict the measurement; omit it and every cell type in the output is measured.
 
 ```@docs
 endpointPopulationCountQoI

@@ -257,12 +257,13 @@
 
 **Behavioral specification:**
 - All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes only the PhysiCell-specific measurements passed as `summary_statistic` in a `CalibrationProblem`.
-- **A summary statistic measures one simulation.** Since ModelManager 0.9 every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. The three monad-level functions below take a monad ID and are therefore **no longer valid `summary_statistic` arguments**; the `Vector{QoI}` builders are that role's replacement. The monad-level functions remain supported for direct monad-level analysis.
+- **A summary statistic measures one simulation.** Since ModelManager 0.9 every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. The three monad-level functions below take a monad ID and are therefore **no longer valid `summary_statistic` arguments**; the `QoI` builders are that role's replacement. The monad-level functions remain supported for direct monad-level analysis.
 - `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
 - `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
-- Each statistic also has a `Vector{QoI}`-returning builder — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — so the same quantity can be passed to any ModelManager QoI consumer rather than only to `CalibrationProblem`. One QoI per cell type, each named for its cell type, which keeps the value reaching `distance` the same shape as the monad-level statistic.
-- `cell_types` is **required** for the builders: a `Vector{QoI}` is constructed before any simulation runs, so cell types cannot be discovered from output. The monad-level functions remain the discover-everything path.
+- Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. A single QoI's value is passed through unwrapped by ModelManager, which is what keeps that dict flat for `mseDistance`.
+- `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
+- Sensitivity analysis requires each measurement to reduce to a `Real`, so these `Dict`-valued builders serve calibration and the sink. A scalar quantity is a one-line `QoI`.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
 **Acceptance criteria:**
@@ -493,7 +494,7 @@
 ### Open Questions
 1. **Model Manager Studio scope:** The PCMM GUI companion (Model Manager Studio) is partially implemented. Which PCMM features should be accessible through it, and in what release phase?
 2. **Windows CI validation:** Windows support is targeted but not yet validated in CI. Build environment and compiler chain need to be confirmed.
-3. **QoI builders for sensitivity/calibration:** `post_processor` QoI builders (e.g. `populationCountQoI`) currently only target `run(...; post_processor=...)` and its sink DB. Not yet done: wiring their output into sensitivity analysis or `CalibrationProblem` workflows (which currently take separate `summary_statistic`/`functions` callbacks of their own). **Blocked:** ModelManager's `QoI` type is not yet in its `main` branch. When it lands, the summary statistics migrate to `Vector{QoI}`-returning builders with **bit-exact per-function reducers** — see `HANDOFF-QoI-unification.md` and the 2026-09-02 progress entry.
+3. **Sensitivity analysis over a `Dict`-valued QoI:** ModelManager's sensitivity path requires each measurement to reduce to a `Real`, while its post-processing sink spreads a `Dict` return into one column per key. So a `Dict`-valued QoI — which is the shape all four PCMM builders use — serves calibration and the sink but not `functions=`. Raised upstream as ModelManager issue #48; a scalar `QoI` is the one-line workaround meanwhile.
 4. **PhysiPKPD inputs:** PhysiPKPD is not yet representable as a PCMM input location. Needs a design covering how dosing schedules are described, where they live under `inputs/`, and how they participate in parameter variation.
 
 ### Assumptions

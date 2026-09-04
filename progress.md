@@ -397,6 +397,32 @@ reaches the globals — including the callable form resolved per simulation. Two
 assertions were `@assert` rather than `@test`, so they had never been able to fail the suite.
 
 
+### `populationCountQoI` returns a `QoI` now, and the name stopped lying
+`HANDOFF-QoI-unification.md` §3d calls this "the hardest of the four, and possibly should not migrate
+at all", having corrected an earlier draft that thought it was the easiest. Two properties had no
+`QoI` equivalent: a runtime-discovered number of sink columns, and returning `nothing` to skip a
+simulation whose output could not be read.
+
+**Both were closed by ModelManager #43, so §3d is stale.** `_asPostProcessor` now expands a
+`NamedTuple` or `AbstractDict` return into one sink entry per key — un-prefixed, so the existing
+`count_<cell_type>` keys pass straight through — drops an entry whose `compute` returned
+`nothing`/`missing`, and returns `nothing` when every entry was dropped, which is exactly the old
+"skip this simulation".
+
+So the conversion is wrapping the existing closure in `QoI("population_count", …)`. Note what that
+avoids: the handoff's other option was renaming the function, because it was named `…QoI` and did not
+return one. Making it return one fixes the name instead, with no breaking rename — and the name had
+become actively misleading now that `endpointPopulationCountQoIs`, which does return QoIs, sits
+beside it.
+
+One QoI covers every cell type rather than one QoI each, and that asymmetry with the
+`standard_qois.jl` builders is deliberate: those name their cell types at construction because they
+must, and this one cannot, because it reads them from the simulation's own output. It works because
+the sink never calls `reduce`.
+
+The tests probed the returned closure by calling it directly, so they now go through `compute`.
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

@@ -95,7 +95,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix currently `0.1.7` (real users' oldest version; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`.
 - [x] Export and pruning of simulation outputs
 - [x] Post-processing hook (`post_processor`) — user callback runs on intact simulation output before PCMM's destructive cleanup (`postSimulationCleanup`); results stored via ModelManager's QoI sink (`postProcessingTable`, `simulationsTable(...; post_processing=true)`)
-  - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save
+  - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save. Returns a real `QoI`: one covering every cell type, since the types are read from the simulation's own output and ModelManager expands a `Dict` return into one sink column per key
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management
 - [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments

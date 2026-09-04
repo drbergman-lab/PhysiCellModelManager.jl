@@ -184,14 +184,6 @@ Note an explicit `@id` *replaces* a heading's title slug rather than aliasing it
 
 ## To-dos
 When setting you off on a task, check this list and assess if any of these should be done first.
-- Finish unifying the QoI builders. **Done:** the three calibration summary statistics now have
-  `Vector{QoI}` forms (`endpointPopulationCountQoIs` and friends), so those quantities reach
-  sensitivity analysis and the post-processing sink as well as `CalibrationProblem`. **Remaining:**
-  `populationCountQoI` still returns a bare closure rather than a `QoI`, despite the name. It cannot
-  simply be converted: it emits one sink column per cell type with the cell types discovered from
-  the simulation's own output, and a `QoI` names its single column at construction. That needs
-  either a rename (cheap, and worth doing regardless) or a ModelManager change letting one QoI
-  contribute a `Dict` of `name => scalar`. See §3d of `HANDOFF-QoI-unification.md`.
 - Represent PhysiPKPD in the inputs. Needs a design brief before any code: how a dosing schedule is
   described (the hard part -- PhysiPKPD supports several schedule shapes), where schedules live under
   `inputs/`, whether they are a new input location or an extension of an existing one, and how they

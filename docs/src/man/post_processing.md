@@ -36,8 +36,8 @@ What the callback returns determines what gets stored:
 
 ## Ready-made builder: [`populationCountQoI`](@ref)
 
-Writing `finalPopulationCount(simulationID(sp))` by hand works, but [`populationCountQoI`](@ref)
-builds the callback for you, recording one `count_<cell_type>` quantity per cell type:
+Writing the measurement by hand works, but [`populationCountQoI`](@ref) builds it for you as a
+[`QoI`](@ref ModelManager.QoI), recording one `count_<cell_type>` quantity per cell type:
 
 ```julia
 run(sampling; post_processor = populationCountQoI())                       # final-snapshot counts

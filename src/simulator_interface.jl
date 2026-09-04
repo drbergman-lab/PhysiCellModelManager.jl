@@ -223,7 +223,13 @@ function prepareSimulationCommand(simulation::Simulation)
         path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), locationVariationsFolder(:intracellular), "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
         append!(flags, ["-n", path_to_intracellular_file])
     end
-    return Cmd(`$executable_str $config_str $flags`; env=ENV, dir=physicellDir())
+    #! `dir` only, deliberately no `env`. Setting `env` was a no-op locally -- a child inherits the
+    #! parent's environment anyway, including the `DYLD_LIBRARY_PATH`/`LD_LIBRARY_PATH` entry that
+    #! `compilation.jl` adds for libRoadrunner -- but the two are not equivalent everywhere:
+    #! Julia's `Cmd.env` *replaces* the environment while `sbatch --export` *extends* it, so a
+    #! command carrying an explicit env behaves one way locally and the opposite on a cluster.
+    #! ModelManager v0.9.0 refuses such a `Cmd` outright rather than run it divergently.
+    return Cmd(`$executable_str $config_str $flags`; dir=physicellDir())
 end
 
 """

@@ -66,10 +66,8 @@ function endpointPopulationFractions(monad_id::Int; cell_types::Union{Nothing,Ve
         push!(fractions_per_sim, d)
     end
     isempty(fractions_per_sim) && return missing
-    #! See the note in `finalPopulationCount(::Monad)` for why this is `@info ... maxlog=1` and
-    #! why it is inlined here rather than shared.
     length(fractions_per_sim) < length(sim_ids) &&
-        @info "Excluding $(length(sim_ids) - length(fractions_per_sim))/$(length(sim_ids)) replicates of monad $(monad_id) with no output on disk (deleted or pruned)." maxlog=1
+        @info _excludedReplicates(monad_id, length(sim_ids), length(fractions_per_sim)) maxlog=1
     return _averageStatDicts(fractions_per_sim, cell_types)
 end
 
@@ -108,6 +106,18 @@ end
 ################## Internal Helpers ##################
 
 """
+    _excludedReplicates(monad_id, n_total, n_kept)
+
+Message for replicates dropped from a monad-level aggregate because their output is gone.
+
+Only the text is shared. The `@info` stays at each aggregation site, because `maxlog` is counted per
+call site — one shared logging call would report once for all of them and hide which computation
+lost data.
+"""
+_excludedReplicates(monad_id, n_total::Int, n_kept::Int) =
+    "Excluding $(n_total - n_kept)/$(n_total) replicates of monad $(monad_id) with no output on disk (deleted or pruned)."
+
+"""
     _averageStatDicts(dicts, cell_types)
 
 Average a vector of `Dict{String,<:Real}` across entries, optionally filtering to
@@ -126,35 +136,35 @@ end
 
 ################## QoI-returning builders ##################
 #
-# ModelManager's `QoI` is one measurement usable by sensitivity analysis, calibration and the
-# post-processing sink alike. These builders return the `Vector{QoI}` form of the three summary
-# statistics above, so the same quantity can be handed to any consumer instead of only to
-# `CalibrationProblem`.
+# The `Vector{QoI}` form of the three summary statistics above, so the same quantity reaches
+# sensitivity analysis and the post-processing sink and not just `CalibrationProblem`.
 #
-# Why a vector rather than one QoI per statistic: `_asSummaryStatistic` wraps the reduced value as
-# `Dict(q.name => value)`, and `mseDistance` compares that dict elementwise against `observed_data`,
-# whose keys are cell types. One QoI named "counts" would hand it
-# `Dict("counts" => Dict("tumor" => ...))` and the comparison would break. One QoI per cell type,
-# each named for its cell type, reproduces the flat dict exactly.
+# One QoI per cell type, named for the cell type, because a summary statistic's reduced value is
+# wrapped as `Dict(name => value)` and `mseDistance` compares that against `observed_data` keyed by
+# cell type. A single QoI named "counts" would nest one level too deep. That is also why
+# `cell_types` is required: the vector is built before any simulation runs, so it cannot discover
+# them from output -- the monad-level functions above remain the discover-everything path.
 #
-# The consequence is that `cell_types` is REQUIRED here. A `Vector{QoI}` is built before any
-# simulation runs, so the cell types cannot be discovered from output the way the monad-level
-# functions above discover them. Use those when you want everything.
-#
-# Each builder carries its own `reduce`, and they are deliberately NOT shared. The three statistics
-# above disagree with each other in ways that are invisible unless reproduced exactly:
-#
-#   * missing replicates are skipped, never propagated -- so `reduce` must filter, because
-#     ModelManager hands it every replicate's value including `missing`, and the default `mean`
-#     would return `missing` for the whole monad;
-#   * counts and fractions zero-fill a cell type absent from a replicate, the time series does not;
-#   * counts averages over a *generator* and fractions over a materialised *Vector*, which is
-#     observable: `sum`'s pairwise reduction over an array and the sequential one over a generator
-#     produce different `Float64`s from 16 replicates up.
-#
-# The tests assert these builders equal their monad-level counterparts exactly (`==`, not
-# `isapprox`) on a monad with a pruned replicate and on a 16-replicate monad. That equality is the
-# whole point: migrating to `QoI` must not quietly move anyone's numbers.
+# Each builder keeps its own `reduce`. The three statistics disagree about whether a cell type
+# absent from a replicate is zero-filled and about summation order, so a shared reducer would
+# silently change one of them; the tests assert `==` against the monad-level functions to hold that.
+# The one thing they do share is factored into `_reduceKept`.
+"""
+    _reduceKept(combine)
+
+Wrap `combine` so it sees only the replicates that produced a value.
+
+Every builder below needs the same two things, and neither is the default: ModelManager hands
+`reduce` every replicate's value including `missing`, so a plain `mean` would return `missing` for
+any monad with a pruned replicate; and a monad with nothing readable reduces to `missing` rather
+than erroring. What `combine` does with the survivors is what differs between the three, so that
+part stays explicit at each call site.
+"""
+_reduceKept(combine) = per_sim -> begin
+    kept = filter(!ismissing, per_sim)
+    isempty(kept) && return missing
+    return combine(kept)
+end
 
 """
     endpointPopulationCountQoIs(cell_types::Vector{String}; include_dead::Bool=false)
@@ -187,16 +197,11 @@ function endpointPopulationCountQoIs(cell_types::Vector{String}; include_dead::B
                     #! replicate contributes a 0 rather than shrinking the denominator.
                     ismissing(counts) ? missing : get(counts, cell_type, 0)
                 end;
-                reduce = per_sim -> begin
-                    kept = filter(!ismissing, per_sim)
-                    isempty(kept) && return missing
-                    #! A generator, not `mean(kept)`. `finalPopulationCount(::Monad)` reduces
-                    #! `mean(get(c, k, 0) for c in counts_per_sim)`, and a generator accumulates
-                    #! sequentially where an array uses pairwise summation -- a different `Float64`
-                    #! from 16 replicates up. Bit-exactness is not a promise to users; it is what
-                    #! lets the migration test be `==` instead of a hand-tuned tolerance.
-                    return mean(x for x in kept)
-                end)
+                #! A generator, not `mean(kept)`: `finalPopulationCount(::Monad)` reduces
+                #! `mean(get(c, k, 0) for c in ...)`, and a generator accumulates sequentially where
+                #! an array may not. Matching each function's own form is what lets the migration
+                #! test assert `==` rather than a tuned tolerance.
+                reduce = _reduceKept(kept -> mean(x for x in kept)))
             for cell_type in cell_types]
 end
 
@@ -234,16 +239,10 @@ function endpointPopulationFractionQoIs(cell_types::Vector{String}; include_dead
                     total = sum(values(counts))
                     return total == 0 ? 0.0 : Float64(counts[cell_type]) / total
                 end;
-                reduce = per_sim -> begin
-                    kept = filter(!ismissing, per_sim)
-                    isempty(kept) && return missing
-                    #! A materialised `Vector{Float64}`, unlike the counts builder's generator.
-                    #! `_averageStatDicts` builds `vals = [...]` and calls `mean(vals)`, taking
-                    #! `sum`'s pairwise path. The two existing functions genuinely disagree here, so
-                    #! reproducing each one means matching its own form rather than picking a house
-                    #! style for both.
-                    return mean(Float64[x for x in kept])
-                end)
+                #! A materialised `Vector`, unlike the counts builder's generator: `_averageStatDicts`
+                #! builds `vals = [...]` and calls `mean(vals)`. The two disagree, so each is matched
+                #! to its own form rather than unified.
+                reduce = _reduceKept(kept -> mean(Float64[x for x in kept])))
             for cell_type in cell_types]
 end
 
@@ -285,21 +284,17 @@ function meanPopulationTimeSeriesQoIs(cell_types::Vector{String}; include_dead::
                     #! distinct from a replicate that failed to load.
                     return (time=spts.time, counts=get(spts.cell_count, cell_type, nothing))
                 end;
-                reduce = per_sim -> begin
-                    kept = filter(!ismissing, per_sim)
-                    isempty(kept) && return missing
-                    grids = unique(k.time for k in kept)
-                    length(grids) == 1 || throw(ArgumentError(
-                        "Replicates have different times in their time series, so cell type " *
-                        "\"$(cell_type)\" cannot be averaged over them. Found $(length(grids)) distinct time grids."))
-                    #! No zero-fill: only replicates that HAVE this cell type contribute a column,
-                    #! matching `MonadPopulationTimeSeries`, which pushes a column only when
-                    #! `spts.cell_count` has the name and then divides by however many it collected.
+                reduce = _reduceKept(kept -> begin
+                    grid = first(kept).time
+                    all(k -> k.time == grid, kept) || throw(ArgumentError(
+                        "Replicates of this monad have different times in their time series, so " *
+                        "cell type \"$(cell_type)\" cannot be averaged over them."))
+                    #! No zero-fill, unlike the two endpoint builders: only replicates that HAVE this
+                    #! cell type contribute a column, matching `MonadPopulationTimeSeries`, which
+                    #! divides by however many it collected rather than by the replicate count.
                     vectors = [k.counts for k in kept if !isnothing(k.counts)]
                     isempty(vectors) && return missing
-                    #! `Base.reduce` explicitly: `reduce` is the name of the keyword this closure is
-                    #! being passed as, and the same shape as the original's `reduce(hcat, vectors)`.
-                    return Vector{Float64}(vec(mean(Base.reduce(hcat, vectors), dims=2)))
-                end)
+                    return Vector{Float64}(vec(mean(reduce(hcat, vectors), dims=2)))
+                end))
             for cell_type in cell_types]
 end

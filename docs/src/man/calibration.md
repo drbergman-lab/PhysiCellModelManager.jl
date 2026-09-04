@@ -152,21 +152,31 @@ lv = LatentVariation(
 
 ### Summary statistics
 
-A summary statistic is any function `(monad_id::Int) → Dict{String,<:Any}`.
-The three built-in statistics are described in [Built-in summary statistics](@ref builtin_ss).
-
-You can supply a custom function instead:
+A summary statistic measures **one simulation**; ModelManager combines a parameter set's replicates
+for you. Pass a [`QoI`](@ref ModelManager.QoI), a vector of them, or a plain function of a
+`Simulation`:
 
 ```julia
-function my_stat(monad_id::Int)
-    # load your own output files via the monad's simulation IDs
-    sim_ids = simulationIDs(Monad(monad_id))
-    # ... compute your statistic ...
-    return Dict("metric_a" => value_a, "metric_b" => value_b)
+function my_stat(sim::Simulation)
+    # ... measure this one simulation ...
+    return value
 end
 
 problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
 ```
+
+A plain function is averaged across replicates with `mean`; pass a `QoI` when you need a different
+reduction, or when the quantity must be computed *after* the replicates are combined rather than
+before.
+
+!!! warning "Changed in ModelManager 0.9"
+    Summary statistics used to be called once per **monad**, with an `Int` monad ID, and did their
+    own aggregation. Such a function now receives a `Simulation`. If it is untyped it will return a
+    different number rather than erroring, so annotate the argument `::Simulation` — ModelManager
+    warns when it is not declared. The three built-in statistics below remain monad-level and are no
+    longer valid `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss) instead.
+
+The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
 When using `mseDistance` with dicts, the keys of `observed_data` must be a subset of the keys returned by `summary_statistic`.
 

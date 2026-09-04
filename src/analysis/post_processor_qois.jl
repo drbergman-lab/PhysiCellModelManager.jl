@@ -3,10 +3,12 @@ export populationCountQoI
 ################## Ready-made `post_processor` builders ##################
 #
 # These build a `post_processor` (see `run`) suitable for `run(T; post_processor=...)`.
-# They are distinct from `standard_qois.jl`'s calibration summary statistics: those are
-# keyed by `monad_id` and averaged across replicates for `CalibrationProblem`; these are
-# keyed by `SimulationProcess` and store one row per simulation in ModelManager's
-# post-processing sink (see `postProcessingTable`).
+#
+# Since ModelManager #46 there is one argument contract everywhere: a measurement function -- a
+# `post_processor`, a `summary_statistic`, or a `QoI`'s `compute` -- receives a `Simulation`. What
+# still distinguishes these from `standard_qois.jl` is where the value goes, not what they are
+# handed: these store one row per simulation in ModelManager's post-processing sink (see
+# `postProcessingTable`), while those are reduced across a monad's replicates.
 #
 
 """
@@ -41,8 +43,8 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["tumor"])) # onl
 function populationCountQoI(; index::Union{Integer,Symbol}=:final,
                               cell_types::Union{Nothing,Vector{String}}=nothing,
                               include_dead::Bool=false)
-    return function (simulation_process)
-        snapshot = PhysiCellSnapshot(simulationID(simulation_process), index; include_cells=true)
+    return function (simulation::Simulation)
+        snapshot = PhysiCellSnapshot(simulationID(simulation), index; include_cells=true)
         ismissing(snapshot) && return nothing
         counts = populationCount(snapshot; include_dead=include_dead)
         ismissing(counts) && return nothing

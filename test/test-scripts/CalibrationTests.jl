@@ -32,11 +32,14 @@ end
     observed = Dict("default" => 100.0)
     dv = DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")
 
-    prob = CalibrationProblem(inputs, [dv], observed, endpointPopulationCounts, mseDistance)
+    #! The monad-level statistics are no longer valid `summary_statistic` arguments: since #46 a
+    #! measurement function receives a `Simulation`, and these take a monad ID. The QoI builders are
+    #! the replacement for that role; the monad-level functions remain monad-level analysis.
+    prob = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoIs([cell_type]), mseDistance)
     @test prob.n_replicates == 1
     @test prob.reference_variation_id == PhysiCellModelManager.VariationID(inputs)
 
-    prob_with_ref = CalibrationProblem(inputs, [dv], observed, endpointPopulationCounts, mseDistance;
+    prob_with_ref = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoIs([cell_type]), mseDistance;
         n_replicates=3, reference_variation_id=ref.variation_id)
     @test prob_with_ref.n_replicates == 3
     @test !ismissing(prob_with_ref.reference_variation_id)
@@ -149,12 +152,14 @@ end
 end
 
 @testset "QoI builders match the monad-level functions" begin
-    # `_asSummaryStatistic` is ModelManager's own calibration seam and has no public equivalent.
-    # Going through it rather than calling `compute`/`reduce` directly is deliberate: it is what
-    # wraps the reduced value as `Dict(name => value)`, so this is the assertion that catches the
-    # nesting hazard -- one QoI named "counts" would produce `Dict("counts" => Dict(...))` and break
-    # `mseDistance`, which compares cell-type keys elementwise.
-    evaluate(qois, monad_id) = ModelManager._asSummaryStatistic(qois)(monad_id)
+    # Evaluate each QoI the way ModelManager does -- `reduce` over `compute` for every replicate --
+    # using only the QoI's own documented parts. An earlier version of this test called
+    # `ModelManager._asSummaryStatistic`, which was renamed to `_validateSummaryStatistic` in #46 and
+    # took the test with it. Pinning another package's internals is the same mistake as pinning its
+    # on-disk layout: the flat-vs-nested dict shape is ModelManager's contract to keep, not ours.
+    evaluate(qois, monad_id) = Dict(q.name => q.reduce([q.compute(Simulation(sid))
+                                                        for sid in simulationIDs(Monad(monad_id))])
+                                    for q in qois)
 
     # A monad of this test's own, distinguished by a phase duration nothing else uses. PCMM reuses
     # matching simulations, so pruning a replicate of a monad another file also builds -- Monad(1)
@@ -205,7 +210,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCounts, mseDistance;
+        endpointPopulationCountQoIs([cell_type]), mseDistance;
         reference_variation_id=ref.variation_id
     )
 
@@ -263,7 +268,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCounts, mseDistance;
+        endpointPopulationCountQoIs([cell_type]), mseDistance;
         reference_variation_id=ref.variation_id
     )
 

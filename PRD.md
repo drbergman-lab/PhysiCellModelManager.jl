@@ -256,7 +256,8 @@
 **Priority:** Must-have
 
 **Behavioral specification:**
-- All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes only the PhysiCell-specific summary statistics passed as `summary_statistic` in a `CalibrationProblem`.
+- All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes only the PhysiCell-specific measurements passed as `summary_statistic` in a `CalibrationProblem`.
+- **A summary statistic measures one simulation.** Since ModelManager 0.9 every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. The three monad-level functions below take a monad ID and are therefore **no longer valid `summary_statistic` arguments**; the `Vector{QoI}` builders are that role's replacement. The monad-level functions remain supported for direct monad-level analysis.
 - `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
 - `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.

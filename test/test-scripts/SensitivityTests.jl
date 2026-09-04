@@ -45,7 +45,11 @@ avs = [CoVariation(dv1, dv3), dv2]
 
 n_points = 2^1-1
 
-gs_fn(simulation_id::Int) = finalPopulationCount(simulation_id)[cell_type]
+#! ModelManager #46 made one contract of it: every measurement function -- `functions=` here,
+#! `summary_statistic`, and `post_processor` -- receives a `Simulation`, not an ID. The `::Simulation`
+#! annotation is load-bearing rather than decorative: MM warns when a `summary_statistic` does not
+#! declare it, because an old monad-level function returns a *different number* rather than erroring.
+gs_fn(simulation::Simulation) = finalPopulationCount(simulation)[cell_type]
 
 moat_sampling = run(MOAT(n_points), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn], n_replicates=1)
 moat_sampling = run(MOAT(), inputs, avs; force_recompile=force_recompile, reference_variation_id=reference_variation_id, functions=[gs_fn])

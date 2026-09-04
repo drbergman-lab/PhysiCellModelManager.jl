@@ -6,17 +6,13 @@ after it finishes and before PhysiCellModelManager.jl prunes any output — so t
 sees the intact output folder, however aggressive your `prune_options` are.
 
 ```julia
-run(sampling; post_processor = sp -> (; final_count = finalPopulationCount(simulationID(sp))["default"]))
+run(sampling; post_processor = sim -> (; final_count = finalPopulationCount(sim)["default"]))
 ```
 
-Inside the callback, `sp` is a `SimulationProcess`. Use its accessors rather than reaching into
-its fields:
-
-- `simulationID(sp)` / `monadID(sp)` — the IDs to key any loader call on.
-- `wasSuccessful(sp)` — always `true` here, since the callback only runs for successful
-  simulations; included for completeness.
-- `pathToOutputFolder(sp)` — the simulation's output folder, if you need to read files directly
-  instead of through a loader function.
+Inside the callback, `sim` is a `Simulation` — the same argument a [`QoI`](@ref ModelManager.QoI)'s
+`compute` receives, so one measurement can serve both. Most loader and analysis functions accept it
+directly; `simulationID(sim)` and `pathToOutputFolder(sim)` are there when you need the ID or the
+folder itself.
 
 ## Returning quantities of interest
 

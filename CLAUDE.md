@@ -192,23 +192,26 @@ When setting you off on a task, check this list and assess if any of these shoul
   the simulation's own output, and a `QoI` names its single column at construction. That needs
   either a rename (cheap, and worth doing regardless) or a ModelManager change letting one QoI
   contribute a `Dict` of `name => scalar`. See §3d of `HANDOFF-QoI-unification.md`.
-- Finish the ModelManager v0.9.0 `simulationCommand` migration. **Blocked on ModelManager PR #47**,
-  which is not merged — `main` still has `prepareHPCCommand` and no `simulationCommand`, so the
-  method cannot be written yet. See `HANDOFF-MM-v0.9.0-simulationCommand.md` in the repo root for
-  the full analysis, and read these two corrections to it first:
-  - **§8's unchecked question is answered, and it was a blocker.** `prepareSimulationCommand` did
-    set `env` on its `Cmd`, which v0.9.0 rejects outright. Already fixed here (it was a no-op
-    locally); the §3 one-liner is otherwise correct.
-  - **§6 describes a crash that cannot happen today.** `postSimulationCleanup` opens with
-    `isnothing(simulation_process.process) && return`, so `p.cmd` is unreachable when the process is
-    `nothing`. The real v0.9.0 hazard is the opposite shape: on HPC, `process === nothing` will be
-    the norm for *successful* simulations too, so that early return would skip the whole hook —
-    `output.err`/`hpc.err` never cleaned up, failed jobs never annotated. The guard needs to
-    distinguish "no process because it ran remotely" from "no process because the command could not
-    be built", which the current boolean cannot express.
-  - Still open on the MM side, per §4 and §5: whether `simulationCommand` may return `nothing` to
-    fail one simulation (today it would abort the whole campaign), and whether `hpc.out`/`hpc.err`
-    survive.
+- Finish the ModelManager v0.9.0 `simulationCommand` migration. **Blocked on ModelManager PR #47**
+  (`feature/hpc-completion-signal`), which is fetched locally but not merged — `main` still has
+  `prepareHPCCommand` and no `simulationCommand`. Read `HANDOFF-MM-v0.9.0-simulationCommand.md` and
+  `HANDOFF-MM-v0.9.0-addenda.md` in the repo root; everything below is already reflected in them.
+  Nothing here is decided-but-unwritten — it is all waiting on the merge.
+  - **The `env=ENV` blocker is already fixed** (addenda §1). `prepareSimulationCommand` no longer
+    sets `env`, so the one-liner migration is viable as written.
+  - **Keep `prepareSimulationCommand`'s `mkpath` of the output subfolder** (addenda §3). MM creates
+    the *trial* folder, not `output/`, despite upstream wording that suggests otherwise. Dropping it
+    would break every simulation.
+  - **Delete PCMM's `hpc.out`/`hpc.err` redirection** along with `runSimulation` (§5). MM writes
+    both files itself now; two writers would race.
+  - **`postSimulationProcessing` and `postSimulationCleanup` share one bug** with one fix.
+    `process === nothing` currently means "never launched" but will also mean "ran as a SLURM job",
+    so the `p.cmd` interpolation crashes and the cleanup guard silently skips *all* pruning on HPC.
+    #47 adds `SimulationProcess.cmd`, making `isnothing(sp.cmd)` the exact "did this launch?" test —
+    use it in both places rather than inventing a predicate.
+  - **Hazard MM has not fixed:** `run()` marks a simulation `"Running"` before calling
+    `runSimulation`, so a validation throw leaves rows stuck at `"Running"`, which `isStarted` reads
+    as started — a later re-run silently skips them. Clear such rows by hand if it happens.
 - Represent PhysiPKPD in the inputs. Needs a design brief before any code: how a dosing schedule is
   described (the hard part -- PhysiPKPD supports several schedule shapes), where schedules live under
   `inputs/`, whether they are a new input location or an extension of an existing one, and how they

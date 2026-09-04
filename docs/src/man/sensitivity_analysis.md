@@ -89,11 +89,11 @@ All variation types accept `name=...`, used in the scheme DataFrame/CSV headers.
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.
-They must take a single argument, the simulation ID (an `Int64`) and return a `Number` (or any type that `Statistics.mean` will accept a `Vector` of).
-For example, `finalPopulationCount` returns a dictionary of the final population counts of each cell type from a simulation ID.
+They must take a single argument, a `Simulation`, and return a `Number` (or any type that `Statistics.mean` will accept a `Vector` of). Annotate the argument `::Simulation`: an unannotated function still works, but ModelManager cannot then tell it apart from one written for the pre-0.9 contract, where the argument was a simulation ID (`Int`).
+For example, `finalPopulationCount` returns a dictionary of the final population counts of each cell type from a `Simulation`.
 So, if you want to know the sensitivity of the final population count of cell type "cancer", you could define a function like:
 ```julia
-f(sim_id) = finalPopulationCount(sim_id)["cancer"]
+f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 ```
 
 ## Running the analysis
@@ -106,7 +106,7 @@ n_replicates = 3
 evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-3, 1e-4; lb=0),
        UniformDistributedVariation(configPath("cancer", "cycle", "duration", 0), 720, 2880)]
 method = MOAT(15)
-f(sim_id) = finalPopulationCount(sim_id)["cancer"]
+f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates, functions=[f])
 ```
 
@@ -119,7 +119,7 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 ## Post-processing
 The object `sensitivity_sampling` is of type [`GSASampling`](@ref PhysiCellModelManager.ModelManager.GSASampling), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
-f = simulation_id -> finalPopulationCount(simulation_id)["default"] # count the final population of cell type "default"
+f = (sim::Simulation) -> finalPopulationCount(sim)["default"] # count the final population of cell type "default"
 calculateGSA!(sensitivity_sampling, f)
 ```
 These results are stored in a `Dict` in the `sensitivity_sampling` object:

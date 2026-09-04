@@ -311,6 +311,54 @@ Still open on the ModelManager side, and both change what PCMM eventually writes
 the whole campaign), and whether `hpc.out`/`hpc.err` survive (§5).
 
 
+### ModelManager #46 chose the "Full" option, and it broke four things
+`HANDOFF-MM-v0.9.0-addenda.md` lists two stray call sites for MM #46. Running the suite against
+merged `main` (`f31bb89`) found **four errors**, because #46 is not a couple of call sites — it is
+the decision `HANDOFF-QoI-unification.md` §5 framed as a choice between "granularity only" and
+"Full", and ModelManager took Full: *every* measurement function receives a `Simulation`.
+
+```
+MethodError: no method matching endpointPopulationCounts(::Simulation)
+MethodError: no method matching gs_fn(::Simulation)
+UndefVarError: `_asSummaryStatistic` not defined in `ModelManager`
+```
+
+So PCMM's three monad-level summary statistics are no longer valid `summary_statistic` arguments at
+all. That is a role change, not a signature tweak, and it makes the `Vector{QoI}` builders added
+earlier in this branch **load-bearing rather than additive** — they are the migration path. The
+monad-level functions stay, as monad-level analysis; the docs now say which is which.
+
+**The failure mode MM guards is worth knowing.** `_validateSummaryStatistic` warns when a function
+does not declare `::Simulation`, because an old monad-level statistic that is *untyped* will now
+return a different number without erroring, and `mseDistance` will not catch it — on a key mismatch
+it warns once and computes anyway, treating absent keys as zero. PCMM's functions are annotated
+`::Int`, so they failed loudly instead. Every measurement function in PCMM's tests and docs is now
+annotated `::Simulation` for the same reason: the annotation is the only signal that distinguishes
+the two contracts.
+
+**One of the four errors was mine, and it was a mistake I had already named.** The equality test
+reached into `ModelManager._asSummaryStatistic`, which #46 renamed to `_validateSummaryStatistic`.
+I had argued against pinning ModelManager's generation-file layout in a PCMM test two commits
+earlier and then pinned an internal function in the next one. It now evaluates each QoI through its
+own documented `compute`/`reduce`, and the flat-versus-nested dict shape is left as ModelManager's
+contract to keep. The naming check still holds: the builders' QoI names are compared against the
+monad-level function's keys, so a single QoI named `"counts"` would still be caught.
+
+**`populationCountQoI` survived by luck rather than design.** Its closure took a `SimulationProcess`
+and called `simulationID` on it; #46 hands it a `Simulation` and MM happens to have added
+`simulationID(::Simulation)`. Renamed the parameter and corrected the file header, which still
+claimed these builders are "keyed by `SimulationProcess`" — what actually distinguishes them from
+the calibration statistics is where the value goes, not what they receive.
+
+**Annotating that closure then failed six tests, which was the useful part.** `PostProcessorQoITests`
+constructs a `SimulationProcess` by hand and calls the builder with it. While the closure was
+untyped that worked, so the test went on passing against a contract ModelManager had already
+replaced — the silent divergence MM's warning exists for, sitting in our own suite. The test now
+passes a `Simulation`, which is what `run` actually hands a `post_processor`. Worth generalising: an
+untyped measurement function is not merely unidiomatic here, it is what lets a stale contract keep
+looking healthy.
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

@@ -16,25 +16,28 @@ qoi_simulation = createTrial(qoi_inputs, qoi_discrete_variations; use_previous=f
 qoi_out = run(qoi_simulation; force_recompile=false)
 @test qoi_out.n_success == 1
 qoi_sim_id = PhysiCellModelManager.trialID(qoi_out)
-qoi_sp = PhysiCellModelManager.SimulationProcess(Simulation(qoi_sim_id), 0, nothing, true)
+#! A `Simulation`, not a `SimulationProcess`. Since ModelManager #46 that is what `run` hands a
+#! `post_processor`, and probing the closure with anything else tests a contract that no longer
+#! exists. This test passed against a `SimulationProcess` only because the closure was untyped --
+#! precisely the silent divergence MM's migration warning was added for.
+qoi_sim = Simulation(qoi_sim_id)
 
 #! default (:final) matches finalPopulationCount
-@test populationCountQoI()(qoi_sp) == Dict("count_$(k)" => v for (k, v) in finalPopulationCount(qoi_sim_id))
+@test populationCountQoI()(qoi_sim) == Dict("count_$(k)" => v for (k, v) in finalPopulationCount(qoi_sim_id))
 
 #! integer index matches populationCount at that snapshot
 snapshot0 = PhysiCellSnapshot(qoi_sim_id, 0; include_cells=true)
-@test populationCountQoI(; index=0)(qoi_sp) == Dict("count_$(k)" => v for (k, v) in populationCount(snapshot0))
+@test populationCountQoI(; index=0)(qoi_sim) == Dict("count_$(k)" => v for (k, v) in populationCount(snapshot0))
 
 #! cell_types filter
-@test populationCountQoI(; cell_types=["default"])(qoi_sp) == populationCountQoI()(qoi_sp)
-@test populationCountQoI(; cell_types=["nonexistent_type"])(qoi_sp) == Dict{String,Int}()
+@test populationCountQoI(; cell_types=["default"])(qoi_sim) == populationCountQoI()(qoi_sim)
+@test populationCountQoI(; cell_types=["nonexistent_type"])(qoi_sim) == Dict{String,Int}()
 
 #! include_dead just needs to run without erroring and return a Dict
-@test populationCountQoI(; include_dead=true)(qoi_sp) isa Dict
+@test populationCountQoI(; include_dead=true)(qoi_sim) isa Dict
 
 #! missing snapshot (pruned) -> nothing, not an error
-pruned_sp = PhysiCellModelManager.SimulationProcess(Simulation(pruned_simulation_id), 0, nothing, true)
-@test isnothing(populationCountQoI(; index=:initial)(pruned_sp))
+@test isnothing(populationCountQoI(; index=:initial)(Simulation(pruned_simulation_id)))
 
 #! full integration: run(...; post_processor=populationCountQoI()) populates the sink
 qoi_simulation2 = createTrial(qoi_inputs, qoi_discrete_variations; use_previous=false)

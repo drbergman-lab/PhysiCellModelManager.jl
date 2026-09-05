@@ -120,9 +120,10 @@ simulation's own output.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than
-approximate. PCMM's builders satisfy this by construction — cell types are read from each
-simulation's initial snapshot, which lists the types the model *defines*, so a type driven extinct
-by some parameter set still reports a count of zero rather than dropping its key.
+approximate. PCMM's builders satisfy this by construction: the key set is the model's own cell-type
+roster, taken from the snapshot's metadata rather than from which types happen to have living cells,
+so a type driven extinct by some parameter set still reports a count of zero instead of dropping its
+key.
 
 ## Running the analysis
 Putting it all together, you can run this analysis:

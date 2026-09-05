@@ -8,7 +8,7 @@ Access the parameters of past simulations two ways:
 
 [`printSimulationsTable`](@ref) is a wrapper that prints the table directly. Use the `sink` keyword argument to redirect the output, e.g. to a file.
 
-### Monad-level: [`monadsTable`](@ref)
+### [Monad-level: `monadsTable`](@id monads_table_section)
 [`monadsTable`](@ref) is the monad-level analogue of [`simulationsTable`](@ref): it returns one row per monad (a group of replicate simulations sharing the same parameters) rather than one row per simulation. Pass it any `AbstractTrial` (e.g. a `Sampling`), a vector of monad IDs, or nothing (for all monads):
 
 ```julia

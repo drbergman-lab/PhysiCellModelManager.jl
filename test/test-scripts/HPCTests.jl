@@ -47,6 +47,26 @@ fake_simulation_process = PhysiCellModelManager.SimulationProcess(simulation, mo
 @test contains(read(path_to_err, String), "no output.err file was found")
 rm(path_to_err; force=true)
 
+#! The SLURM shape, which is the case the `process` -> `cmd` switch exists for: the work ran on a
+#! compute node, so `process === nothing` while `cmd` is set. Guarding on `process` would early-return
+#! here and skip pruning and err-file handling for an entire campaign, and reaching through `p.cmd`
+#! would throw. The live-`Process` case above passes against either version of the guard, so this is
+#! the assertion that actually pins the fix.
+slurm_shaped = PhysiCellModelManager.SimulationProcess(simulation, monad.id, nothing, false, cmd_local)
+@test isnothing(slurm_shaped.process) && !isnothing(slurm_shaped.cmd)
+@test_nowarn PhysiCellModelManager.postSimulationCleanup(PhysiCellModelManager.simulator(), slurm_shaped)
+@test isfile(path_to_err)
+#! PhysiCell's own command, not an `sbatch` wrapper -- `p.cmd` would have given the latter, when it
+#! did not throw outright.
+@test contains(read(path_to_err, String), "Execution command: ")
+@test contains(read(path_to_err, String), string(cmd_local))
+rm(path_to_err; force=true)
+
+#! ...and `cmd === nothing` still means "never launched": the early return leaves no annotation.
+never_launched = PhysiCellModelManager.SimulationProcess(simulation, monad.id, nothing, false, nothing)
+@test_nowarn PhysiCellModelManager.postSimulationCleanup(PhysiCellModelManager.simulator(), never_launched)
+@test !isfile(path_to_err)
+
 # ModelManager 0.9 changed rm_hpc_safe: it now attempts the real removal first and stages only
 # what it could not remove, returning :removed or :staged. Before, every HPC deletion was
 # relocated into data/.trash and left there, so a cluster project never reclaimed any space.

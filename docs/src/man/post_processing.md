@@ -47,7 +47,7 @@ What the callback returns determines what gets stored:
   A time series or other vector-valued quantity must be reduced to a scalar (e.g. a final or
   mean value) or written to a file by the callback — a non-scalar return raises an error.
 
-## Ready-made builder: [`populationCountQoI`](@ref)
+## [Ready-made builder: `populationCountQoI`](@id population_count_qoi_builder)
 
 Writing the measurement by hand works, but [`populationCountQoI`](@ref) builds it for you as a
 [`QoI`](@ref ModelManager.QoI), recording one `population_count.<cell_type>` column per cell type:

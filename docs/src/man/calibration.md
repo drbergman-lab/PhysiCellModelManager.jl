@@ -73,7 +73,7 @@ problem = CalibrationProblem(
     inputs,              # InputFolders
     parameters,          # Vector of DistributedVariation / CoVariation / LatentVariation
     observed_data,       # Dict{String,<:Any} — the target the model should match
-    summary_statistic,   # (monad_id::Int) → Dict{String,<:Any}
+    summary_statistic,   # (sim::Simulation) → Dict{String,<:Any}, or a QoI
     distance;            # (simulated, observed) → Float64
     n_replicates = 1,    # replicates per particle (averaged by the summary statistic)
 )
@@ -376,12 +376,14 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
     or functions defined at module level in your script:
 
     ```julia
-    # ✓  Built-ins are named functions — pass them directly
-    problem = CalibrationProblem(ref, params, observed, endpointPopulationCounts, mseDistance)
+    # ✓  The built-in QoI builders return a named, serializable measurement
+    problem = CalibrationProblem(ref, params, observed, endpointPopulationCountQoI(), mseDistance)
 
-    # ✓  Custom logic: define at module level (not inside another function or as a lambda)
-    function my_stat(monad_id::Int)
-        counts = endpointPopulationCounts(monad_id)
+    # ✓  Custom logic: define at module level (not inside another function or as a lambda).
+    #    Since ModelManager 0.9 a summary statistic measures ONE simulation; the library
+    #    reduces the replicates.
+    function my_stat(sim::Simulation)
+        counts = finalPopulationCount(sim)
         # ... transform as needed ...
         return counts
     end
@@ -472,7 +474,15 @@ Each calibration run creates `data/outputs/calibrations/{id}/` with:
 
 ## [Built-in summary statistics](@id builtin_ss)
 
-Three built-in summary statistics accept a monad ID and return a `Dict` suitable for the `summary_statistic` argument of [`CalibrationProblem`](@ref).
+Three built-in **monad-level** statistics accept a monad ID and return a `Dict`. They do their own
+averaging over a monad's replicates, which is what makes them useful for analysing a finished monad
+directly.
+
+!!! warning "These are not `summary_statistic` arguments"
+    Since ModelManager 0.9 a `summary_statistic` measures a single [`Simulation`](@ref) and
+    ModelManager reduces the replicates. Passing one of these three to
+    [`CalibrationProblem`](@ref) fails when the first monad is measured. Use the
+    [QoI form](@ref qoi_form_ss) below, which measures the same quantities in that shape.
 
 ### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
 
@@ -505,7 +515,8 @@ For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict t
 
 ### [QoI form](@id qoi_form_ss)
 
-Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same measurement can go to a `CalibrationProblem` or to the post-processing sink:
+Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same
+measurement serves a `CalibrationProblem` without being rewritten:
 
 ```julia
 problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)

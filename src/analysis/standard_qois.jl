@@ -14,8 +14,13 @@ export endpointPopulationCountQoI, endpointPopulationFractionQoI, meanPopulation
 
 Built-in summary statistic: mean final-snapshot cell counts across all replicates in a monad.
 
-Returns a `Dict{String,Float64}` mapping cell type name → mean count. Pass this (or a
-closure wrapping it) as `summary_statistic` in a [`CalibrationProblem`](@ref).
+Returns a `Dict{String,Float64}` mapping cell type name → mean count.
+
+This is a **monad-level** function: it takes a monad ID and does its own averaging. Since
+ModelManager 0.9 a `summary_statistic` measures a single `Simulation` and ModelManager reduces the
+replicates, so this is no longer a valid `summary_statistic` argument — passing it fails when the
+first monad is measured. Use [`endpointPopulationCountQoI`](@ref), which measures the same
+quantity in that shape. Keep this one for analysing a monad directly.
 
 # Arguments
 - `monad_id`: ID of the monad whose replicates to average.
@@ -25,11 +30,12 @@ closure wrapping it) as `summary_statistic` in a [`CalibrationProblem`](@ref).
 
 # Examples
 ```julia
-problem = CalibrationProblem(
-    inputs, parameters, observed,
-    monad_id -> endpointPopulationCounts(monad_id; cell_types=["tumor", "immune"]),
-    mseDistance
-)
+counts = endpointPopulationCounts(monad_id; cell_types=["tumor", "immune"])
+
+# For calibration, use the QoI form instead — it measures one simulation, as ModelManager 0.9 requires
+problem = CalibrationProblem(inputs, parameters, observed,
+                             endpointPopulationCountQoI(; cell_types=["tumor", "immune"]),
+                             mseDistance)
 ```
 """
 function endpointPopulationCounts(monad_id::Int; cell_types::Union{Nothing,Vector{String}}=nothing, include_dead::Bool=false)
@@ -45,8 +51,12 @@ end
 Built-in summary statistic: mean final-snapshot cell fractions (out of total live cells)
 across all replicates in a monad.
 
-Returns a `Dict{String,Float64}` mapping cell type name → mean fraction. Pass this (or a
-closure wrapping it) as `summary_statistic` in a [`CalibrationProblem`](@ref).
+Returns a `Dict{String,Float64}` mapping cell type name → mean fraction.
+
+This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
+argument — see [`endpointPopulationCounts`](@ref) for why. Use
+[`endpointPopulationFractionQoI`](@ref) for calibration and keep this one for analysing a monad
+directly.
 
 # Arguments
 - `monad_id`: ID of the monad whose replicates to average.
@@ -90,11 +100,12 @@ The corresponding `observed_data` values should be `Vector{Float64}` on the same
 
 # Examples
 ```julia
-problem = CalibrationProblem(
-    inputs, parameters, observed,
-    monad_id -> meanPopulationTimeSeries(monad_id; cell_types=["tumor"]),
-    mseDistance
-)
+series = meanPopulationTimeSeries(monad_id; cell_types=["tumor"])
+
+# For calibration, use the QoI form instead — it measures one simulation, as ModelManager 0.9 requires
+problem = CalibrationProblem(inputs, parameters, observed,
+                             meanPopulationTimeSeriesQoI(; cell_types=["tumor"]),
+                             mseDistance)
 ```
 """
 function meanPopulationTimeSeries(monad_id::Int; cell_types::Union{Nothing,Vector{String}}=nothing, include_dead::Bool=false)
@@ -239,9 +250,16 @@ function endpointPopulationFractionQoI(; cell_types::Union{Nothing,Vector{String
                sim -> begin
                    counts = finalPopulationCount(sim; include_dead=include_dead)
                    ismissing(counts) && return missing
+                   #! The denominator is every live cell, so `total` is summed BEFORE restricting --
+                   #! matching `endpointPopulationFractions`, which likewise divides by the whole
+                   #! population and only then filters in `_averageStatDicts`.
                    total = sum(values(counts))
-                   return total == 0 ? Dict(k => 0.0 for k in keys(counts)) :
-                                       Dict(k => Float64(v) / total for (k, v) in counts)
+                   fractions = total == 0 ? Dict(k => 0.0 for k in keys(counts)) :
+                                            Dict(k => Float64(v) / total for (k, v) in counts)
+                   #! `_restrict` here, not only in `reduce`: the post-processing sink calls `compute`
+                   #! and never `reduce`, so a builder that filtered only in its reducer would write a
+                   #! column for every cell type and silently ignore `cell_types`.
+                   return _restrict(fractions, cell_types)
                end;
                #! `_averageStatDicts` is the monad-level function's aggregation, reused rather than
                #! reimplemented -- including its zero-fill of a cell type absent from a replicate.

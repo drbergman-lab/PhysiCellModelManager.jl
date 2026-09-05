@@ -53,7 +53,7 @@ across all replicates in a monad.
 
 Returns a `Dict{String,Float64}` mapping cell type name → mean fraction.
 
-This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
+This is a **monad-level** function and not a valid `summary_statistic`
 argument — see [`endpointPopulationCounts`](@ref) for why. Use
 [`endpointPopulationFractionQoI`](@ref) for calibration and keep this one for analysing a monad
 directly.
@@ -88,7 +88,7 @@ Built-in summary statistic: mean population time series across all replicates in
 
 Returns a `Dict{String,Vector{Float64}}` mapping cell type name → mean count over time.
 The time axis is shared across replicates (an error is thrown if they differ).
-This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
+This is a **monad-level** function and not a valid `summary_statistic`
 argument — see [`endpointPopulationCounts`](@ref) for why. Use [`meanPopulationTimeSeriesQoI`](@ref)
 when calibrating against time-series data, and keep this one for analysing a monad directly.
 The corresponding `observed_data` values should be `Vector{Float64}` on the same time grid.
@@ -164,7 +164,7 @@ end
 # `==` between them.
 #
 # The one Dict used to cost something: sensitivity analysis wanted a `Real` from `reduce`, so these
-# reached calibration and the sink but not `functions=`. ModelManager 0.9.1 spreads a keyed reduce
+# reached calibration and the sink but not `functions=`. ModelManager spreads a keyed reduce
 # into one analysis per key -- labelled `"<qoi name>.<key>"`, the same reading the sink gives it --
 # so the two endpoint builders now serve all three consumers with no per-cell-type rewrite.
 #

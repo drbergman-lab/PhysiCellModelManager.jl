@@ -5,7 +5,7 @@ ABC-SMC is a likelihood-free inference method that iteratively refines a populat
 It is well-suited to agent-based models where an explicit likelihood function is unavailable or intractable.
 
 The implementation is native Julia — no Python or conda environment is required.
-All algorithm infrastructure lives in ModelManager; PCMM contributes the PhysiCell-specific summary statistics ([`endpointPopulationCounts`](@ref), [`endpointPopulationFractions`](@ref), [`meanPopulationTimeSeries`](@ref)).
+All algorithm infrastructure lives in ModelManager; PCMM contributes the PhysiCell-specific measurements used as the `summary_statistic` — the `QoI` builders [`endpointPopulationCountQoI`](@ref), [`endpointPopulationFractionQoI`](@ref) and [`meanPopulationTimeSeriesQoI`](@ref).
 
 ## Quick start
 
@@ -169,12 +169,12 @@ A plain function is averaged across replicates with `mean`; pass a `QoI` when yo
 reduction, or when the quantity must be computed *after* the replicates are combined rather than
 before.
 
-!!! warning "Changed in ModelManager 0.9"
-    Summary statistics used to be called once per **monad**, with an `Int` monad ID, and did their
-    own aggregation. Such a function now receives a `Simulation`. If it is untyped it will return a
-    different number rather than erroring, so annotate the argument `::Simulation` — ModelManager
-    warns when it is not declared. The three built-in statistics below remain monad-level and are no
-    longer valid `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss) instead.
+!!! note "Annotate the argument `::Simulation`"
+    A function that expects a monad ID and does its own aggregation is not a valid `summary_statistic`;
+    if it is untyped it returns a different number rather than erroring, so declare the argument
+    `::Simulation` — ModelManager warns when it is not declared. The three built-in **monad-level**
+    statistics below are for analysing a finished monad; as a `summary_statistic`, use their
+    [QoI form](@ref qoi_form_ss).
 
 The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
@@ -239,7 +239,7 @@ All fields have defaults and are specified as keyword arguments:
 | `accept_overflow` | `false` | Keep all particles passing ε, not just `population_size` |
 | `cdf_grid_k` | `nothing` (off) | Enable simulation bank with dyadic-grid snapping at depth `k`; see below |
 | `max_evaluations` | `nothing` (off) | Hard budget cap on total particle evaluations |
-| `store_rejected` | `false` | Persist rejected proposals, so `plot(result, :transition; space = :cdf)` can show them |
+| `store_rejected` | `false` | Keep rejected proposals' CDF coordinates in memory (not on disk), so `plot(result, :transition; space = :cdf)` can show them |
 
 ### Manual epsilon schedule
 
@@ -362,33 +362,27 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
 
 ### Resumability and anonymous functions
 
-!!! warning "Use named functions for full resumability"
-    ModelManager serializes the `CalibrationProblem` to `problem.jld2` at the start of each run.
-    **Anonymous functions** (including lambda-style `x -> ...` and closures that capture variables)
-    **cannot be serialized** and are stored as `nothing` in the saved manifest.
+!!! warning "Use top-level named functions for automatic resume"
+    ModelManager serializes the `CalibrationProblem` to `problem.jld2` at the start of each run. A
+    function JLD2 can store by name restores in a fresh session. An anonymous function (`x -> ...`,
+    `function (x) ... end`) cannot; it is detected and stored as `nothing`. A named function defined
+    *inside* another function is not detected as anonymous, yet its type is session-specific and does
+    not reload either — so define measurement functions at the top level of a file or module.
 
-    The following fields are affected:
-    - `summary_statistic` — e.g. `m -> Dict(...)` in the `CalibrationProblem` call
-    - `distance` — e.g. `(s, o) -> sum(...)` in the `CalibrationProblem` call
-    - `LatentVariation` map functions (`maps` and `inverse_maps`) — if any are anonymous
-
-    If any of these are anonymous, `problem.jld2` is incomplete, and `resumeABC` will throw an
-    error unless you re-supply the problem explicitly:
+    The fields affected are `summary_statistic` (including a `QoI`'s `compute` and `reduce`), `distance`,
+    and a `LatentVariation`'s `maps` and `inverse_maps`. If any is anonymous, `problem.jld2` is incomplete
+    and `resumeABC` throws unless you re-supply the problem:
 
     ```julia
     result = resumeABC(Calibration(42); problem = problem)
     ```
 
-    To avoid this requirement entirely, use named functions — either built-ins passed directly,
-    or functions defined at module level in your script:
+    The built-in QoI builders ([`endpointPopulationCountQoI`](@ref) and the others) are built from
+    lambdas, so a calibration that uses one always needs `problem =` on resume. For a problem that
+    resumes without it, write the measurement yourself at top level:
 
     ```julia
-    # ✓  The built-in QoI builders return a named, serializable measurement
-    problem = CalibrationProblem(ref, params, observed, endpointPopulationCountQoI(), mseDistance)
-
-    # ✓  Custom logic: define at module level (not inside another function or as a lambda).
-    #    Since ModelManager 0.9 a summary statistic measures ONE simulation; the library
-    #    reduces the replicates.
+    # ✓  Top-level named functions: problem.jld2 is complete
     function my_stat(sim::Simulation)
         counts = finalPopulationCount(sim)
         # ... transform as needed ...
@@ -438,7 +432,7 @@ cs = ConvergenceSummary(result)
 cs = ConvergenceSummary(Calibration(42))
 ```
 
-Columns: `t`, `max_epsilon_accepted`, `epsilon_threshold`, `acceptance_rate`, `n_accepted`, `ess`, `ess_fraction`, `n_evaluations`. ModelManager 0.9 split the single `epsilon` in two: `max_epsilon_accepted` is the largest distance the generation actually accepted, `epsilon_threshold` the value it ran against (`nothing` for generation 1, which accepts everything).
+Columns: `t`, `max_epsilon_accepted`, `epsilon_threshold`, `acceptance_rate`, `n_accepted`, `ess`, `ess_fraction`, `n_evaluations`. `max_epsilon_accepted` is the largest distance the generation actually accepted; `epsilon_threshold` is the value it ran against (`nothing` for generation 1, which accepts everything).
 
 ### Visualization
 
@@ -493,9 +487,9 @@ data/outputs/calibrations/1/
 
 The folder name is the generation number, zero-padded to fit `max_nr_populations`.
 
-Calibrations written before ModelManager 0.9 stored the same artifacts as flat files
-(`generation_01.csv`, `generation_01_monads.csv`, and a `generation_cdfs/` subdirectory). Those are
-read as they are, and are moved into the folder layout the first time the run is resumed.
+Calibrations stored in the older flat layout (`generation_01.csv`, `generation_01_monads.csv`, and a
+`generation_cdfs/` subdirectory) are read as they are, and are moved into the folder layout the first
+time the run is resumed.
 
 ModelManager owns this layout and documents it in full — including what each column means — under
 [What a run leaves on disk](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#What-a-run-leaves-on-disk).
@@ -507,10 +501,10 @@ averaging over a monad's replicates, which is what makes them useful for analysi
 directly.
 
 !!! warning "These are not `summary_statistic` arguments"
-    Since ModelManager 0.9 a `summary_statistic` measures a single [`Simulation`](@ref) and
-    ModelManager reduces the replicates. Passing one of these three to
-    [`CalibrationProblem`](@ref) fails when the first monad is measured. Use the
-    [QoI form](@ref qoi_form_ss) below, which measures the same quantities in that shape.
+    A `summary_statistic` measures a single [`Simulation`](@ref) and ModelManager reduces the
+    replicates. Passing one of these three to [`CalibrationProblem`](@ref) fails when the first monad
+    is measured. Use the [QoI form](@ref qoi_form_ss) below, which measures the same quantities in
+    that shape.
 
 ### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
 
@@ -558,14 +552,14 @@ Pass `cell_types` to restrict the measurement; omit it and every cell type prese
 endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
 ```
 
-From ModelManager 0.9.1 the two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
+The two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
 [`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
 spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
 post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
 without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
 
-[`meanPopulationTimeSeriesQoI`](@ref) does **not**: its values are per-cell-type time series, and a
-`Vector` is deliberately not spread by index. See
+[`meanPopulationTimeSeriesQoI`](@ref) does **not**: its `Dict` is spread too, but each component is
+then refused for being a time series rather than a `Real`. See
 [One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
 
 !!! note "One QoI, one reducer"

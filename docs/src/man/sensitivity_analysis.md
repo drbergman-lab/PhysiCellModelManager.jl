@@ -93,7 +93,7 @@ All variation types accept `name=...`, used in the scheme DataFrame/CSV headers.
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.
-They must take a single argument, a `Simulation`. A bare function's per-replicate values must average to a `Real`; passed as a [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a `Dict`/`NamedTuple` of `Real`s, which spreads — see below. Annotate the argument `::Simulation`: an unannotated function still works, but ModelManager cannot then tell it apart from one written for the pre-0.9 contract, where the argument was a simulation ID (`Int`).
+They must take a single argument, a `Simulation`; declare it `::Simulation`. A bare function's per-replicate values must average to a `Real`; passed as a [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a `Dict`/`NamedTuple` of `Real`s, which spreads — see below.
 For example, `finalPopulationCount` returns a dictionary of the final population counts of each cell type from a `Simulation`.
 So, if you want to know the sensitivity of the final population count of cell type "cancer", you could define a function like:
 ```julia
@@ -101,9 +101,9 @@ f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 ```
 
 ### [One measurement, one analysis per cell type](@id gsa_keyed_qoi)
-Naming a cell type up front means one function per cell type. From ModelManager 0.9.1 you can pass a
-[`QoI`](@ref ModelManager.QoI) whose `reduce` returns a `Dict` instead, and each key becomes its own
-sensitivity analysis labelled `"<qoi name>.<key>"`. The ready-made builders do this already:
+Naming a cell type up front means one function per cell type. Pass a [`QoI`](@ref ModelManager.QoI)
+whose `reduce` returns a `Dict` instead, and each key becomes its own sensitivity analysis labelled
+`"<qoi name>.<key>"`. The ready-made builders do this already:
 
 ```julia
 run(method, inputs, evs; n_replicates=n_replicates, functions=[endpointPopulationCountQoI()])

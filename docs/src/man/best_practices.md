@@ -22,6 +22,14 @@ PhysiCellModelManager.jl tracks simulations in a database and skips re-running o
 
 If you must delete simulations manually — e.g. after an error left a stale database record — use [`deleteSimulations`](@ref) so the database stays consistent.
 
+## On a cluster, set the job's resources and keep the driver alive.
+PhysiCellModelManager.jl asks SLURM for as many CPUs per job as the simulation's `omp_num_threads`, but
+nothing else: set `time` and `mem` with [`setJobOptions`](@ref) before the first `run`, since a job
+the scheduler kills is only noticed minutes later. The Julia session that called `run` is what
+records each job's outcome, so run long campaigns from `tmux`, `nohup`, or a batch job that outlives
+them. The [ModelManager HPC manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/hpc/)
+covers submit limits, refused submissions, interrupting a run, and finding a job in `sacct`.
+
 ## Use a dedicated Julia environment.
 Keep each project's dependencies in its own environment and commit `Project.toml` and `Manifest.toml`. See [Julia environments](@ref julia_environments_man).
 

@@ -38,12 +38,9 @@ include("pcmm_version.jl")
 include("physicell_version.jl")
 include("components.jl")
 
-include("user_api.jl")
-
 include("loader.jl")
 
 include("analysis/analysis.jl")
-include("sensitivity.jl")
 include("import.jl")
 include("movie.jl")
 
@@ -185,7 +182,9 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         throw(PCMMMissingProject("Could not find PhysiCell and/or data directories. Looked for them in: $path_to_physicell, $path_to_data"))
     end
     simulator().dir = path_to_physicell
-    return initializeModelManager(simulator(), path_to_data; auto_upgrade)
+    initialized = initializeModelManager(simulator(), path_to_data; auto_upgrade)
+    initialized && _installDefaultJobOptions()
+    return initialized
 end
 
 function initializeModelManager(path_to_project::AbstractString; kwargs...)

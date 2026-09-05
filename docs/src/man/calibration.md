@@ -463,14 +463,35 @@ plot(Calibration(42), :ridgeline)
 
 ## Output layout
 
-Each calibration run creates `data/outputs/calibrations/{id}/` with:
+Each calibration run creates `data/outputs/calibrations/{id}/`: three files describing the run, then
+one folder per generation.
 
-- `method.toml` — the [`ABCSMC`](@ref) settings (restored automatically by `resumeABC`).
-- `problem.jld2` — the serialized [`CalibrationProblem`](@ref) (restored automatically by `resumeABC`; contains a partial manifest if the problem used anonymous functions).
-- `parameters.toml` — human-readable mapping from display column names to prior strings, for quick inspection.
-- `generations/generation_{t}.csv` — one file per completed generation. Columns: each parameter's display name, plus `weight`, `distance`, `monad_id`.
-- `generations/generation_{t}_monads.csv` — all monad IDs evaluated during generation `t` (written before simulations run, for crash safety and the `:transition` plot).
-- `generations/generation_cdfs/generation_{t}.csv` — raw CDF coordinates used internally by `resumeABC` for exact particle reconstruction.
+```
+data/outputs/calibrations/1/
+├── problem.jld2          # the serialized CalibrationProblem, so a resume needs no re-supplied problem
+├── method.toml           # the ABCSMC settings
+├── parameters.toml       # display name → database column → prior, per parameter
+└── generations/
+    ├── 01/
+    │   ├── particles.csv          # accepted particles, in target space
+    │   ├── cdfs.csv               # the same particles in CDF space
+    │   ├── metadata.toml          # both epsilons, ESS, acceptance rate, evaluation count
+    │   ├── monads.csv             # every monad evaluated, as compressed ID ranges
+    │   ├── proposals.csv          # distance and outcome for every proposal
+    │   ├── failed_simulations.csv # only when a simulation failed
+    │   └── failed_monads.csv      # only when a monad lost every simulation
+    ├── 02/
+    └── …
+```
+
+The folder name is the generation number, zero-padded to fit `max_nr_populations`.
+
+Calibrations written before ModelManager 0.9 stored the same artifacts as flat files
+(`generation_01.csv`, `generation_01_monads.csv`, and a `generation_cdfs/` subdirectory). Those are
+read as they are, and are moved into the folder layout the first time the run is resumed.
+
+ModelManager owns this layout and documents it in full — including what each column means — under
+[What a run leaves on disk](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#What-a-run-leaves-on-disk).
 
 ## [Built-in summary statistics](@id builtin_ss)
 

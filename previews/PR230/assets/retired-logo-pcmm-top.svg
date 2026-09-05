@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 300" role="img" aria-label="PhysiCellModelManager.jl (PCMM)">
+  <title>PhysiCellModelManager.jl (PCMM)</title>
+  <defs>
+    <path id="arcTop" d="M 50 155 A 100 100 0 0 1 250 155"/>
+  </defs>
+  <circle cx="150" cy="150" r="113" fill="none" stroke="#389826" stroke-width="51"/>
+  <circle cx="150" cy="150" r="82" fill="#CB3C33"/>
+  <circle cx="150" cy="150" r="49" fill="#9558B2"/>
+  <circle cx="150" cy="150" r="144" fill="none" stroke="#4063D8" stroke-width="4"/>
+  <text font-family="Helvetica, Arial, sans-serif" font-size="48" font-weight="bold" fill="#ffffff" letter-spacing="-3">
+    <textPath href="#arcTop" startOffset="50%" text-anchor="middle">PCMM</textPath>
+  </text>
+</svg>

@@ -94,7 +94,7 @@ result  = runABC(problem)
 
 ## Record quantities of interest as simulations run
 
-Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Analyzing output](@ref analyzing_output_man)
+Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Post-processing and quantities of interest](@ref post_processing_man)
 
 ```julia
 run(sampling; post_processor = populationCountQoI())   # one population_count.<cell_type> column per cell type
@@ -121,7 +121,7 @@ plot(Simulation(1); include_cell_type_names=["cd8", "cancer"])
 
 ## Make a movie from a simulation's snapshots
 
-Use `makeMovie` to render a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile. Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change frame rate or JPEG resolution/density; omit any to keep the Makefile's default. → [Analyzing output](@ref analyzing_output_man)
+Use `makeMovie` to render a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile. Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change frame rate or JPEG resolution/density; omit any to keep the Makefile's default. → [Movies](@ref movies_man)
 
 ```julia
 makeMovie(1; framerate=10, magick_resize_x=512, magick_resize_y=512)

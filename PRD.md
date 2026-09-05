@@ -153,9 +153,11 @@
 **Behavioral specification:**
 - `run(inputs; n_replicates=1)` runs a single parameter point with replication.
 - `run(inputs, variation; n_replicates=N)` sweeps over all variation points.
-- Local execution: spawns PhysiCell subprocesses, up to `n_parallel` at a time.
+- Local execution: spawns PhysiCell subprocesses, up to `setNumberOfParallelSims` (or `PCMM_NUM_PARALLEL_SIMS`) at a time.
 - HPC execution: PCMM supplies the simulation command via `simulationCommand`; ModelManager submits it (`sbatch --wrap`, no script file is written) and detects completion with a filesystem sentinel. PBS/`qsub` support is deferred — see the `-march` to-do in CLAUDE.md.
-- Returns a `Trial` (or `Sampling`/`Monad`) object referencing database IDs.
+- PCMM adds one SLURM default of its own at initialization: `cpus-per-task` resolves per simulation to that simulation's `parallel/omp_num_threads` (so a varied thread count is honoured), because PhysiCell starts that many threads regardless of what SLURM allocated. It is not installed when the user has already set `cpus-per-task`; a config whose element cannot be read falls back to 1 with one warning.
+- A submission `sbatch` refuses is ModelManager's to handle (retried when transient, otherwise the run stops with the scheduler's message); it is never recorded as a failed PhysiCell simulation.
+- Returns an `MMOutput` (alias `PCMMOutput`) wrapping the trial object, with the counts of simulations scheduled and completed.
 
 **Acceptance criteria:**
 - Completed simulations write PhysiCell output to the folder `pathToOutputFolder` returns — `data/outputs/simulations/<simulation_id>/output/` — with `output.log`/`output.err` beside it in the simulation folder. Use the accessor rather than the literal path; the layout is ModelManager's.
@@ -187,7 +189,7 @@
 - `include_*` keyword arguments (`include_cells`, `include_substrates`, `include_mesh`, `include_attachments`, `include_spring_attachments`, `include_neighbors`) control eager loading; omitted data can be loaded later with the `load*!` mutators.
 
 **Acceptance criteria:**
-- The id-/`Simulation`-based API behaves identically to the pre-migration in-repo loader for all existing callers and tests.
+- The id-/`Simulation`-based API returns the same objects PhysiCellOutput's path-based API returns for the corresponding output folder.
 - Loaded values match the raw PhysiCell `.mat`/`.xml` output.
 
 **Edge cases:**
@@ -223,29 +225,33 @@
 - Simulation has no output files → error with simulation ID.
 - Requested cell type not present in output → return 0 / empty entry.
 - `include_dead=false` is default; dead cells excluded from all counts unless specified.
-- Replicates of a monad are **assumed** to declare the same cell-type roster, because they share a config and the roster is read from the output XML. PCMM does not verify this: producing a ragged roster requires editing files inside the data directory, which `best_practices.md` already forbids, and PCMM trusts its own data directory rather than guarding each way a user could corrupt it by hand.
+- Replicates of a monad are **assumed** to declare the same cell-type roster (they share a config, and the roster is read from the output XML). PCMM does not verify this: a ragged roster requires hand-editing files under `data/`, which `best_practices.md` forbids.
 - A monad-level plot with some replicates' output removed averages over the survivors only; the removed replicates are not counted in the denominator.
-- Pruning degrades the analysis functions asymmetrically, and this is accepted: `meanPopulationTimeSeries` reads a `summary/population_time_series.csv` cache that survives any prune, while `finalPopulationCount` reads `final.xml`/`final.mat` and has no cache. `finalPopulationCount` does **not** fall back to the time series' last row — that row is the last full-save interval, not the simulation's true end, so the substitution would be undetectable.
+- Pruning degrades the analysis functions asymmetrically, by design: `meanPopulationTimeSeries` reads a `summary/population_time_series.csv` cache that survives any prune; `finalPopulationCount` reads `final.xml`/`final.mat`, has no cache, and does **not** fall back to the time series' last row (that row is the last full-save interval, not the simulation's true end).
 
 ---
 
 ## Feature: Sensitivity Analysis
 
-**One-line description:** Compute global sensitivity indices (Sobol, RBD-FAST) linking parameters to simulation outputs.
+**One-line description:** Global sensitivity analysis (MOAT, Sobol', RBD) of PhysiCell outputs with respect to varied parameters.
 
 **Priority:** Must-have
 
 **Behavioral specification:**
-- User constructs a `SobolVariation` or `RBDVariation`, runs simulations, then calls sensitivity analysis functions.
-- Returns first- and total-order Sobol indices (or FAST indices) per parameter.
+- The designs, indices, and `calculateGSA!` live in ModelManager. PCMM adds nothing beyond its `QoI` builders and the PhysiCell measurement functions a user writes.
+- `run(method, inputs_or_reference, variations; functions=[...])`, with `method` one of `MOAT(n)`, `Sobolʼ(n)` (alias `SobolMM`), or `RBD(n)`, runs the design and computes one sensitivity analysis per measurement. `inputs_or_reference` is an `InputFolders` or a reference `Monad`.
+- A measurement is a function of one `Simulation` whose per-replicate values reduce to a `Real`, or a `QoI` whose `reduce` returns a `Real` or a `Dict`/`NamedTuple` of `Real`s. A keyed result is spread into one analysis per key, labelled `"<qoi name>.<key>"`; `ModelManager.gsaLabels(sampling)` lists the labels and `sampling.results[label]` holds each analysis.
+- `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` are valid measurements: one analysis per cell type, keyed by the model's cell-type roster from the snapshot metadata, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
 
 **Acceptance criteria:**
 - Sensitivity indices sum to approximately 1 for well-behaved models.
 - Results are reproducible given the same seed.
+- A keyed measurement yields exactly one label per key.
 
 **Edge cases:**
-- Fewer samples than recommended for reliable indices → warn.
 - Output quantity is constant across all runs → indices are all zero, no error.
+- A `Vector`-valued measurement, or a keyed measurement with a non-`Real` component (`meanPopulationTimeSeriesQoI`) → `ArgumentError` naming the QoI; reduce to a scalar first.
+- Key sets that differ across the design → refused, not filled in.
 
 ---
 
@@ -256,17 +262,14 @@
 **Priority:** Must-have
 
 **Behavioral specification:**
-- All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes only the PhysiCell-specific measurements passed as `summary_statistic` in a `CalibrationProblem`.
-- **A summary statistic measures one simulation.** Since ModelManager 0.9 every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. The three monad-level functions below take a monad ID and are therefore **no longer valid `summary_statistic` arguments**; the `QoI` builders are that role's replacement. The monad-level functions remain supported for direct monad-level analysis.
+- All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes the PhysiCell-specific measurements passed as `summary_statistic` in a `CalibrationProblem`.
+- A `summary_statistic` measures one `Simulation`; ModelManager reduces a parameter set's replicates. The `QoI` builders below fill that role. The three monad-level functions take a monad ID, do their own averaging, and are for direct analysis of a finished monad; they are not valid `summary_statistic` arguments.
 - `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
 - `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
-- Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. A single QoI's value is passed through unwrapped by ModelManager, which is what keeps that dict flat for `mseDistance`.
-- `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
-- From ModelManager 0.9.1, sensitivity analysis spreads a `Dict`-valued measurement into one analysis per key, labelled `<qoi name>.<key>` and retrieved from `results` by that label (`gsaLabels` lists them). So `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` serve all three consumers. Two builders do not: `meanPopulationTimeSeriesQoI`, because a `Vector` is deliberately not spread by index (equal length is not equal meaning), and `populationCountQoI`, because it defines no `reduce` and the default `mean` cannot combine a vector of `Dict`s.
-- Sensitivity analysis requires every parameter set in a design to reduce to the *same* keys. PCMM's builders satisfy this by construction: the key set is the model's own cell-type roster from the snapshot metadata, not the set of types with living cells, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
-- **Which builder reaches which consumer.** `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` reach all three (calibration, the post-processing sink, sensitivity analysis). `meanPopulationTimeSeriesQoI` reaches calibration only: its `compute` returns a `SimulationPopulationTimeSeries`, which is not a scalar, `NamedTuple` or `AbstractDict` and so cannot be stored by the sink, and its `reduce` yields vectors, which GSA does not spread by index.
-- **`cell_types` is applied by `compute`, not only by `reduce`.** The sink calls `compute` and never `reduce`, so a builder filtering in its reducer alone would write a column per cell type and silently ignore the argument. For fractions the denominator is still every live cell: the total is summed before the restriction, matching `endpointPopulationFractions`.
+- Each statistic has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose reduced value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. ModelManager passes a single QoI's value through unwrapped, which keeps the dict flat for `mseDistance`.
+- `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does. It is applied by `compute`, not only by `reduce`, because the post-processing sink calls `compute` and never `reduce`. For fractions the denominator is still every live cell: the total is summed before the restriction, matching `endpointPopulationFractions`.
+- Which builder reaches which consumer: `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` serve calibration, the post-processing sink (one `<qoi name>.<cell_type>` column per key) and sensitivity analysis (one analysis per key). `meanPopulationTimeSeriesQoI` serves calibration only: its `compute` returns a `SimulationPopulationTimeSeries`, which the sink cannot store, and sensitivity analysis spreads its `Dict` and then refuses each component for being a `Vector` rather than a `Real`. `populationCountQoI` defines no `reduce` and is for the sink only.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
 **Acceptance criteria:**
@@ -279,7 +282,7 @@
 - All replicates in a monad have missing output → return `missing`, not an error.
 - `cell_types` filter names a type not present in the simulation → entry is omitted from result.
 - Some replicates missing output → averaged over the survivors, reported once via `@info ... maxlog=1`. `maxlog` is required: calibration evaluates these once per monad across thousands of particles.
-- A builder must return **exactly** what its monad-level counterpart returns, asserted with `==` rather than `isapprox`. The three statistics disagree with one another about whether an absent cell type is zero-filled and about summation order, so each builder carries its own reducer; a shared one would silently change results. The one deliberate difference: where every replicate is missing, `meanPopulationTimeSeriesQoI` returns `missing` while `meanPopulationTimeSeries` raises a `KeyError`.
+- A builder returns **exactly** what its monad-level counterpart returns (`==`, not `isapprox`); each builder carries its own reducer because the three statistics differ in zero-filling of absent cell types and in summation order. The one deliberate difference: where every replicate is missing, `meanPopulationTimeSeriesQoI` returns `missing` while `meanPopulationTimeSeries` raises a `KeyError`.
 
 ---
 
@@ -360,7 +363,7 @@
 - `magick_path`/`ffmpeg_path` locate the ImageMagick/FFmpeg executables; `verbose` prints the underlying `make` command output.
 
 **Acceptance criteria:**
-- Omitting the new framerate/density/resize keywords reproduces the exact previous behavior (Makefile defaults).
+- Omitting the framerate/density/resize keywords leaves the Makefile's own defaults in force.
 - Passing any of the four keywords changes the corresponding `make` invocation's variable assignment and is reflected in the produced movie.
 - Re-running `makeMovie` when `out.mp4` already exists is a no-op (`false` return), regardless of these keywords.
 
@@ -374,18 +377,18 @@
 
 **One-line description:** Let users compute per-simulation quantities of interest (QoIs) from intact output via a `post_processor` callback, and guarantee that PCMM's destructive pruning runs only after that callback.
 
-**Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders — implemented).
+**Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders).
 
 **Background:** ModelManager runs three per-simulation post steps in order:
 `postSimulationProcessing` (non-destructive) → user `post_processor` (successful sims only) → `postSimulationCleanup` (destructive). PCMM implements the destructive step (err-file handling + `pruneSimulationOutput`) as `postSimulationCleanup` so a `post_processor` always reads an un-pruned output folder. `postSimulationProcessing` is left as ModelManager's no-op default.
 
 **Behavioral specification:**
 - `run(T; post_processor = f)` calls the callback once per successful simulation, after the simulation finishes and before pruning.
-- The callback receives a `Simulation` — the same argument a `QoI`'s `compute` gets, since ModelManager 0.9 made one contract of every measurement function. Most loader and analysis functions take it directly; `simulationID(sim)` and `pathToOutputFolder(sim)` give the ID and the folder.
-- Return patterns: `nothing` (side effects only — must be explicit), a bare scalar (`Real`/`Bool`/`String`, stored under the QoI's own name), or a `NamedTuple`/`Dict` of `name => scalar`. Non-scalar returns throw `ArgumentError` (ModelManager-side).
-- From ModelManager 0.9.1 a spread return writes one column per key named `<qoi name>.<key>`, and a callback that stores anything must therefore carry a stable name — an anonymous `sim -> …` is refused, since its derived name varies between sessions. Wrap it in a `QoI` or pass a named function; a callback returning `nothing` is unaffected.
+- The callback receives a `Simulation` — the same argument a `QoI`'s `compute` gets. Most loader and analysis functions take it directly; `simulationID(sim)` and `pathToOutputFolder(sim)` give the ID and the folder.
+- Return patterns: `nothing` (side effects only — must be explicit), a bare scalar (`Real`/`Bool`/`String`, stored in one column named after the QoI), or a `NamedTuple`/`Dict` of `name => scalar`, stored as one column per key named `<qoi name>.<key>`. Non-scalar returns throw `ArgumentError` (ModelManager-side).
+- A callback that stores anything must carry a stable name — a `QoI` or a named function — because every column is named after it; a callback returning `nothing` needs no name.
 - Stored QoIs land in `data/outputs/postprocessing.db`; read back with `postProcessingTable(T)` or `simulationsTable(T; post_processing=true)`.
-- **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a ready-made `post_processor` recording one `population_count.<cell_type>` column per cell type, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index). The key is the bare cell type: ModelManager 0.9.1 supplies the namespace, so the `count_` prefix the builder used to carry would only produce `population_count.count_<cell_type>`.
+- **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a `QoI` named `population_count` whose value is a `Dict` of bare cell type → count, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index), so the sink writes one `population_count.<cell_type>` column per cell type.
 
 **Acceptance criteria:**
 - A `post_processor` reading `pathToOutputFolder(sim)` sees output files present; those files are pruned only after it returns.
@@ -396,8 +399,7 @@
 **Edge cases:**
 - Callback on a failed simulation → not called (successful sims only); cleanup still runs.
 - Callback returns a non-scalar → `ArgumentError`.
-- Anonymous callback returns something storable → `ArgumentError` (ModelManager 0.9.1), because every column is named after its QoI and a derived name is not stable across sessions. Returning `nothing` is unaffected.
-- Un-updated PCMM against reordered ModelManager → still prunes, but in the earlier hook, so a `post_processor` would see already-pruned output. Task A removes this gap.
+- Anonymous callback returns something storable → `ArgumentError`, because a derived name is not stable across sessions. Returning `nothing` is unaffected.
 - `populationCountQoI`'s requested snapshot doesn't exist (e.g. pruned) → returns `nothing` for that simulation instead of throwing.
 
 ---
@@ -420,7 +422,7 @@
 **Edge cases:**
 - `python_path` or `studio_path` unset and not supplied → `ArgumentError` naming the missing one.
 - The Python executable cannot be spawned (bad path) → typed PCMM error.
-- Studio runs but exits non-zero → typed PCMM error. Both failure modes must be covered; `run` raises a different exception type for each (`Base.IOError` vs `ProcessFailedException`), and only the first was previously handled.
+- Studio runs but exits non-zero → typed PCMM error. Both failure modes are covered; `run` raises a different exception type for each (`Base.IOError` vs `ProcessFailedException`).
 - The simulation's parsed rules file is absent → Studio still launches, without rules.
 
 ---

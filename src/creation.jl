@@ -138,11 +138,14 @@ Get the request headers for GitHub API requests.
 This allows the GitHub actions to use a token if provided in the `PCMM_PUBLIC_REPO_AUTH` environment variable to avoid rate limiting.
 """
 function requestHeaders()
-    if haskey(ENV, "PCMM_PUBLIC_REPO_AUTH")
-        println("Using GitHub token from PCMM_PUBLIC_REPO_AUTH environment variable for API requests.")
-        return Dict("Authorization" => "token $(ENV["PCMM_PUBLIC_REPO_AUTH"])")
-    end
-    return Pair{String,String}[]
+    #! An empty value is treated as unset. `Authorization: token ` with nothing after it makes GitHub
+    #! answer 401 to a request that would have succeeded anonymously, so a shell that exports the
+    #! variable empty (a CI template with no secret, a profile line left behind) broke every
+    #! `createProject(; clone_physicell=false)` with an error blaming GitHub.
+    token = get(ENV, "PCMM_PUBLIC_REPO_AUTH", "")
+    isempty(token) && return Pair{String,String}[]
+    println("Using GitHub token from PCMM_PUBLIC_REPO_AUTH environment variable for API requests.")
+    return Dict("Authorization" => "token $(token)")
 end
 
 """

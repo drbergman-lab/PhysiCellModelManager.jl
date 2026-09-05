@@ -254,11 +254,3 @@ cells_df = snapshot.cells # this is the cell data
 agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) # get the IDs for the agents in the connected component
 component_df = rightjoin(cells_df, agent_ids, on=:ID) # join on the agent IDs, keeping only the rows in the connected component
 ```
-
-## Movies and post-processing
-
-Two things that used to live on this page now have their own:
-
-- [Movies](@ref movies_man) — turning a simulation's SVG snapshots into `output/out.mp4`.
-- [Post-processing and quantities of interest](@ref post_processing_man) — computing and
-  storing per-simulation quantities *while* a run is in flight, before pruning.

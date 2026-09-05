@@ -15,9 +15,10 @@ directly; `simulationID(sim)` and `pathToOutputFolder(sim)` are there when you n
 folder itself.
 
 !!! note "A callback that stores something needs a name"
-    Every sink column is named after the QoI that wrote it, and a bare `sim -> ...` has only a
-    name Julia derived (`anon_9`) that changes between sessions — so the same script would write a
-    second, half-empty set of columns next time. From ModelManager 0.9.1 that is refused rather
+    Every sink column is named after the QoI that wrote it, and a bare `sim -> ...` has only the
+    name Julia derives for an anonymous function — `anon_9`, `anon_14`, whatever that session
+    happens to produce. The number is not stable, so the same script would write a second,
+    half-empty set of columns next time. From ModelManager 0.9.1 that is refused rather
     than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI) as above, or pass a named function.
     A callback returning `nothing` stores nothing and is unaffected.
 

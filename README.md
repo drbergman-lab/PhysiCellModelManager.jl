@@ -87,7 +87,8 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [x] Fixed: `plotbycelltype` divided by the full replicate count while filling only the replicates that loaded, so plotting a monad with a pruned replicate understated every curve
 - [x] Sensitivity analysis — MOAT, Sobol, and RBD
 - [x] Calibration — PhysiCell-specific summary statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for use with ModelManager's `CalibrationProblem`; ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
-  - [x] Single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) so the same quantity reaches the post-processing sink and, from ModelManager 0.9.1, sensitivity analysis — not just `CalibrationProblem`; asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
+  - [x] Single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) so the same quantity reaches the post-processing sink, not just `CalibrationProblem`; asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
+    - [x] The **two endpoint** builders also reach sensitivity analysis from ModelManager 0.9.1, which spreads a `Dict` into one analysis per key labelled `<qoi name>.<key>`. `meanPopulationTimeSeriesQoI` does not: its values are vectors, and a `Vector` is deliberately not spread by index
   - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
   - [ ] Bayesian optimization
   - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`

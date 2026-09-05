@@ -202,6 +202,11 @@ function finalPopulationCount(monad::Monad; include_dead::Bool=false)
     counts_per_sim = [finalPopulationCount(sim_id; include_dead=include_dead) for sim_id in sim_ids]
     filter!(!ismissing, counts_per_sim)
     isempty(counts_per_sim) && return missing
+    #! `@info` not `@warn`: pruning is deliberate, so this reports a consequence rather than
+    #! scolding. `maxlog=1` because calibration calls this once per monad across thousands of
+    #! particles. See `_excludedReplicates` for why each site logs for itself.
+    length(counts_per_sim) < length(sim_ids) &&
+        @info _excludedReplicates(monad.id, length(sim_ids), length(counts_per_sim)) maxlog=1
     all_keys = union(keys.(counts_per_sim)...)
     return Dict{String,Float64}(k => mean(get(c, k, 0) for c in counts_per_sim) for k in all_keys)
 end
@@ -239,11 +244,13 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
     time = Real[]
     cell_count = Dict{String, NamedTuple}()
     _counts = Dict{String,Any}()
+    n_kept = 0
     for (i, simulation_id) in enumerate(simulation_ids)
         spts = SimulationPopulationTimeSeries(simulation_id; include_dead=include_dead)
         if ismissing(spts)
             continue
         end
+        n_kept += 1
         if isempty(time)
             time = spts.time
         else
@@ -257,6 +264,13 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
             end
         end
     end
+    n_kept < monad_length &&
+        @info _excludedReplicates(monad.id, monad_length, n_kept) maxlog=1
+    #! Each `_counts[name]` holds exactly `n_kept` columns, because replicates of a monad share a
+    #! config and so share the `cell_types` roster these keys come from. Unverified on purpose: a
+    #! ragged roster means hand-edited files under `data/`, which `best_practices.md` forbids. It is
+    #! also why this denominator agrees with the zero-filling one in `finalPopulationCount(::Monad)`
+    #! — they differ only on rosters that cannot occur, so do not "reconcile" them.
     _mean = Dict{String, Vector{Real}}()
     _std = Dict{String, Vector{Real}}()
     for (name, vectors) in _counts
@@ -482,16 +496,24 @@ end
     all_cell_types = Set()
     for monad in monads
         simulation_ids = simulationIDs(monad)
-        monad_length = length(simulation_ids)
         time = Real[]
         cell_count_arrays = Dict{Any, Array{Int,2}}()
         sptss = SimulationPopulationTimeSeries.(simulation_ids; include_dead=include_dead, verbose=false)
+        #! Filtering `sptss` breaks its correspondence with `simulation_ids`, so assertion messages
+        #! below name the offending replicate through this instead.
+        kept_ids = [sid for (sid, spts) in zip(simulation_ids, sptss) if !ismissing(spts)]
         filter!(!ismissing, sptss) #! remove any that failed to load
+        #! `length(sptss)`, after the filter, NOT `length(simulation_ids)`. It was the unfiltered
+        #! count, so a pruned replicate left an all-zero column that `mean(array, dims=2)` still
+        #! divided by: one of three pruned understated every curve by a third, silently.
+        monad_length = length(sptss)
+        monad_length < length(simulation_ids) &&
+            @info _excludedReplicates(monad.id, length(simulation_ids), monad_length) maxlog=1
         for (i, spts) in enumerate(sptss)
             if isempty(time)
                 time = spts.time
             else
-                @assert time == spts.time "Simulations $(simulation_ids[1]) and $(simulation_ids[i]) in monad $(monad.id) have different times in their time series."
+                @assert time == spts.time "Simulations $(kept_ids[1]) and $(kept_ids[i]) in monad $(monad.id) have different times in their time series."
             end
             for k in include_cell_type_names
                 if k isa String
@@ -504,7 +526,9 @@ end
                 if !haskey(cell_count_arrays, k)
                     cell_count_arrays[k] = zeros(Int, length(time), monad_length)
                 end
-                @assert [haskey(spts.cell_count, ct) for ct in k] |> all "A cell type in $k not found in simulation $simulation_id which has cell types $(keys(spts.cell_count))."
+                #! `kept_ids[i]`, not the `simulation_id` bound far above this loop: that is the
+                #! whole trial's first simulation, unrelated to this failure.
+                @assert [haskey(spts.cell_count, ct) for ct in k] |> all "A cell type in $k not found in simulation $(kept_ids[i]) which has cell types $(keys(spts.cell_count))."
                 cell_count_arrays[k][:,i] = sum([spts.cell_count[ct] for ct in k])
             end
         end

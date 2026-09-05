@@ -2,10 +2,10 @@
 
 #! Import ModelManager interface stubs so PCMM's method definitions
 #! extend them (rather than creating new PhysiCellModelManager-local functions).
-import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
+import ModelManager: simulationCommand, simulatorDir, simulatorVersionSchema,
                      simulatorVersionTableName, simulatorVersionIDName, resolveSimulatorVersionID,
                      currentSimulatorVersionID, simulatorInfo, postInitDisplay, setupMonad, setupSampling,
-                     packageName, dbVersionTableName, upgradeMilestones, upgradeToMilestone,
+                     dbVersionTableName, upgradeMilestones, upgradeToMilestone,
                      postSimulationCleanup, initializeInputFolder, getInputFolderDescription,
                      shortLocationVariationID, shortVariationName
 
@@ -14,48 +14,25 @@ import ModelManager: runSimulation, simulatorDir, simulatorVersionSchema,
 using ModelManager: SimulationProcess, SimulationSpec, postSimulationProcessing
 
 """
-    runSimulation(::PhysiCellSimulator, spec::SimulationSpec)
+    simulationCommand(::PhysiCellSimulator, spec::SimulationSpec)
 
-PhysiCell implementation of [`runSimulation`](@ref).
+PhysiCell implementation of [`simulationCommand`](@ref ModelManager.simulationCommand).
 
-Builds the PhysiCell command line from the spec, launches the
-process (wrapping in an `sbatch` invocation when running on HPC), and updates the
-database with the result. Returns a [`SimulationProcess`](@ref ModelManager.SimulationProcess);
-if command construction fails, the returned process has `process == nothing` and
-`success == false`.
+Return the `Cmd` that runs one PhysiCell simulation, or `nothing` if it could not be built — which
+ModelManager takes to mean "record this simulation as failed and carry on with the rest". See
+`prepareSimulationCommand`, which also creates the `output` subfolder the command writes into;
+ModelManager creates the trial folder but not that subdirectory.
+
+PCMM used to launch the process itself, wrapping the command in `sbatch` and redirecting
+`hpc.out`/`hpc.err`. ModelManager v0.9.0 owns all of that — the local/HPC branch, the redirection,
+the submission, waiting for completion, and building the [`SimulationProcess`](@ref
+ModelManager.SimulationProcess). A simulator package only says what to run.
 
 Setup (compilation, varied input folders) is always performed by
 [`ModelManager.prepareTrialHierarchy`](@ref) before this function is called.
 """
-function runSimulation(::PhysiCellSimulator, spec::SimulationSpec)
-    simulation = spec.simulation
-    monad_id = spec.monad_id
-
-    cmd = prepareSimulationCommand(simulation)
-    if isnothing(cmd)
-        return SimulationProcess(simulation, monad_id, nothing, false)
-    end
-
-    path_to_simulation_folder = trialFolder(simulation)
-    if mm_globals().run_on_hpc
-        cmd = ModelManager.prepareHPCCommand(cmd, simulation.id)
-        the_pipeline = pipeline(ignorestatus(cmd);
-                                stdout=joinpath(path_to_simulation_folder, "hpc.out"),
-                                stderr=joinpath(path_to_simulation_folder, "hpc.err"))
-    else
-        the_pipeline = pipeline(ignorestatus(cmd);
-                                stdout=joinpath(path_to_simulation_folder, "output.log"),
-                                stderr=joinpath(path_to_simulation_folder, "output.err"))
-    end
-    p = try
-        Base.run(the_pipeline; wait=true)
-    catch e
-        println("\nWARNING: The command for Simulation $(simulation.id) failed to execute.\n\tCause: $e\n")
-        nothing
-    end
-    success = isnothing(p) ? false : p.exitcode == 0
-    return SimulationProcess(simulation, monad_id, p, success)
-end
+simulationCommand(::PhysiCellSimulator, spec::SimulationSpec) =
+    prepareSimulationCommand(spec.simulation)
 
 """
     simulatorDir(::PhysiCellSimulator)
@@ -96,14 +73,6 @@ simulatorInfo(::PhysiCellSimulator) = physicellInfo()
 ########################################################
 ############   Upgrade interface   #####################
 ########################################################
-
-"""
-    packageName(::PhysiCellSimulator)
-
-Return `"PhysiCellModelManager"` — the registered Julia package name used for Pkg
-version lookups.
-"""
-packageName(::PhysiCellSimulator) = "PhysiCellModelManager"
 
 """
     dbVersionTableName(::PhysiCellSimulator)
@@ -231,7 +200,13 @@ function prepareSimulationCommand(simulation::Simulation)
         path_to_intracellular_file = joinpath(locationPath(:intracellular, simulation), locationVariationsFolder(:intracellular), "intracellular_variation_$(simulation.variation_id[:intracellular]).xml")
         append!(flags, ["-n", path_to_intracellular_file])
     end
-    return Cmd(`$executable_str $config_str $flags`; env=ENV, dir=physicellDir())
+    #! `dir` only, deliberately no `env`. Setting `env` was a no-op locally -- a child inherits the
+    #! parent's environment anyway, including the `DYLD_LIBRARY_PATH`/`LD_LIBRARY_PATH` entry that
+    #! `compilation.jl` adds for libRoadrunner -- but the two are not equivalent everywhere:
+    #! Julia's `Cmd.env` *replaces* the environment while `sbatch --export` *extends* it, so a
+    #! command carrying an explicit env behaves one way locally and the opposite on a cluster.
+    #! ModelManager v0.9.0 refuses such a `Cmd` outright rather than run it divergently.
+    return Cmd(`$executable_str $config_str $flags`; dir=physicellDir())
 end
 
 """
@@ -251,7 +226,13 @@ belongs in [`postSimulationProcessing`](@ref), which runs before the callback.
 """
 function postSimulationCleanup(::PhysiCellSimulator, simulation_process::SimulationProcess;
                                    prune_options::PruneOptions=PruneOptions(), kwargs...)
-    if isnothing(simulation_process.process)
+    #! `cmd`, not `process`. The two coincided before v0.9.0, so this used to read `process`; now
+    #! `process === nothing` is also true for every SLURM job, whose work ran on a compute node and
+    #! left no local process object. Testing `process` would early-return for every simulation on a
+    #! cluster and silently skip everything below -- no pruning for a whole campaign, `output.err`
+    #! never cleaned or annotated, and nothing reported anywhere.
+    #! `isnothing(cmd)` means what `isnothing(process)` used to: nothing was ever launched.
+    if isnothing(simulation_process.cmd)
         return
     end
     simulation = simulation_process.simulation
@@ -263,13 +244,18 @@ function postSimulationCleanup(::PhysiCellSimulator, simulation_process::Simulat
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)
     else
         println("\nWARNING: Simulation $(simulation.id) failed. Please check $(path_to_err) for more information.\n")
-        #! On HPC, sbatch redirects the job's stderr to output.err too (see prepareHPCCommand),
-        #! but a submission failure (bad partition, malformed script, etc.) can mean the job
-        #! never ran and this file was never created.
+        #! On HPC, sbatch redirects the job's stderr to output.err too (ModelManager sets
+        #! `--output`/`--error`), but a submission failure (bad partition, malformed script, etc.)
+        #! can mean the job never ran and this file was never created.
         lines = isfile(path_to_err) ? readlines(path_to_err) :
                 ["(no output.err file was found — the job likely never ran)"]
         open(path_to_err, "w+") do io
-            println(io, "Execution command: $(p.cmd)")
+            #! `simulation_process.cmd`, not `p.cmd`: `p` is `nothing` for a SLURM job, so reaching
+            #! through it threw on any failed simulation with `run_on_hpc` set, inside a hook `run()`
+            #! treats as fail-fast -- one failed job took the campaign with it. It is also the better
+            #! line to print, being PhysiCell's own command on both paths where `p.cmd` on HPC gave
+            #! the whole `sbatch` wrapper.
+            println(io, "Execution command: $(simulation_process.cmd)")
             println(io, "\n---stderr from PhysiCell---")
             for line in lines
                 println(io, line)

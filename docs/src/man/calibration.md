@@ -152,21 +152,31 @@ lv = LatentVariation(
 
 ### Summary statistics
 
-A summary statistic is any function `(monad_id::Int) → Dict{String,<:Any}`.
-The three built-in statistics are described in [Built-in summary statistics](@ref builtin_ss).
-
-You can supply a custom function instead:
+A summary statistic measures **one simulation**; ModelManager combines a parameter set's replicates
+for you. Pass a [`QoI`](@ref ModelManager.QoI), a vector of them, or a plain function of a
+`Simulation`:
 
 ```julia
-function my_stat(monad_id::Int)
-    # load your own output files via the monad's simulation IDs
-    sim_ids = simulationIDs(Monad(monad_id))
-    # ... compute your statistic ...
-    return Dict("metric_a" => value_a, "metric_b" => value_b)
+function my_stat(sim::Simulation)
+    # ... measure this one simulation ...
+    return value
 end
 
 problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
 ```
+
+A plain function is averaged across replicates with `mean`; pass a `QoI` when you need a different
+reduction, or when the quantity must be computed *after* the replicates are combined rather than
+before.
+
+!!! warning "Changed in ModelManager 0.9"
+    Summary statistics used to be called once per **monad**, with an `Int` monad ID, and did their
+    own aggregation. Such a function now receives a `Simulation`. If it is untyped it will return a
+    different number rather than erroring, so annotate the argument `::Simulation` — ModelManager
+    warns when it is not declared. The three built-in statistics below remain monad-level and are no
+    longer valid `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss) instead.
+
+The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
 When using `mseDistance` with dicts, the keys of `observed_data` must be a subset of the keys returned by `summary_statistic`.
 
@@ -492,6 +502,38 @@ Returns a `Dict{String,Vector{Float64}}` mapping each cell type to a vector of m
 Useful when `observed_data` is a time series rather than a single endpoint value.
 
 For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict the output to specific cell types.
+
+### [QoI form](@id qoi_form_ss)
+
+Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same measurement can go to a `CalibrationProblem` or to the post-processing sink:
+
+```julia
+problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)
+```
+
+[`endpointPopulationFractionQoI`](@ref) and [`meanPopulationTimeSeriesQoI`](@ref) are the other two. Each yields a `Dict` keyed by cell type — the same shape as the monad-level statistic above — so `observed_data` does not change between them.
+
+Pass `cell_types` to restrict the measurement; omit it and every cell type present is measured, exactly as the monad-level functions do.
+
+```julia
+endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
+```
+
+From ModelManager 0.9.1 the two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
+[`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
+spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
+post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
+without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
+
+[`meanPopulationTimeSeriesQoI`](@ref) does **not**: its values are per-cell-type time series, and a
+`Vector` is deliberately not spread by index. See
+[One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
+
+!!! note "One QoI, one reducer"
+    [`populationCountQoI`](@ref) defines no `reduce`, so it stays a sink-only measurement: every
+    other consumer reduces across replicates, and the default `mean` cannot combine a vector of
+    `Dict`s. Use [`endpointPopulationCountQoI`](@ref), which measures the same thing and carries a
+    reducer.
 
 ## Built-in distance functions
 

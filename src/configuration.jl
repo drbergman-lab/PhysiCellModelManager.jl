@@ -87,17 +87,29 @@ makeXMLPath(x, xml_path::AbstractString) = makeXMLPath(x, [xml_path])
 """
     prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
 
-Return the path to the base XML file for `input_folder`.
-Handles `:rulesets_collection` specially; all other locations use the generic MM default.
+Return the path to the base XML file for `input_folder`, or `nothing` when there is no base file
+to prepare — either the location is unselected, or it declares no basename.
+
+Handles `:rulesets_collection` specially, generating `base_rulesets.xml` from the CSV when only the
+CSV is present; all other locations use the generic MM default.
 """
 function prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
+    #! `basename === missing` is the signal that there is no base file to prepare, and it covers
+    #! both cases: a location the user left unselected, and one that declares no basename at all
+    #! (`custom_code`). ModelManager guarantees the first -- its only inner `InputFolder`
+    #! constructor sets `basename = missing` whenever `folder` is empty, and the other two
+    #! constructors funnel into it -- so "unselected" and "basename names a real file" are mutually
+    #! exclusive states rather than something PCMM has to re-derive here.
+    #!
+    #! This test must come first. `:rulesets_collection` used to be checked ahead of it, so an
+    #! unselected rulesets folder never consulted `basename` at all: it went looking for
+    #! `base_rulesets.csv` under a path with no folder component and tripped an assertion inside
+    #! PhysiCellXMLRules that named neither the location nor the folder.
+    ismissing(input_folder.basename) && return nothing
     if input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)
-    elseif ismissing(input_folder.basename)
-        return nothing
-    else
-        return joinpath(locationPath(input_folder), input_folder.basename)
     end
+    return joinpath(locationPath(input_folder), input_folder.basename)
 end
 
 """
@@ -111,6 +123,9 @@ function prepareBaseRulesetsCollectionFile(input_folder::InputFolder)
     path_to_base_xml = joinpath(path_to_rulesets_collection_folder, "base_rulesets.xml")
     if !isfile(path_to_base_xml)
         #! this could happen if the rules are not being varied (so no call to addRulesetsVariationsColumns) and then a sim runs without the base_rulesets.xml being created yet
+        #! No need to check that the .csv exists first: `basename` for this location is the vector
+        #! ["base_rulesets.csv", "base_rulesets.xml"], so `InputFolder` has already refused a
+        #! selected folder containing neither, and we reach here only when the .xml is the absent one.
         writeXMLRules(path_to_base_xml, joinpath(path_to_rulesets_collection_folder, "base_rulesets.csv"))
     end
     return path_to_base_xml
@@ -300,8 +315,45 @@ function configPath(tokens::Vararg{Union{AbstractString,Integer}})
         elseif token2 ∈ ["adhesion", "adhesion_affinity", "adhesion_affinities", "cell_adhesion", "cell_adhesion_affinity", "cell_adhesion_affinities"]
             return mechanicsPath(token1, "cell_adhesion_affinities", "cell_adhesion_affinity:name:$(token3)")
         elseif token2 == "motility"
-            return motilityPath(token1, "options", token3)
+            #! `<motility>` holds three scalars of its own -- speed, persistence_time,
+            #! migration_bias -- alongside an `<options>` subtree for enabled/use_2D/chemotaxis.
+            #! This branch used to send every third token through `<options>`, so
+            #! `configPath("default", "motility", "speed")` resolved to `motility/options/speed`,
+            #! which does not exist. The two-token spelling, `configPath("default", "speed")`, was
+            #! unaffected, which is why this went unnoticed.
+            if token3 ∈ ["speed", "persistence_time", "migration_bias"]
+                return motilityPath(token1, token3)
+            elseif token3 ∈ ["enabled", "use_2D"]
+                return motilityPath(token1, "options", token3)
+            end
+            #! Both tag sets are closed, so anything else is rejected by name here rather than
+            #! resolved into a plausible path that fails later inside the XML layer. `configPath`
+            #! invites guessing, so a guess it cannot honour has to say so.
+            throw(ArgumentError("""
+            Unrecognized third token for "motility" in configPath: $(token3)
+            Possible third tokens are:
+            - "speed", "persistence_time", "migration_bias" (children of <motility>)
+            - "enabled", "use_2D" (children of <motility><options>)
+
+            For chemotaxis, use the dedicated spellings:
+              configPath(<cell_type>, "chemotaxis", <parameter>)
+              configPath(<cell_type>, "advanced_chemotaxis", <parameter>)
+
+            See `motilityPath`.
+            """))
         elseif token2 == "chemotaxis"
+            #! Closed tag set, rejected by name for the same reason as "motility" above.
+            if token3 ∉ ["enabled", "substrate", "direction"]
+                throw(ArgumentError("""
+                Unrecognized third token for "chemotaxis" in configPath: $(token3)
+                Possible third tokens are: "enabled", "substrate", "direction".
+
+                For the per-substrate sensitivities, use:
+                  configPath(<cell_type>, "advanced_chemotaxis", <substrate_name>)
+
+                See `motilityPath`.
+                """))
+            end
             return motilityPath(token1, "options", "chemotaxis", token3)
         elseif contains(token2, "chemotaxis") && contains(token2, "advanced")
             if token3 ∈ ["enabled", "normalize_each_gradient"]

@@ -8,6 +8,6 @@ Core functionality for PhysiCellModelManager.jl.
 
 ```@autodocs
 Modules = [PhysiCellModelManager]
-Pages = ["PhysiCellModelManager.jl"]
+Pages = ["PhysiCellModelManager.jl", "exceptions.jl"]
 Private = false
 ```

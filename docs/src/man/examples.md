@@ -97,7 +97,7 @@ result  = runABC(problem)
 Pass a `post_processor` to `run` to compute and store per-simulation quantities while output is still intact, instead of loading everything again afterward. → [Analyzing output](@ref analyzing_output_man)
 
 ```julia
-run(sampling; post_processor = populationCountQoI())   # one count_<cell_type> quantity per cell type
+run(sampling; post_processor = populationCountQoI())   # one population_count.<cell_type> column per cell type
 postProcessingTable(sampling)                          # read the stored quantities back
 ```
 

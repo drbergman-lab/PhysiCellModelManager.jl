@@ -18,6 +18,7 @@ const SobolPCMM = SobolMM
 export SobolPCMM
 
 #! PhysiCell-specific files only — generic infrastructure is now in ModelManager
+include("exceptions.jl")
 include("physicell_simulator.jl")
 include("utilities.jl")
 include("globals.jl")              # centralDBFileName(), physicellDir()
@@ -48,18 +49,6 @@ include("movie.jl")
 
 include("physicell_studio.jl")
 include("export.jl")
-
-"""
-    PCMMMissingProject
-
-An exception type for when a PhysiCellModelManager.jl project cannot be found during initialization.
-
-# Fields
-- `msg::String`: The error message.
-"""
-struct PCMMMissingProject <: Exception
-    msg::String
-end
 
 """
     _pcmmGlobalsRegistered()

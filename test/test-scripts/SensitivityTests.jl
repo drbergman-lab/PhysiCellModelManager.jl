@@ -61,6 +61,27 @@ PhysiCellModelManager.calculateGSA!(moat_sampling, gs_fn)
 PhysiCellModelManager.calculateGSA!(sobol_sampling, gs_fn)
 PhysiCellModelManager.calculateGSA!(rbd_sampling, gs_fn)
 
+#! ModelManager 0.9.1 spreads a `Dict`-valued measurement into one analysis per key, labelled
+#! `"<qoi name>.<key>"`. That is what lets a single PCMM builder cover every cell type: the types are
+#! read from the simulation's own output, so they cannot be named when the analysis is written.
+#! Evaluated over the design already run above rather than a fresh one -- `calculateGSA!` needs no
+#! new simulations.
+PhysiCellModelManager.calculateGSA!(moat_sampling, endpointPopulationCountQoI())
+gsa_labels = PhysiCellModelManager.ModelManager.gsaLabels(moat_sampling)
+@test filter(l -> startswith(l, "endpoint_population_count"), gsa_labels) ==
+      ["endpoint_population_count.$(cell_type)"]
+#! A spread key gets a full analysis, not a stub: the same result type the scalar measurement
+#! produces. Compared against the scalar's rather than asserted outright, because what lands in
+#! `results` depends on the method -- MOAT stores a `MorrisResult`, not the plain vector `RBDSampling`
+#! declares.
+@test typeof(moat_sampling.results["endpoint_population_count.$(cell_type)"]) ==
+      typeof(moat_sampling.results["gs_fn"])
+
+#! The boundary, and it is not one shape: a `Vector` is deliberately not spread by index, because
+#! only its length can be checked across the design and equal length is not equal meaning. So a
+#! per-cell-type time series is refused rather than silently misaligned.
+@test_throws ArgumentError PhysiCellModelManager.calculateGSA!(moat_sampling, meanPopulationTimeSeriesQoI())
+
 # test sensitivity with config, rules, ic_cells, and ic_ecm at once
 config_folder = "template-ecm"
 rulesets_collection_folder = "0_template"

@@ -445,6 +445,75 @@ the sink never calls `reduce`.
 The tests probed the returned closure by calling it directly, so they now go through `compute`.
 
 
+### ModelManager 0.9.1: a keyed measurement reaches sensitivity analysis
+Stacked on the branch above. Written first against the *premise* that ModelManager would spread a
+`Dict`-valued measurement (issue #48), then rewritten against what actually shipped in 0.9.1
+(ModelManager PRs #49 and #50).
+
+**The premise version was deliberately thin, and correctly so.** Only two statements survived every
+answer to #48's three open questions — key-set consistency, naming, and whether vector *values*
+spread — so only those were written: the `[compat]` bound and an inverted admonition scoped to the
+two endpoint builders. The bound is `"0.9.1"`, not `"0.9"`, checked against `Pkg.Types.semver_spec`:
+`"0.9"` resolves to `[0.9.0, 0.10.0)` and would let a project resolve 0.9.0 while these docs promise
+behaviour it does not have. No version bump — 0.4.0 is not yet tagged, so this folds into it. Surveying what else *might* be written turned up mostly corrections to the
+base branch, which landed there rather than here.
+
+**What 0.9.1 settled, and what each answer bought:**
+
+- *Naming* is `"<qoi name>.<key>"`, and `GSASampling.results` is keyed by that label rather than by
+  the measurement object. So the retrieval example and the test held back for want of an answer are
+  both writable: `endpointPopulationCountQoI()` yields `endpoint_population_count.<cell_type>`.
+  `gsaLabels` lists them; it is public in ModelManager but not exported, and PCMM's
+  `@reexport using ModelManager` only forwards exports, so it needs the `ModelManager.` prefix.
+- *Vectors are not spread by index* — equal length is not equal meaning. That makes
+  `meanPopulationTimeSeriesQoI` definitively GSA-incompatible: its `Dict` clears the key check and
+  is then refused per label, since a `Vector` is not a `Real`. The PRD open question became a
+  statement.
+- *Key sets must match across the design*, with no fill. PCMM satisfies this by construction, for a
+  reason worth recording because the opposite choice would have been easy to make: `populationCount`
+  keys off `cellTypeToNameDict` of the **initial** snapshot — the roster the model *defines* — not
+  the types observed alive. A cell type driven extinct by some parameter set therefore still reports
+  zero rather than dropping its key. Had it keyed off observed cells, every GSA sweep that kills a
+  population would hit the refusal.
+
+**Two breaking changes #48 never mentioned, both of which land here.**
+
+- *Sink columns are namespaced.* A spread column is `"<qoi name>.<key>"`, so `populationCountQoI`'s
+  became `population_count.count_<cell_type>` — double-named. The `count_` prefix existed only
+  because the old sink was one flat namespace and a prefix was the sole thing keeping two QoIs'
+  "tumor" apart; 0.9.1 does that job. So the prefix is gone and the key is the bare cell type.
+  This renames a stored column either way, which is why it rides along with the compat bump rather
+  than waiting: one break, not two.
+
+  **No `up.jl` milestone**, and the CLAUDE.md rule about reflecting database breaks there does not
+  reach this: `postprocessing.db` is ModelManager's sink, not PCMM's schema — neither `up.jl` nor
+  `database.jl` mentions it. A migration also could not be written correctly. Renaming
+  `count_<x>` to `population_count.<x>` would have to guess which columns this builder wrote, and
+  a user's own `QoI("count_foo", …)` is indistinguishable from them. ModelManager declined a
+  milestone for the identical change on its side for the same reason. What actually happens to a
+  v0.3.3 project is a split rather than a loss: the sink adds columns on demand, so old rows keep
+  the old columns and new rows fill the new ones. `post_processing.md` says so, since the symptom
+  otherwise looks like data going missing.
+- *An anonymous `post_processor` that stores anything is refused*, since its derived `anon_9` would
+  prefix every column and change between sessions. Two examples in `post_processing.md` — including
+  the page's first — were exactly that shape and now throw; both are wrapped in a named `QoI`. The
+  `function (sim) … return nothing end` examples are untouched: the guard sits after the
+  `isnothing` skip, so a callback that stores nothing has nothing to name.
+
+**Two fixes PCMM inherits without changing a line.** ModelManager's GSA plot recipes threw a
+`MethodError` on a `QoI` — `_gsaFunctionLabel` had only a `::Function` method — and it went unnoticed
+because the sole unguarded call was `sort(...; by=…)`, which never invokes `by` on a one-element
+vector. So a PCMM user plotting a single-measurement analysis was fine and a two-measurement one
+threw. PCMM defines no GSA recipes of its own, so this arrives purely by re-export.
+
+**No PCMM impact from ModelManager #50**, the stacked refactor that merged QoI evaluation into
+`qoi.jl`. Every name it moves is underscore-prefixed, and PCMM calls no ModelManager internal — the
+only `ModelManager._` string in this repo is the comment in `CalibrationTests.jl` recording the #46
+rename that broke a test here, which is deliberately prose and not a call. PCMM gets one silent fix
+from it: sensitivity analysis now shares calibration's `_reduceOverMonad`, and so inherits its
+empty-monad guard and batch loading instead of an N+1 query with neither.
+
+
 ### Open questions
 - **PhysiPKPD inputs (item 6).** Deferred deliberately. Needs a design brief covering how dosing
   schedules are represented, where they live under `inputs/`, and how they are varied.

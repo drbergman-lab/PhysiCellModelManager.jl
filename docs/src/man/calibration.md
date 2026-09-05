@@ -519,10 +519,21 @@ Pass `cell_types` to restrict the measurement; omit it and every cell type prese
 endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
 ```
 
-!!! note "Sensitivity analysis needs a scalar"
-    `run(::GSAMethod, ...; functions=)` requires each measurement to reduce to a `Real`, so these
-    `Dict`-valued builders do not suit it. Name the one quantity you want instead:
-    `QoI("cancer", sim -> finalPopulationCount(sim)["cancer"])`.
+From ModelManager 0.9.1 the two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
+[`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
+spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
+post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
+without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
+
+[`meanPopulationTimeSeriesQoI`](@ref) does **not**: its values are per-cell-type time series, and a
+`Vector` is deliberately not spread by index. See
+[One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
+
+!!! note "One QoI, one reducer"
+    [`populationCountQoI`](@ref) defines no `reduce`, so it stays a sink-only measurement: every
+    other consumer reduces across replicates, and the default `mean` cannot combine a vector of
+    `Dict`s. Use [`endpointPopulationCountQoI`](@ref), which measures the same thing and carries a
+    reducer.
 
 ## Built-in distance functions
 

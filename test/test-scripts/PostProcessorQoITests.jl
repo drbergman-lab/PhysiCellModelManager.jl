@@ -24,17 +24,18 @@ qoi_sim = Simulation(qoi_sim_id)
 
 #! `populationCountQoI` returns a `QoI` now, so its measurement is reached through `compute`. It is
 #! one QoI covering every cell type: the types come from the simulation's own output, so they are not
-#! known at construction, and ModelManager expands a `Dict` return into one sink column per key.
+#! known at construction, and ModelManager expands a `Dict` return into one sink column per key,
+#! named `"<qoi name>.<key>"` since 0.9.1. The keys here are therefore bare cell type names.
 @test populationCountQoI() isa QoI
 @test populationCountQoI().name == "population_count"
 measure(q) = q.compute(qoi_sim)
 
 #! default (:final) matches finalPopulationCount
-@test measure(populationCountQoI()) == Dict("count_$(k)" => v for (k, v) in finalPopulationCount(qoi_sim_id))
+@test measure(populationCountQoI()) == finalPopulationCount(qoi_sim_id)
 
 #! integer index matches populationCount at that snapshot
 snapshot0 = PhysiCellSnapshot(qoi_sim_id, 0; include_cells=true)
-@test measure(populationCountQoI(; index=0)) == Dict("count_$(k)" => v for (k, v) in populationCount(snapshot0))
+@test measure(populationCountQoI(; index=0)) == populationCount(snapshot0)
 
 #! cell_types filter
 @test measure(populationCountQoI(; cell_types=["default"])) == measure(populationCountQoI())
@@ -54,7 +55,11 @@ qoi_sim_id2 = PhysiCellModelManager.trialID(qoi_out2)
 df = postProcessingTable(qoi_out2.trial)
 @test size(df, 1) == 1
 @test df.SimID[1] == qoi_sim_id2
+#! The sink namespaces a spread column by the QoI that wrote it, so the column is
+#! `population_count.<cell_type>` -- not the bare key, and not the `count_` prefix the builder
+#! carried before ModelManager 0.9.1 supplied a namespace of its own.
 expected2 = finalPopulationCount(qoi_sim_id2)
 for (cell_type, count) in expected2
-    @test df[1, "count_$(cell_type)"] == count
+    @test df[1, "population_count.$(cell_type)"] == count
 end
+@test !("count_default" in names(df))

@@ -87,7 +87,8 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [x] Fixed: `plotbycelltype` divided by the full replicate count while filling only the replicates that loaded, so plotting a monad with a pruned replicate understated every curve
 - [x] Sensitivity analysis — MOAT, Sobol, and RBD
 - [x] Calibration — PhysiCell-specific summary statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for use with ModelManager's `CalibrationProblem`; ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
-  - [x] Single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) so the same quantity reaches the post-processing sink and not just `CalibrationProblem`; asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
+  - [x] Single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) so the same quantity reaches the post-processing sink, not just `CalibrationProblem`; asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
+    - [x] The **two endpoint** builders also reach sensitivity analysis from ModelManager 0.9.1, which spreads a `Dict` into one analysis per key labelled `<qoi name>.<key>`. `meanPopulationTimeSeriesQoI` does not: its values are vectors, and a `Vector` is deliberately not spread by index
   - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
   - [ ] Bayesian optimization
   - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
@@ -95,7 +96,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
   - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix currently `0.1.7` (real users' oldest version; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`.
 - [x] Export and pruning of simulation outputs
 - [x] Post-processing hook (`post_processor`) — user callback runs on intact simulation output before PCMM's destructive cleanup (`postSimulationCleanup`); results stored via ModelManager's QoI sink (`postProcessingTable`, `simulationsTable(...; post_processing=true)`)
-  - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save. Returns a real `QoI`: one covering every cell type, since the types are read from the simulation's own output and ModelManager expands a `Dict` return into one sink column per key
+  - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save. Returns a real `QoI`: one covering every cell type, since the types are read from the simulation's own output and ModelManager expands a `Dict` return into one sink column per key, named `population_count.<cell_type>` from ModelManager 0.9.1
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management
 - [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments

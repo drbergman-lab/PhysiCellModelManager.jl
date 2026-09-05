@@ -25,13 +25,17 @@ spec = PhysiCellModelManager.ModelManager.SimulationSpec(simulation, monad.id)
 @test isnothing(cmd_local.env)
 @test cmd_local.dir == PhysiCellModelManager.physicellDir()
 
-# gh actions runners are not expected to have `sbatch` installed, so the submission fails here
-simulation_process = PhysiCellModelManager.ModelManager.runSimulation(PhysiCellModelManager.simulator(), spec)
-@test isnothing(simulation_process.process)
-@test !simulation_process.success
-#! ...but a command *was* built, which is what `cmd` records and what distinguishes this from a
-#! simulation that never launched at all.
-@test !isnothing(simulation_process.cmd)
+# gh actions runners are not expected to have `sbatch` installed. Since ModelManager 0.10 a
+# submission `sbatch` refuses -- including `sbatch` not being invocable at all -- is not a failed
+# simulation: no job ran, so nothing is recorded against the simulation and `run` fails fast with
+# the scheduler's message instead. A direct caller of `runSimulation` sees the exception itself.
+@test_throws PhysiCellModelManager.ModelManager._SubmissionRefused PhysiCellModelManager.ModelManager.runSimulation(PhysiCellModelManager.simulator(), spec)
+
+#! PhysiCell reads its OpenMP thread count from the config, so PCMM asks SLURM for that many CPUs
+#! per job by default; the test config sets 6. Installed at initialization, resolved per simulation,
+#! and only when the user has not set `cpus-per-task` themselves (checked below).
+@test PhysiCellModelManager.mm_globals().sbatch_options["cpus-per-task"](simulation.id) == 6
+@test PhysiCellModelManager._ompNumThreads(simulation.id) == 6
 
 # test postSimulationCleanup does not crash on a failed process whose output.err was never
 # created (e.g. an sbatch submission failure on HPC before the job ever ran and redirected
@@ -107,5 +111,10 @@ PhysiCellModelManager.setJobOptions(new_hpc_options)
 #! (These were `@assert`, which does not register as a test failure at all.)
 @test PhysiCellModelManager.mm_globals().sbatch_options["cpus-per-task"] == "2"
 @test PhysiCellModelManager.mm_globals().sbatch_options["job-name"](78) == "test_78"
+#! Re-initializing does not clobber a user's own `cpus-per-task`.
+PhysiCellModelManager._installDefaultJobOptions()
+@test PhysiCellModelManager.mm_globals().sbatch_options["cpus-per-task"] == "2"
+#! ModelManager's reserved keys are refused at set time.
+@test_throws ArgumentError PhysiCellModelManager.setJobOptions(Dict("wrap" => "echo"))
 
 deleteSimulationsByStatus("Failed"; user_check=false)

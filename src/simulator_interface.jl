@@ -267,6 +267,45 @@ function postSimulationCleanup(::PhysiCellSimulator, simulation_process::Simulat
     return
 end
 
+########################################################
+############   SLURM defaults PhysiCell needs   ########
+########################################################
+
+"""
+    _ompNumThreads(simulation_id::Int) -> Int
+
+The OpenMP thread count PhysiCell will use for this simulation: `parallel/omp_num_threads` from its
+config, read through the variation record so a varied thread count is honoured. Falls back to 1,
+with one warning, if the element cannot be read.
+"""
+function _ompNumThreads(simulation_id::Int)
+    try
+        v = getParameterValue(Simulation(simulation_id), XMLPath(["parallel", "omp_num_threads"]))
+        return max(1, round(Int, v))
+    catch e
+        @warn "Could not read parallel/omp_num_threads for simulation $(simulation_id); requesting \
+               one CPU for its job." exception=(e, catch_backtrace()) maxlog=1
+        return 1
+    end
+end
+
+"""
+    _installDefaultJobOptions()
+
+Add the SLURM job option PhysiCell needs and ModelManager cannot know about, without overriding
+anything already set: `cpus-per-task` follows each simulation's own `omp_num_threads`.
+
+PhysiCell calls `omp_set_num_threads` with the value from its config, so it starts that many
+threads whatever SLURM allocated; SLURM allocates one CPU unless asked. Left alone, every job
+time-slices its threads on a single core and finishes several times slower than it should, with
+nothing in any log to say why. Called by [`initializeModelManager`](@ref) once the project is up.
+"""
+function _installDefaultJobOptions()
+    haskey(mm_globals().sbatch_options, "cpus-per-task") ||
+        setJobOptions(Dict{String,Any}("cpus-per-task" => _ompNumThreads))
+    return
+end
+
 function shortLocationVariationID(::PhysiCellSimulator, fieldname::Symbol)
     if fieldname == :config
         return :ConfigVarID

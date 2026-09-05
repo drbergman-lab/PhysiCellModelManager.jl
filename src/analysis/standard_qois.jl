@@ -151,9 +151,14 @@ end
 # about whether an absent cell type is zero-filled and about summation order. The tests still assert
 # `==` between them.
 #
-# The cost of one Dict over a QoI per cell type: sensitivity analysis needs a `Real` from `reduce`,
-# so these are for calibration and the sink. For GSA on one quantity, name it directly —
-# `QoI("tumor", sim -> finalPopulationCount(sim)["tumor"])`.
+# The one Dict used to cost something: sensitivity analysis wanted a `Real` from `reduce`, so these
+# reached calibration and the sink but not `functions=`. ModelManager 0.9.1 spreads a keyed reduce
+# into one analysis per key -- labelled `"<qoi name>.<key>"`, the same reading the sink gives it --
+# so the two endpoint builders now serve all three consumers with no per-cell-type rewrite.
+#
+# `meanPopulationTimeSeriesQoI` still does not: its values are `Vector`s, and a `Vector` is
+# deliberately not spread by index, because only length can be checked across a design and equal
+# length is not equal meaning. Reduce a series to a scalar to ask a sensitivity question about it.
 
 """
     _reduceKept(combine)

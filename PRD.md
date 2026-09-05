@@ -263,7 +263,8 @@
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
 - Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. A single QoI's value is passed through unwrapped by ModelManager, which is what keeps that dict flat for `mseDistance`.
 - `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
-- From ModelManager 0.9.1, sensitivity analysis spreads a `Dict`-valued measurement into one analysis per key, so the two endpoint builders serve all three consumers. `populationCountQoI` remains sink-only: it defines no `reduce`, and the default `mean` cannot combine a vector of `Dict`s.
+- From ModelManager 0.9.1, sensitivity analysis spreads a `Dict`-valued measurement into one analysis per key, labelled `<qoi name>.<key>` and retrieved from `results` by that label (`gsaLabels` lists them). So `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` serve all three consumers. Two builders do not: `meanPopulationTimeSeriesQoI`, because a `Vector` is deliberately not spread by index (equal length is not equal meaning), and `populationCountQoI`, because it defines no `reduce` and the default `mean` cannot combine a vector of `Dict`s.
+- Sensitivity analysis requires every parameter set in a design to reduce to the *same* keys. PCMM's builders satisfy this by construction: cell types come from `cellTypeToNameDict` on the initial snapshot — the roster the model *defines* — so a type driven extinct by some parameter set still reports zero rather than dropping its key.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
 **Acceptance criteria:**
@@ -373,25 +374,27 @@
 
 **Priority:** Must-have (hook ordering guarantee); Should-have (ready-made QoI builders — implemented).
 
-**Background:** ModelManager (0.7.x) runs three per-simulation post steps in order:
+**Background:** ModelManager runs three per-simulation post steps in order:
 `postSimulationProcessing` (non-destructive) → user `post_processor` (successful sims only) → `postSimulationCleanup` (destructive). PCMM implements the destructive step (err-file handling + `pruneSimulationOutput`) as `postSimulationCleanup` so a `post_processor` always reads an un-pruned output folder. `postSimulationProcessing` is left as ModelManager's no-op default.
 
 **Behavioral specification:**
-- `run(T; post_processor = sp -> …)` calls the callback once per successful simulation, after the simulation finishes and before pruning.
-- The callback receives a `SimulationProcess`; use accessors `simulationID`, `monadID`, `wasSuccessful`, `pathToOutputFolder(sp)` (not `sp.simulation.id`).
-- Return patterns: `nothing` (side effects only — must be explicit), a `NamedTuple`, or a `Dict` of `name => scalar` (`Real`/`Bool`/`String`). Non-scalar returns throw `ArgumentError` (ModelManager-side).
+- `run(T; post_processor = f)` calls the callback once per successful simulation, after the simulation finishes and before pruning.
+- The callback receives a `Simulation` — the same argument a `QoI`'s `compute` gets, since ModelManager 0.9 made one contract of every measurement function. Most loader and analysis functions take it directly; `simulationID(sim)` and `pathToOutputFolder(sim)` give the ID and the folder.
+- Return patterns: `nothing` (side effects only — must be explicit), a bare scalar (`Real`/`Bool`/`String`, stored under the QoI's own name), or a `NamedTuple`/`Dict` of `name => scalar`. Non-scalar returns throw `ArgumentError` (ModelManager-side).
+- From ModelManager 0.9.1 a spread return writes one column per key named `<qoi name>.<key>`, and a callback that stores anything must therefore carry a stable name — an anonymous `sim -> …` is refused, since its derived name varies between sessions. Wrap it in a `QoI` or pass a named function; a callback returning `nothing` is unaffected.
 - Stored QoIs land in `data/outputs/postprocessing.db`; read back with `postProcessingTable(T)` or `simulationsTable(T; post_processing=true)`.
-- **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a ready-made `post_processor` recording one `count_<cell_type>` quantity per cell type, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index).
+- **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a ready-made `post_processor` recording one `population_count.<cell_type>` column per cell type, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index). The key is the bare cell type: ModelManager 0.9.1 supplies the namespace, so the `count_` prefix the builder used to carry would only produce `population_count.count_<cell_type>`.
 
 **Acceptance criteria:**
-- A `post_processor` reading `pathToOutputFolder(sp)` sees output files present; those files are pruned only after it returns.
+- A `post_processor` reading `pathToOutputFolder(sim)` sees output files present; those files are pruned only after it returns.
 - A run without `post_processor` prunes exactly as before (no regression).
 - `postSimulationCleanup` runs for every completed simulation, including failures.
-- `populationCountQoI()` matches `finalPopulationCount` at the default `:final` index and `populationCount` at any integer index; an optional `cell_types` filter restricts which cell types are recorded.
+- `populationCountQoI()` matches `finalPopulationCount` at the default `:final` index and `populationCount` at any integer index; an optional `cell_types` filter restricts which cell types are recorded. Its sink columns are `population_count.<cell_type>`.
 
 **Edge cases:**
 - Callback on a failed simulation → not called (successful sims only); cleanup still runs.
 - Callback returns a non-scalar → `ArgumentError`.
+- Anonymous callback returns something storable → `ArgumentError` (ModelManager 0.9.1), because every column is named after its QoI and a derived name is not stable across sessions. Returning `nothing` is unaffected.
 - Un-updated PCMM against reordered ModelManager → still prunes, but in the earlier hook, so a `post_processor` would see already-pruned output. Task A removes this gap.
 - `populationCountQoI`'s requested snapshot doesn't exist (e.g. pruned) → returns `nothing` for that simulation instead of throwing.
 
@@ -494,8 +497,7 @@
 ### Open Questions
 1. **Model Manager Studio scope:** The PCMM GUI companion (Model Manager Studio) is partially implemented. Which PCMM features should be accessible through it, and in what release phase?
 2. **Windows CI validation:** Windows support is targeted but not yet validated in CI. Build environment and compiler chain need to be confirmed.
-3. **Vector-valued QoIs in sensitivity analysis:** ModelManager 0.9.1 spreads a `Dict`-valued measurement into one analysis per key, which covers the two endpoint builders. Whether it also spreads a `Dict` whose *values* are vectors — the shape `meanPopulationTimeSeriesQoI` produces — was left open on ModelManager issue #48. Until that settles, a time series reaches sensitivity analysis only by reducing it to a scalar first.
-4. **PhysiPKPD inputs:** PhysiPKPD is not yet representable as a PCMM input location. Needs a design covering how dosing schedules are described, where they live under `inputs/`, and how they participate in parameter variation.
+3. **PhysiPKPD inputs:** PhysiPKPD is not yet representable as a PCMM input location. Needs a design covering how dosing schedules are described, where they live under `inputs/`, and how they participate in parameter variation.
 
 ### Assumptions
 1. PhysiCell is the only supported ABM framework in this release; generalization is deferred to v2.

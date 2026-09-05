@@ -96,6 +96,34 @@ So, if you want to know the sensitivity of the final population count of cell ty
 f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 ```
 
+### [One measurement, one analysis per cell type](@id gsa_keyed_qoi)
+Naming a cell type up front means one function per cell type. From ModelManager 0.9.1 you can pass a
+[`QoI`](@ref ModelManager.QoI) whose `reduce` returns a `Dict` instead, and each key becomes its own
+sensitivity analysis labelled `"<qoi name>.<key>"`. The ready-made builders do this already:
+
+```julia
+run(method, inputs, evs; n_replicates=n_replicates, functions=[endpointPopulationCountQoI()])
+```
+
+That yields `endpoint_population_count.cancer`, `endpoint_population_count.immune`, and one more for
+every other cell type — without naming any of them in advance, since they are read from the
+simulation's own output.
+[`endpointPopulationFractionQoI`](@ref) works the same way.
+
+!!! note "Two shapes that are not spread"
+    A `Vector` return is **not** spread by index: only its length can be checked across the design,
+    and equal length is not equal meaning. That rules out
+    [`meanPopulationTimeSeriesQoI`](@ref), whose values are per-cell-type time series — reduce a
+    series to a scalar (a final or mean value) to ask a sensitivity question about it.
+    [`populationCountQoI`](@ref) is also out, for a different reason: it defines no `reduce`, so it
+    is for the [post-processing sink](@ref post_processing_man) only.
+
+Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
+filled in, because a sensitivity index computed over a missing value is wrong rather than
+approximate. PCMM's builders satisfy this by construction — cell types are read from each
+simulation's initial snapshot, which lists the types the model *defines*, so a type driven extinct
+by some parameter set still reports a count of zero rather than dropping its key.
+
 ## Running the analysis
 Putting it all together, you can run this analysis:
 ```julia
@@ -119,12 +147,16 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 ## Post-processing
 The object `sensitivity_sampling` is of type [`GSASampling`](@ref PhysiCellModelManager.ModelManager.GSASampling), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
-f = (sim::Simulation) -> finalPopulationCount(sim)["default"] # count the final population of cell type "default"
+f(sim::Simulation) = finalPopulationCount(sim)["default"] # count the final population of cell type "default"
 calculateGSA!(sensitivity_sampling, f)
 ```
-These results are stored in a `Dict` in the `sensitivity_sampling` object:
+These results are stored in a `Dict` in the `sensitivity_sampling` object, keyed by the label of the
+measurement that produced them — a measurement's own name, or `"<name>.<key>"` for each key of a
+`Dict`-valued one. [`gsaLabels`](@ref ModelManager.gsaLabels) lists what is there — it is public in
+ModelManager but not exported, so it needs the prefix:
 ```julia
-println(sensitivity_sampling.results[f])
+ModelManager.gsaLabels(sensitivity_sampling)   # e.g. ["endpoint_population_count.cancer", "f"]
+println(sensitivity_sampling.results["f"])
 ```
 
 The exact concrete type of `sensitivity_sampling` will depend on the `method` used.

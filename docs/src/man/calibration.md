@@ -522,7 +522,9 @@ endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
 From ModelManager 0.9.1 these also work with `run(::GSAMethod, ...; functions=)`, which spreads a
 `Dict`-valued measurement into one sensitivity analysis per key — the same reading the
 post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
-without naming them in advance.
+without naming them in advance, labelled `endpoint_population_count.<cell_type>`. See
+[One measurement, one analysis per cell type](@ref gsa_keyed_qoi) for what is and is not
+spread; [`meanPopulationTimeSeriesQoI`](@ref) is not, since its values are vectors.
 
 !!! note "One QoI, one reducer"
     [`populationCountQoI`](@ref) defines no `reduce`, so it stays a sink-only measurement: every

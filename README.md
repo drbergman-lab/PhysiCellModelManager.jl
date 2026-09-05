@@ -103,7 +103,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
 - [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; both launch failure modes (interpreter not spawnable, Studio exiting non-zero) raise `PCMMStudioLaunchError`
 - [x] Typed exceptions — every PCMM-specific failure subtypes `PCMMException`, so a GUI consumer can catch the family or a concrete type
-- [x] ModelManager 0.9 compatibility — `packageName` removed, `getInstalledVersion` in place of `getPackageVersion`, and `rm_hpc_safe`'s new `:removed`/`:staged` contract reflected in the test suite
+- [x] ModelManager 0.9 compatibility — `packageName` removed, `getInstalledVersion` in place of `getPackageVersion`, and `rm_hpc_safe`'s new `:removed`/`:staged`/`:unremoved` contract reflected in the test suite
 
 ### Remaining
 

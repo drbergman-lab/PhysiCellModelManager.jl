@@ -124,10 +124,10 @@
 
 **Behavioral specification:**
 - `DiscreteVariation(xml_path, values)` — explicit list of values for one parameter.
-- `GridVariation([dv1, dv2, ...])` — full Cartesian product of multiple `DiscreteVariation`s.
+- `GridVariation()` — a method singleton, passed as the *leading* argument to `createTrial`/`run` to take the full Cartesian product of the variations that follow. It is the default, so it is usually omitted.
 - `LHSVariation`, `SobolVariation`, `RBDVariation` — space-filling designs over continuous ranges.
 - `DistributedVariation` — sample from a probability distribution.
-- `LatentVariation` — parameterize multiple XML paths through a single latent scalar.
+- `LatentVariation` — parameterize one or more XML paths through one or more latent parameters (each a value vector or a distribution) via user-supplied maps.
 - `CoVariation` — link multiple parameters so they vary together.
 - Variation objects accept an optional `name` field for user-defined display names in parameter DataFrames and sensitivity scheme outputs.
 - If `name` is omitted, defaults follow `shortVariationName` conventions based on location + target XML path.
@@ -154,11 +154,11 @@
 - `run(inputs; n_replicates=1)` runs a single parameter point with replication.
 - `run(inputs, variation; n_replicates=N)` sweeps over all variation points.
 - Local execution: spawns PhysiCell subprocesses, up to `n_parallel` at a time.
-- HPC execution: generates job scripts and submits via `sbatch` (Slurm); PBS/`qsub` support is deferred to Phase 3.
+- HPC execution: PCMM supplies the simulation command via `simulationCommand`; ModelManager submits it (`sbatch --wrap`, no script file is written) and detects completion with a filesystem sentinel. PBS/`qsub` support is deferred — see the `-march` to-do in CLAUDE.md.
 - Returns a `Trial` (or `Sampling`/`Monad`) object referencing database IDs.
 
 **Acceptance criteria:**
-- Completed simulations write output to `outputs/<simulation_id>/`.
+- Completed simulations write PhysiCell output to the folder `pathToOutputFolder` returns — `data/outputs/simulations/<simulation_id>/output/` — with `output.log`/`output.err` beside it in the simulation folder. Use the accessor rather than the literal path; the layout is ModelManager's.
 - Database records each simulation with status (queued / running / completed / failed).
 - Rerunning an already-completed simulation with identical inputs is a no-op.
 - The compiled executable is named for the PhysiCell version it was built against (`pcmm_build/project_<physicell-version>` inside the custom code folder), and its presence is the only record that a build for that version succeeded. Recompilation happens when that file is absent, when the required macros differ from those recorded by the last successful compilation, or when the PhysiCell version cannot be pinned down (a dirty or downloaded PhysiCell).
@@ -167,7 +167,7 @@
 **Edge cases:**
 - PhysiCell binary not compiled → error with instructions.
 - Simulation process exits non-zero → mark as failed in database, do not crash caller.
-- `n_replicates=0` → error.
+- `n_replicates` < 0 → `AssertionError`. Zero is legal: it registers the monad without launching simulations, which is what the calibration reference-monad idiom relies on.
 - Compilation fails → the run fails, and nothing is left that a later run could read as a finished build: any executable for this PhysiCell version is deleted, including one that predated this compilation, and the macros file is left as the last successful compilation wrote it. The next run recompiles instead of reusing a stale executable. `compilation.log` / `compilation.err` are left in place for inspection.
 - Compilation reports success but produces no executable → treated as a failure.
 - A `data/` folder is moved to a machine with a different OS, architecture, or compiler → **not** detected; the executable name carries no ISA component. See [Known limitations](docs/src/man/known_limitations.md).

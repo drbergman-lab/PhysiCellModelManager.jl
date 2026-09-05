@@ -20,7 +20,7 @@ On initialization (`using PhysiCellModelManager`, or [`initializeModelManager`](
 
 ### [`required`](@id required_section)
 This field is necessary and must either be `true` or `false`.
-If `true`, an `InputsFolder` object cannot be created without this location.
+If `true`, an [`InputFolders`](@ref) object cannot be created without this location.
 
 ### [`basename`](@id basename_section)
 This field enforces the name of the file to be used for the location.

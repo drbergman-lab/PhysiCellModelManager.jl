@@ -6,7 +6,8 @@ that: attach a few labels when you launch a run, then recover it by what it was 
 than by remembering a number.
 
 Tagging is provided by ModelManager and works on any trial object — `Simulation`, `Monad`,
-`Sampling`, or `Trial`. See the [Tags](@ref tags_lib) API reference for full signatures.
+`Sampling`, or `Trial` — and, since ModelManager 0.9, on a `Calibration`. See the
+[Tags](@ref tags_lib) API reference for full signatures.
 
 ## Tag a run when you launch it
 
@@ -59,9 +60,9 @@ time, not stored.
 
 ## Provenance you get for free
 
-Every trial is automatically tagged with `mm:`-prefixed keys recording where it came from: the
-session, the script path (or that it was interactive), and the git commit, branch, and whether
-the working tree was dirty. [`gitState`](@ref) is the function behind the git half, and returns
+Every trial is automatically tagged with `mm:`-prefixed keys recording where it came from:
+`mm:created`, `mm:session`, `mm:script` and `mm:interactive` (both are recorded, not one or the
+other), and `mm:git` / `mm:git.branch` / `mm:git.dirty`. [`gitState`](@ref) is the function behind the git half, and returns
 empty strings outside a repository.
 
 The dirty flag matters: a commit hash on its own is a false promise of reproducibility if the
@@ -76,13 +77,15 @@ Pass `include_auto=false` to [`tagsTable`](@ref) as well to keep them out of a t
 
 ## Joining tags onto a results table
 
-[`appendTags!`](@ref) pivots tags into columns and appends them to a `DataFrame`, so you can
-group results by experimental arm without a manual join:
+Ask for them when you build the table, so you can group results by experimental arm without a
+manual join:
 
 ```julia
-df = simulationsTable(sampling)
-appendTags!(df, Simulation, :SimID)   # adds tag:<key> columns
+simulationsTable(sampling; tags = true)   # adds tag:<key> columns
 ```
+
+[`appendTags!`](@ref) does the pivot underneath; call it directly only to add tag columns to a
+`DataFrame` you assembled yourself.
 
 Column names are prefixed with `tag:`, so they cannot collide with the folder, parameter, or ID
 columns [`simulationsTable`](@ref) already produces.

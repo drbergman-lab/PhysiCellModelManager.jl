@@ -443,7 +443,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     # at this point, we have only added the sampling to the database...
     # ...along with the monads and simulations that make it up
     # before running, we will set the number of parallel simulations to run.
-    # note: this will only be used when running locally, i.e., not on an HPC
+    # note: this bounds work on an HPC too, where it caps how many jobs are in flight at once
     # by default, PhysiCellModelManager.jl will run the simulations serially, i.e., 1 in \"parallel\".
     # change this by calling:
     """))\
@@ -452,7 +452,7 @@ function setUpScripts(project_dir::String, physicell_dir::String, data_dir::Stri
     $(tersify("""
     # you can change this default behavior on your machine by setting an environment variable...
     # called PCMM_NUM_PARALLEL_SIMS
-    # this is read during `initializeModelManager`...
+    # this is read when the package loads, so set it in your shell before `using`...
     # meaning subsequent calls to `setNumberOfParallelSims` will overwrite the value
     # A simple way to use this when running the script is to run in your shell:
     # `PCMM_NUM_PARALLEL_SIMS=4 julia $(path_to_generate_data)`

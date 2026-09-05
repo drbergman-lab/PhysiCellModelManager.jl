@@ -88,8 +88,9 @@ Built-in summary statistic: mean population time series across all replicates in
 
 Returns a `Dict{String,Vector{Float64}}` mapping cell type name → mean count over time.
 The time axis is shared across replicates (an error is thrown if they differ).
-Pass this (or a closure wrapping it) as `summary_statistic` in a
-[`CalibrationProblem`](@ref) when calibrating against time-series data.
+This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
+argument — see [`endpointPopulationCounts`](@ref) for why. Use [`meanPopulationTimeSeriesQoI`](@ref)
+when calibrating against time-series data, and keep this one for analysing a monad directly.
 The corresponding `observed_data` values should be `Vector{Float64}` on the same time grid.
 
 # Arguments

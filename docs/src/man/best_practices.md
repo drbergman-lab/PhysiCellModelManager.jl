@@ -9,7 +9,7 @@ If you anticipate doing a lot of this, consider using PhysiCell Studio for your 
 
 # Suggested practices
 
-## Use [`createProject`](@ref) to create a new PCMM project.
+## [Use `createProject` to create a new PCMM project](@id use_create_project)
 [`createProject`](@ref) will create a new PCMM project directory with the necessary structure and files.
 *Note: This is a distinct folder from a PhysiCell sample project or user project.*
 If you do not want the template PhysiCell project copied over, use the keyword argument `template_as_default=false`, i.e.,

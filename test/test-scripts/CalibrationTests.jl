@@ -179,6 +179,20 @@ end
     sids = simulationIDs(probe)
     @test length(sids) == 3
 
+    #! `cell_types` has to be applied by `compute`, not only by `reduce`: the post-processing sink
+    #! calls `compute` and never `reduce`, so a builder that filtered in its reducer alone would
+    #! write a column for every cell type and silently ignore the argument.
+    #! `endpointPopulationFractionQoI` did exactly that. A nonexistent type is what discriminates
+    #! here -- this model defines one cell type, so filtering *to* it cannot tell the two apart.
+    for builder in (endpointPopulationCountQoI, endpointPopulationFractionQoI)
+        @test isempty(builder(; cell_types=["nonexistent_type"]).compute(Simulation(first(sids))))
+        @test haskey(builder(; cell_types=[cell_type]).compute(Simulation(first(sids))), cell_type)
+    end
+    #! The fraction denominator stays every live cell, so restricting does not renormalise: a
+    #! single-cell-type model still reads 1.0 whether or not the filter is applied.
+    @test endpointPopulationFractionQoI(; cell_types=[cell_type]).compute(Simulation(first(sids)))[cell_type] ==
+          endpointPopulationFractionQoI().compute(Simulation(first(sids)))[cell_type]
+
     for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
                                  (endpointPopulationFractionQoI, endpointPopulationFractions),
                                  (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]

@@ -4,7 +4,7 @@ Sometimes parameters must vary together — for example, a rule's base value and
 [^1]: PhysiCell enforces an ordering between base and max response: for increasing signals, base ≤ max; for decreasing signals, base ≥ max.
 
 ## [`CoVariation{DiscreteVariation}`](@id co_variation_discrete_variation_section)
-Each `DiscreteVariation` must have the same number of values (required by [`GridVariation`](@ref), which uses them to size the grid). Values sharing an index are used together; how you link them is otherwise unrestricted.
+Each `DiscreteVariation` must have the same number of values — the `CoVariation` constructor rejects mismatched lengths outright, whichever sampling method you use later. Values sharing an index are used together; how you link them is otherwise unrestricted.
 
 ```julia
 base_xml_path = configPath("default", "custom:sample")

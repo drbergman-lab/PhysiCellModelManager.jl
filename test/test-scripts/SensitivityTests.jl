@@ -70,12 +70,16 @@ PhysiCellModelManager.calculateGSA!(moat_sampling, endpointPopulationCountQoI())
 gsa_labels = PhysiCellModelManager.ModelManager.gsaLabels(moat_sampling)
 @test filter(l -> startswith(l, "endpoint_population_count"), gsa_labels) ==
       ["endpoint_population_count.$(cell_type)"]
-#! A spread key gets a full analysis, not a stub: the same result type the scalar measurement
-#! produces. Compared against the scalar's rather than asserted outright, because what lands in
-#! `results` depends on the method -- MOAT stores a `MorrisResult`, not the plain vector `RBDSampling`
-#! declares.
-@test typeof(moat_sampling.results["endpoint_population_count.$(cell_type)"]) ==
-      typeof(moat_sampling.results["gs_fn"])
+#! A spread key gets a full analysis with the RIGHT NUMBERS, not merely an object of the right type:
+#! `evaluateFunctionOnSampling` always allocates `Float64` matrices, so every entry in `results` is a
+#! `MorrisResult{Matrix{Float64},Matrix{Float64}}` and comparing `typeof` could never fail.
+#! `gs_fn` measures `finalPopulationCount(sim)["default"]` reduced by `mean`, and
+#! `endpointPopulationCountQoI()` reduces to a Dict whose "default" entry is that same mean, so the
+#! spread analysis must land on identical Morris indices.
+@test moat_sampling.results["endpoint_population_count.$(cell_type)"].means ==
+      moat_sampling.results["gs_fn"].means
+@test moat_sampling.results["endpoint_population_count.$(cell_type)"].variances ==
+      moat_sampling.results["gs_fn"].variances
 
 #! The boundary, and it is not one shape: a `Vector` is deliberately not spread by index, because
 #! only its length can be checked across the design and equal length is not equal meaning. So a

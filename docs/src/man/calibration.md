@@ -40,7 +40,7 @@ problem = CalibrationProblem(
     ref,                        # Monad — sets inputs + reference_variation_id
     parameters,
     observed_data,
-    endpointPopulationCounts,   # summary statistic
+    endpointPopulationCountQoI(),  # summary statistic (QoI form — see below)
     mseDistance;                # distance function
     n_replicates = 3,
 )
@@ -62,7 +62,7 @@ df3, w3     = posterior(result; generation = 3)   # specific earlier generation
 ## Defining the calibration problem
 
 [`CalibrationProblem`](@ref) bundles everything the calibration loop needs.
-There are two constructor forms depending on whether you need to fix non-calibrated parameters.
+Fix non-calibrated parameters by passing a reference `Monad` instead of `InputFolders`; ModelManager also accepts a `StudySpec`.
 
 ### Simple form — `InputFolders` as first argument
 
@@ -72,16 +72,16 @@ All parameters start from their XML-file defaults:
 problem = CalibrationProblem(
     inputs,              # InputFolders
     parameters,          # Vector of DistributedVariation / CoVariation / LatentVariation
-    observed_data,       # Dict{String,<:Any} — the target the model should match
-    summary_statistic,   # (monad_id::Int) → Dict{String,<:Any}
+    observed_data,       # whatever your distance's second argument expects (Dict, Vector, or scalar)
+    summary_statistic,   # a QoI, a vector of QoIs, or a plain (sim::Simulation) -> value
     distance;            # (simulated, observed) → Float64
-    n_replicates = 1,    # replicates per particle (averaged by the summary statistic)
+    n_replicates = 1,    # replicates per particle (combined by the QoI's `reduce`; mean by default)
 )
 ```
 
 ### Reference monad form — fixing non-calibrated parameters
 
-Pass a `Monad` (or any result of `createTrial`) as the first argument.
+Pass a `Monad` as the first argument. The reference has to fix each non-calibrated parameter to a single value, so build it from single-valued variations — a multi-valued one yields a `Sampling`, which this constructor does not accept.
 This sets the `inputs` **and** locks all non-calibrated parameters to the monad's variation,
 exactly as you would with `run` or `createTrial`:
 
@@ -178,7 +178,7 @@ before.
 
 The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
-When using `mseDistance` with dicts, the keys of `observed_data` must be a subset of the keys returned by `summary_statistic`.
+When using `mseDistance` with dicts, line the keys up deliberately: a key in `observed_data` that the summary statistic did not produce is treated as a simulated zero, and an extra simulated key is ignored — each warns once rather than raising. A mistyped key therefore changes the distance instead of failing.
 
 ### Distance functions
 
@@ -210,7 +210,7 @@ result = runABC(problem;
 )
 ```
 
-All keyword arguments are forwarded to [`ABCSMC`](@ref). See [ABCSMC settings](@ref abcsmc_settings) for the full list.
+Method settings may be given either as loose keywords naming [`ABCSMC`](@ref) fields (as above) or as a ready-made `method =` object, but not both. Alongside them `runABC` takes its own run controls — `description`, `tags`, `run_kwargs`, `progress`, `on_monad_failure`. See [ABCSMC settings](@ref abcsmc_settings).
 
 ### `runCalibration` — explicit method object
 
@@ -218,7 +218,7 @@ For reproducibility or to reuse settings:
 
 ```julia
 method = ABCSMC(population_size = 200, max_nr_populations = 15, minimum_epsilon = 0.05)
-result = runCalibration(problem, method; description = "my run")
+result = runCalibration(method, problem; description = "my run")
 ```
 
 ## [ABCSMC settings](@id abcsmc_settings)
@@ -239,6 +239,7 @@ All fields have defaults and are specified as keyword arguments:
 | `accept_overflow` | `false` | Keep all particles passing ε, not just `population_size` |
 | `cdf_grid_k` | `nothing` (off) | Enable simulation bank with dyadic-grid snapping at depth `k`; see below |
 | `max_evaluations` | `nothing` (off) | Hard budget cap on total particle evaluations |
+| `store_rejected` | `false` | Persist rejected proposals, so `plot(result, :transition; space = :cdf)` can show them |
 
 ### Manual epsilon schedule
 
@@ -333,7 +334,7 @@ ModelManager does **not** seed generation 1 with pre-existing simulations. Doing
 
 `Monad(...; use_previous=true)` is used internally for every particle, so any exact-match parameter point that already exists in the database is reused for free.
 
-When `cdf_grid_k` is set, the simulation bank goes further: at calibration start it queries **all** existing monads in the database (from prior sweeps, sensitivity analyses, previous calibration runs, etc.) whose calibrated parameters fall inside the prior support. These are indexed in a KD-tree and consulted at every proposal — for any generation. If a proposal snaps to a grid cell already covered by an existing monad, that monad is reused directly with no new simulation required. This is the practical mechanism for leveraging prior computational work.
+When `cdf_grid_k` is set, the simulation bank goes further: at calibration start it queries **all** existing monads in the database (from prior sweeps, sensitivity analyses, previous calibration runs, etc.) whose calibrated parameters fall inside the prior support. Only monads with at least one simulation running or completed are eligible — one whose simulations never started has nothing to reuse. These are indexed in a KD-tree and consulted at every proposal — for any generation. If a proposal snaps to a grid cell already covered by an existing monad, that monad is reused directly with no new simulation required. This is the practical mechanism for leveraging prior computational work.
 
 ## Resuming a calibration
 
@@ -344,14 +345,20 @@ If a calibration is interrupted (crash, user stop, HPC timeout), the completed g
 calibration = Calibration(42)
 result = resumeABC(calibration)
 
-# Override settings — e.g. allow more generations than the original run
-result = resumeABC(calibration; method = ABCSMC(population_size=200, max_nr_populations=20))
+# Patch one setting — e.g. allow more generations than the original run
+result = resumeABC(calibration; max_nr_populations = 20)
 
 # If the original problem used anonymous functions (not serializable), re-supply it:
 result = resumeABC(calibration; problem = problem)
 ```
 
-The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.jld2` in the calibration folder. The original settings are restored from `method.toml` unless overridden. Both `problem` and `method` are keyword arguments.
+The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.jld2` in the calibration folder, and the settings from `method.toml`.
+
+!!! warning "`method =` replaces; keywords patch"
+    An `ABCSMC` object supplies *every* field, so `method = ABCSMC(max_nr_populations=20)` silently
+    resets population size, kernel, epsilon rule and the rest to constructor defaults rather than
+    the values the run used. To change some settings and keep the rest, pass them as keywords, as
+    above. Passing both a `method` object and individual settings is an error.
 
 ### Resumability and anonymous functions
 
@@ -376,12 +383,14 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
     or functions defined at module level in your script:
 
     ```julia
-    # ✓  Built-ins are named functions — pass them directly
-    problem = CalibrationProblem(ref, params, observed, endpointPopulationCounts, mseDistance)
+    # ✓  The built-in QoI builders return a named, serializable measurement
+    problem = CalibrationProblem(ref, params, observed, endpointPopulationCountQoI(), mseDistance)
 
-    # ✓  Custom logic: define at module level (not inside another function or as a lambda)
-    function my_stat(monad_id::Int)
-        counts = endpointPopulationCounts(monad_id)
+    # ✓  Custom logic: define at module level (not inside another function or as a lambda).
+    #    Since ModelManager 0.9 a summary statistic measures ONE simulation; the library
+    #    reduces the replicates.
+    function my_stat(sim::Simulation)
+        counts = finalPopulationCount(sim)
         # ... transform as needed ...
         return counts
     end
@@ -398,7 +407,7 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
 
     # ✗  Anonymous: problem.jld2 will be incomplete
     problem = CalibrationProblem(ref, params, observed,
-        m -> endpointPopulationCounts(m),   # anonymous — not serializable
+        sim -> finalPopulationCount(sim),   # anonymous — not serializable
         mseDistance)
     ```
 
@@ -429,7 +438,7 @@ cs = ConvergenceSummary(result)
 cs = ConvergenceSummary(Calibration(42))
 ```
 
-Columns: `t`, `epsilon`, `acceptance_rate`, `n_accepted`, `ess`, `ess_fraction`, `n_evaluations`.
+Columns: `t`, `max_epsilon_accepted`, `epsilon_threshold`, `acceptance_rate`, `n_accepted`, `ess`, `ess_fraction`, `n_evaluations`. ModelManager 0.9 split the single `epsilon` in two: `max_epsilon_accepted` is the largest distance the generation actually accepted, `epsilon_threshold` the value it ran against (`nothing` for generation 1, which accepts everything).
 
 ### Visualization
 
@@ -461,18 +470,47 @@ plot(Calibration(42), :ridgeline)
 
 ## Output layout
 
-Each calibration run creates `data/outputs/calibrations/{id}/` with:
+Each calibration run creates `data/outputs/calibrations/{id}/`: three files describing the run, then
+one folder per generation.
 
-- `method.toml` — the [`ABCSMC`](@ref) settings (restored automatically by `resumeABC`).
-- `problem.jld2` — the serialized [`CalibrationProblem`](@ref) (restored automatically by `resumeABC`; contains a partial manifest if the problem used anonymous functions).
-- `parameters.toml` — human-readable mapping from display column names to prior strings, for quick inspection.
-- `generations/generation_{t}.csv` — one file per completed generation. Columns: each parameter's display name, plus `weight`, `distance`, `monad_id`.
-- `generations/generation_{t}_monads.csv` — all monad IDs evaluated during generation `t` (written before simulations run, for crash safety and the `:transition` plot).
-- `generations/generation_cdfs/generation_{t}.csv` — raw CDF coordinates used internally by `resumeABC` for exact particle reconstruction.
+```
+data/outputs/calibrations/1/
+├── problem.jld2          # the serialized CalibrationProblem, so a resume needs no re-supplied problem
+├── method.toml           # the ABCSMC settings
+├── parameters.toml       # display name → database column → prior, per parameter
+└── generations/
+    ├── 01/
+    │   ├── particles.csv          # accepted particles, in target space
+    │   ├── cdfs.csv               # the same particles in CDF space
+    │   ├── metadata.toml          # both epsilons, ESS, acceptance rate, evaluation count
+    │   ├── monads.csv             # every monad evaluated, as compressed ID ranges
+    │   ├── proposals.csv          # distance and outcome for every proposal
+    │   ├── failed_simulations.csv # only when a simulation failed
+    │   └── failed_monads.csv      # only when a monad lost every simulation
+    ├── 02/
+    └── …
+```
+
+The folder name is the generation number, zero-padded to fit `max_nr_populations`.
+
+Calibrations written before ModelManager 0.9 stored the same artifacts as flat files
+(`generation_01.csv`, `generation_01_monads.csv`, and a `generation_cdfs/` subdirectory). Those are
+read as they are, and are moved into the folder layout the first time the run is resumed.
+
+ModelManager owns this layout and documents it in full — including what each column means — under
+[What a run leaves on disk](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#What-a-run-leaves-on-disk).
 
 ## [Built-in summary statistics](@id builtin_ss)
 
-Three built-in summary statistics accept a monad ID and return a `Dict` suitable for the `summary_statistic` argument of [`CalibrationProblem`](@ref).
+Three built-in **monad-level** statistics accept a monad ID and return a `Dict`. They do their own
+averaging over a monad's replicates, which is what makes them useful for analysing a finished monad
+directly.
+
+!!! warning "These are not `summary_statistic` arguments"
+    Since ModelManager 0.9 a `summary_statistic` measures a single [`Simulation`](@ref) and
+    ModelManager reduces the replicates. Passing one of these three to
+    [`CalibrationProblem`](@ref) fails when the first monad is measured. Use the
+    [QoI form](@ref qoi_form_ss) below, which measures the same quantities in that shape.
 
 ### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
 
@@ -505,7 +543,8 @@ For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict t
 
 ### [QoI form](@id qoi_form_ss)
 
-Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same measurement can go to a `CalibrationProblem` or to the post-processing sink:
+Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same
+measurement serves a `CalibrationProblem` without being rewritten:
 
 ```julia
 problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)
@@ -545,5 +584,5 @@ mseDistance(simulated, observed)
 
 Computes the mean squared error between `simulated` and `observed`. Accepts dicts, vectors, or scalars:
 - **Dicts** (`Dict{String,<:Any}`): per-key MSE contributions are averaged across all keys in `observed`. Values may be scalars or vectors.
-- **Vectors**: element-wise MSE averaged over the length of `observed`.
+- **Vectors**: sum of squared differences, `Σ(simᵢ − obsᵢ)²` — *not* averaged over the length. Mismatched lengths throw a `DimensionMismatch`. (A vector *inside* a dict is averaged over its length before the per-key mean, which is the shape `meanPopulationTimeSeriesQoI` produces.)
 - **Scalars**: squared error.

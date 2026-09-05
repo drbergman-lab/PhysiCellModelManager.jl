@@ -54,16 +54,20 @@ Alternatively, the constructor [`SobolMM`](@ref) is provided as an alias for con
 ### Random Balance Design (RBD)
 RBD uses a random design matrix (like Sobol') and a Fourier transform (as in the FAST method) to compute sensitivity indices. It is much cheaper than Sobol' but gives only first-order indices. For `n` design points it runs `n` monads, then rearranges the outputs so each parameter in turn varies along a sinusoid and estimates first-order indices via Fourier transforms. It looks up to the 6th harmonic by default (set with `num_harmonics`).
 
-By default, PhysiCellModelManager.jl will make use of the Sobol' sequence to pick the design points.
-It is best to pick `n` such that is differs from a power of 2 by at most 1, e.g. 7, 8, or 9.
-In this case, PhysiCellModelManager.jl will actually use a half-period of a sinusoid when converting the design points into CDF space.
-Otherwise, PhysiCellModelManager.jl will use random permuations of `n` uniformly spaced points in each parameter dimension and will use a full period of a sinusoid when converting the design points into CDF space.
+By default the Sobol' sequence picks the design points, and `n` **must** then be within 1 of a power
+of 2 — 7, 8 or 9, say. This is a requirement, not a preference: a value further away raises an error
+at construction rather than falling back. A half-period of a sinusoid is used when converting the
+design points into CDF space.
+
+Pass `use_sobol=false` to lift the restriction. `n` is then unconstrained, random permutations of `n`
+uniformly spaced points are used in each parameter dimension, and a full period of a sinusoid is used
+for the CDF conversion.
 
 To use the RBD method, any of the following signatures can be used:
 ```julia
 RBD(9) # will use a Sobol' sequence with elements chosen from 0:0.125:1
 RBD(32; use_sobol=false) # opt out of using the Sobol' sequence
-RBD(22) # will use the first 22 elements of the Sobol' sequence, including 0
+RBD(22; use_sobol=false) # `n` need not sit near a power of 2 once you opt out of Sobol'
 RBD(32; num_harmonics=4) # will look up to the 4th harmonic, instead of the default 6th
 ```
 
@@ -89,7 +93,7 @@ All variation types accept `name=...`, used in the scheme DataFrame/CSV headers.
 
 ### Sensitivity functions
 At the time of starting the sensitivity analysis, you can include any number of sensitivity functions to compute.
-They must take a single argument, a `Simulation`, and return a `Number` (or any type that `Statistics.mean` will accept a `Vector` of). Annotate the argument `::Simulation`: an unannotated function still works, but ModelManager cannot then tell it apart from one written for the pre-0.9 contract, where the argument was a simulation ID (`Int`).
+They must take a single argument, a `Simulation`. A bare function's per-replicate values must average to a `Real`; passed as a [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a `Dict`/`NamedTuple` of `Real`s, which spreads — see below. Annotate the argument `::Simulation`: an unannotated function still works, but ModelManager cannot then tell it apart from one written for the pre-0.9 contract, where the argument was a simulation ID (`Int`).
 For example, `finalPopulationCount` returns a dictionary of the final population counts of each cell type from a `Simulation`.
 So, if you want to know the sensitivity of the final population count of cell type "cancer", you could define a function like:
 ```julia
@@ -111,18 +115,21 @@ simulation's own output.
 [`endpointPopulationFractionQoI`](@ref) works the same way.
 
 !!! note "Two shapes that are not spread"
-    A `Vector` return is **not** spread by index: only its length can be checked across the design,
-    and equal length is not equal meaning. That rules out
-    [`meanPopulationTimeSeriesQoI`](@ref), whose values are per-cell-type time series — reduce a
-    series to a scalar (a final or mean value) to ask a sensitivity question about it.
+    Two separate rules. A bare `Vector` return is **not** spread by index: only its length can be
+    checked across the design, and equal length is not equal meaning. Separately, every spread
+    component must itself be a `Real`. It is the second that rules out
+    [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is then rejected
+    for being a time series rather than a number. Reduce a series to a scalar to ask a sensitivity
+    question about it.
     [`populationCountQoI`](@ref) is also out, for a different reason: it defines no `reduce`, so it
     is for the [post-processing sink](@ref post_processing_man) only.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than
-approximate. PCMM's builders satisfy this by construction — cell types are read from each
-simulation's initial snapshot, which lists the types the model *defines*, so a type driven extinct
-by some parameter set still reports a count of zero rather than dropping its key.
+approximate. PCMM's builders satisfy this by construction: the key set is the model's own cell-type
+roster, taken from the snapshot's metadata rather than from which types happen to have living cells,
+so a type driven extinct by some parameter set still reports a count of zero instead of dropping its
+key.
 
 ## Running the analysis
 Putting it all together, you can run this analysis:
@@ -147,9 +154,14 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 ## Post-processing
 The object `sensitivity_sampling` is of type [`GSASampling`](@ref PhysiCellModelManager.ModelManager.GSASampling), meaning you can use [`PhysiCellModelManager.calculateGSA!`](@ref) to compute sensitivity analyses.
 ```julia
-f(sim::Simulation) = finalPopulationCount(sim)["default"] # count the final population of cell type "default"
-calculateGSA!(sensitivity_sampling, f)
+g(sim::Simulation) = finalPopulationCount(sim)["default"] # a *new* measurement, under a new name
+calculateGSA!(sensitivity_sampling, g)
 ```
+
+Results accumulate, and a measurement whose name is already present is **skipped** — so reusing the
+name `f` from the run above would do nothing at all, silently. Pass `recompute=true` to force
+re-evaluation; it has to be explicit, because redefining a function's body leaves it
+indistinguishable from the one already evaluated.
 These results are stored in a `Dict` in the `sensitivity_sampling` object, keyed by the label of the
 measurement that produced them — a measurement's own name, or `"<name>.<key>"` for each key of a
 `Dict`-valued one. [`gsaLabels`](@ref ModelManager.gsaLabels) lists what is there — it is public in
@@ -163,7 +175,7 @@ The exact concrete type of `sensitivity_sampling` will depend on the `method` us
 This, in turn, is used by `calculateGSA!` to determine how to compute the sensitivity indices.
 
 Likewise, the `method` will determine how the sensitivity scheme is saved.
-After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/sampling/$(sampling.id)` folder named based on the `method`.
+After running the simulations, PhysiCellModelManager.jl will print a CSV in the `data/outputs/samplings/$(sampling.id)` folder, named after the `method` — `moat_scheme.csv`, `sobol_scheme.csv`, or `rbd_scheme.csv`.
 Parameter columns in this CSV use the latent parameter names for the sampling design, which include user-specified variation names when provided.
 This can later be used to reload the `GSASampling` and continue doing analysis.
 The simplest way to do that in a new Julia session is to re-run the code that generated the `GSASampling` object.

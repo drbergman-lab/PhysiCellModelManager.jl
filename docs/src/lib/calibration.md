@@ -42,6 +42,8 @@ resumeABC
 resumeCalibration
 run(::ABCSMC, ::CalibrationProblem)
 posterior
+samplePosterior
+createTrial(::ABCResult, ::ModelManager.DataFrames.DataFrame)
 ```
 
 ## Calibration records

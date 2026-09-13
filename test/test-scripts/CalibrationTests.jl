@@ -124,14 +124,13 @@ end
     counts_q = endpointPopulationCountQoI()
     fracs_q = endpointPopulationFractionQoI()
 
-    # Missing replicates are SKIPPED, not propagated. ModelManager hands `reduce` every replicate's
-    # value including `missing`, so a default `mean` would return `missing` for the whole monad --
-    # reachable on ordinary data, because pruning makes a replicate unreadable.
-    @test counts_q.reduce([Dict("a" => 1), missing, Dict("a" => 3)]) == Dict("a" => 2.0)
-    @test fracs_q.reduce([Dict("a" => 0.25), missing, Dict("a" => 0.75)]) == Dict("a" => 0.5)
-    # ...and all-missing is `missing`, matching the monad-level functions.
-    @test ismissing(counts_q.reduce([missing, missing]))
-    @test ismissing(fracs_q.reduce([missing, missing]))
+    # Missing replicates never reach `reduce`: ModelManager drops them first (`skip_missing`, the
+    # `QoI` default, which the builders keep) and reduces a monad with nothing readable to `missing`
+    # itself -- reachable on ordinary data, because pruning makes a replicate unreadable. The
+    # pruned-replicate path is exercised end to end further down.
+    @test counts_q.skip_missing && fracs_q.skip_missing
+    @test counts_q.reduce([Dict("a" => 1), Dict("a" => 3)]) == Dict("a" => 2.0)
+    @test fracs_q.reduce([Dict("a" => 0.25), Dict("a" => 0.75)]) == Dict("a" => 0.5)
     # A cell type absent from a replicate is zero-filled by both endpoint builders, and the counts
     # builder unions the keys rather than taking the first replicate's.
     @test counts_q.reduce([Dict("a" => 3), Dict("a" => 3, "b" => 6)]) == Dict("a" => 3.0, "b" => 3.0)
@@ -163,10 +162,10 @@ end
     # `ModelManager._asSummaryStatistic`, which was renamed to `_validateSummaryStatistic` in #46 and
     # took the test with it. Pinning another package's internals is the same mistake as pinning its
     # on-disk layout: the flat-vs-nested dict shape is ModelManager's contract to keep, not ours.
-    #! A single QoI's value is what ModelManager passes through unwrapped, so this is the whole of
-    #! what `_evaluateSummary` does for one -- no MM internals reached into.
-    evaluate(q, monad_id) = q.reduce([q.compute(Simulation(sid))
-                                      for sid in simulationIDs(Monad(monad_id))])
+    #! ModelManager's own seam -- compute per replicate, drop the `missing` ones, reduce -- which is
+    #! the path calibration and sensitivity analysis take, and so the path these equalities are
+    #! about. Internal, but the alternative is re-implementing it here and asserting against a copy.
+    evaluate(q, monad_id) = PhysiCellModelManager.ModelManager._reduceOverMonad(q, monad_id)
 
     # A monad of this test's own, distinguished by a phase duration nothing else uses. PCMM reuses
     # matching simulations, so pruning a replicate of a monad another file also builds -- Monad(1)

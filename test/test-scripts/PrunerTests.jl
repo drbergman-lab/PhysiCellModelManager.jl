@@ -34,7 +34,7 @@ out_cb = run(cb_simulation; force_recompile=false, prune_options=prune_options,
         path = pathToOutputFolder(sp)
         callback_output_path[] = path
         intact_during_callback[] = !isempty(outputMatFiles(path)) #! output present before cleanup
-        return nothing
+        return missing #! side effects only; the sink refuses `nothing`
     end)
 @test out_cb.n_success == 1
 @test intact_during_callback[]                          #! callback saw un-pruned output

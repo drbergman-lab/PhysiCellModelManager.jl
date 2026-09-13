@@ -115,14 +115,15 @@ simulation's own output.
 [`endpointPopulationFractionQoI`](@ref) works the same way.
 
 !!! note "Two shapes that are not spread"
-    Two separate rules. A bare `Vector` return is **not** spread by index: only its length can be
-    checked across the design, and equal length is not equal meaning. Separately, every spread
-    component must itself be a `Real`. It is the second that rules out
+    Two separate rules. A bare `Vector` return is **not** spread by index — components are keyed,
+    for now, so that two parameter sets can be checked for the same components by name. Separately,
+    every spread component must itself be a `Real`. It is the second that rules out
     [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is then rejected
     for being a time series rather than a number. Reduce a series to a scalar to ask a sensitivity
     question about it.
-    [`populationCountQoI`](@ref) is also out, for a different reason: it defines no `reduce`, so it
-    is for the [post-processing sink](@ref post_processing_man) only.
+    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
+    mean applies, which refuses a monad whose replicates report different cell types;
+    [`endpointPopulationCountQoI`](@ref) zero-fills those instead.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than

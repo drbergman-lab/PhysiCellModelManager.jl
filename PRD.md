@@ -263,7 +263,7 @@
 - `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
 - `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
 - `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
-- Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. A single QoI's value is passed through unwrapped by ModelManager, which is what keeps that dict flat for `mseDistance`.
+- Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. Calibration hands `distance` a `SummaryValues` in which a bare cell-type key resolves while only one QoI reports it, so `observed_data` stays keyed by cell type for `mseDistance`.
 - `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
 - From ModelManager 0.9.1, sensitivity analysis spreads a `Dict`-valued measurement into one analysis per key, labelled `<qoi name>.<key>` and retrieved from `results` by that label (`gsaLabels` lists them). So `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` serve all three consumers. Two builders do not: `meanPopulationTimeSeriesQoI`, because a `Vector` is deliberately not spread by index (equal length is not equal meaning), and `populationCountQoI`, because it defines no `reduce` and the default `mean` cannot combine a vector of `Dict`s.
 - Sensitivity analysis requires every parameter set in a design to reduce to the *same* keys. PCMM's builders satisfy this by construction: the key set is the model's own cell-type roster from the snapshot metadata, not the set of types with living cells, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
@@ -384,8 +384,8 @@
 **Behavioral specification:**
 - `run(T; post_processor = f)` calls the callback once per successful simulation, after the simulation finishes and before pruning.
 - The callback receives a `Simulation` — the same argument a `QoI`'s `compute` gets, since ModelManager 0.9 made one contract of every measurement function. Most loader and analysis functions take it directly; `simulationID(sim)` and `pathToOutputFolder(sim)` give the ID and the folder.
-- Return patterns: `nothing` (side effects only — must be explicit), a bare scalar (`Real`/`Bool`/`String`, stored under the QoI's own name), or a `NamedTuple`/`Dict` of `name => scalar`. Non-scalar returns throw `ArgumentError` (ModelManager-side).
-- From ModelManager 0.9.1 a spread return writes one column per key named `<qoi name>.<key>`, and a callback that stores anything must therefore carry a stable name — an anonymous `sim -> …` is refused, since its derived name varies between sessions. Wrap it in a `QoI` or pass a named function; a callback returning `nothing` is unaffected.
+- Return patterns: `missing` (side effects only — must be explicit; `nothing`, the value a block returns by accident, is refused), a bare scalar (`Real`/`Bool`/`String`, stored under the QoI's own name), or a `NamedTuple`/`Dict` of `name => scalar`. Non-scalar returns throw `ArgumentError` (ModelManager-side).
+- From ModelManager 0.9.1 a spread return writes one column per key named `<qoi name>.<key>`, and a callback that stores anything must therefore carry a stable name — an anonymous `sim -> …` is refused, since its derived name varies between sessions. Wrap it in a `QoI` or pass a named function; a callback returning `missing` is unaffected.
 - Stored QoIs land in `data/outputs/postprocessing.db`; read back with `postProcessingTable(T)` or `simulationsTable(T; post_processing=true)`.
 - **QoI builder:** `populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)` returns a ready-made `post_processor` recording one `population_count.<cell_type>` column per cell type, read from the snapshot at `index` (`:final`, `:initial`, or an integer snapshot index). The key is the bare cell type: ModelManager 0.9.1 supplies the namespace, so the `count_` prefix the builder used to carry would only produce `population_count.count_<cell_type>`.
 
@@ -398,9 +398,10 @@
 **Edge cases:**
 - Callback on a failed simulation → not called (successful sims only); cleanup still runs.
 - Callback returns a non-scalar → `ArgumentError`.
-- Anonymous callback returns something storable → `ArgumentError` (ModelManager 0.9.1), because every column is named after its QoI and a derived name is not stable across sessions. Returning `nothing` is unaffected.
+- Anonymous callback returns something storable → `ArgumentError` (ModelManager 0.9.1), because every column is named after its QoI and a derived name is not stable across sessions. Returning `missing` is unaffected.
+- Callback returns `nothing` → `ArgumentError` (ModelManager 0.10) asking for `missing`.
 - Un-updated PCMM against reordered ModelManager → still prunes, but in the earlier hook, so a `post_processor` would see already-pruned output. Task A removes this gap.
-- `populationCountQoI`'s requested snapshot doesn't exist (e.g. pruned) → returns `nothing` for that simulation instead of throwing.
+- `populationCountQoI`'s requested snapshot doesn't exist (e.g. pruned) → returns `missing` for that simulation instead of throwing; nothing is recorded for it.
 
 ---
 

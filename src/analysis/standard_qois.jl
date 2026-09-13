@@ -152,43 +152,29 @@ end
 # `Dict(cell_type => value)` — the same shape the monad-level function returns, and the same shape
 # `populationCountQoI` uses for the sink.
 #
-# A single QoI is what makes that possible. `_evaluateSummary` passes one QoI's value through
-# unwrapped and only keys a `Dict` by QoI name when given several, so one Dict-valued QoI hands
-# `mseDistance` the flat cell-type-keyed dict it compares against `observed_data`. It also means
-# `cell_types` can stay optional: one QoI discovers them from the simulation like the monad-level
-# functions do, where a vector of QoIs would have to name them at construction.
+# A single QoI is what makes that possible. Calibration hands `distance` a `SummaryValues` keyed by
+# `(qoi name, cell type)`, in which a bare `"tumor"` resolves while only one QoI reports that key, so
+# `mseDistance` compares one Dict-valued QoI against the same cell-type-keyed `observed_data` the
+# monad-level functions want. It also means `cell_types` can stay optional: one QoI discovers them
+# from the simulation like the monad-level functions do, where a vector of QoIs would have to name
+# them at construction.
 #
 # Each `reduce` is the corresponding monad-level function's own aggregation step, so the two agree by
 # construction rather than by coincidence — which matters because the three disagree with each other
 # about whether an absent cell type is zero-filled and about summation order. The tests still assert
 # `==` between them.
 #
-# The one Dict used to cost something: sensitivity analysis wanted a `Real` from `reduce`, so these
-# reached calibration and the sink but not `functions=`. ModelManager 0.9.1 spreads a keyed reduce
-# into one analysis per key -- labelled `"<qoi name>.<key>"`, the same reading the sink gives it --
-# so the two endpoint builders now serve all three consumers with no per-cell-type rewrite.
+# Sensitivity analysis spreads a keyed `reduce` into one analysis per key -- labelled
+# `"<qoi name>.<key>"`, the same reading the sink gives it -- so the two endpoint builders serve all
+# three consumers with no per-cell-type rewrite. `meanPopulationTimeSeriesQoI` reaches calibration
+# only: its `compute` returns a struct the sink cannot store, and each component of its `reduce` is a
+# series rather than the `Real` an index is computed from. Reduce a series to a scalar to ask a
+# sensitivity question about it.
 #
-# `meanPopulationTimeSeriesQoI` still does not: its values are `Vector`s, and a `Vector` is
-# deliberately not spread by index, because only length can be checked across a design and equal
-# length is not equal meaning. Reduce a series to a scalar to ask a sensitivity question about it.
-
-"""
-    _reduceKept(combine)
-
-Wrap `combine` so it sees only the replicates that produced a value.
-
-Neither half is the default: ModelManager hands `reduce` every replicate's value including
-`missing`, so a plain `mean` would return `missing` for any monad with a pruned replicate; and a
-monad with nothing readable reduces to `missing` rather than erroring.
-"""
-_reduceKept(combine) = per_sim -> begin
-    #! `collect(skipmissing(...))`, not `filter(!ismissing, ...)`: filter keeps the
-    #! `Union{Missing,T}` element type, so `combine` would be handed a vector no method written for
-    #! `Vector{<:Dict}` can accept -- `_averageStatDicts` among them.
-    kept = collect(skipmissing(per_sim))
-    isempty(kept) && return missing
-    return combine(kept)
-end
+# Each `reduce` below sees only the replicates that produced a value: `QoI`'s default
+# `skip_missing=true` drops the `missing` ones (narrowing the element type, so `_averageStatDicts`
+# gets the `Vector{<:Dict}` it is written for) and reduces a monad with none to `missing` before
+# `reduce` is called.
 
 #! Restrict a per-simulation dict to `cell_types`, or leave it alone when none were named.
 _restrict(d, cell_types) = isnothing(cell_types) ? d : filter(p -> p.first in cell_types, d)
@@ -220,10 +206,10 @@ function endpointPopulationCountQoI(; cell_types::Union{Nothing,Vector{String}}=
                end;
                #! `finalPopulationCount(::Monad)`'s own aggregation: union of the keys, and a
                #! generator mean that zero-fills a cell type a replicate does not have.
-               reduce = _reduceKept(kept -> begin
+               reduce = kept -> begin
                    all_keys = union(keys.(kept)...)
                    return Dict{String,Float64}(k => mean(get(c, k, 0) for c in kept) for k in all_keys)
-               end))
+               end)
 end
 
 """
@@ -264,7 +250,7 @@ function endpointPopulationFractionQoI(; cell_types::Union{Nothing,Vector{String
                end;
                #! `_averageStatDicts` is the monad-level function's aggregation, reused rather than
                #! reimplemented -- including its zero-fill of a cell type absent from a replicate.
-               reduce = _reduceKept(kept -> _averageStatDicts(kept, cell_types)))
+               reduce = kept -> _averageStatDicts(kept, cell_types))
 end
 
 """
@@ -296,7 +282,7 @@ function meanPopulationTimeSeriesQoI(; cell_types::Union{Nothing,Vector{String}}
                sim -> SimulationPopulationTimeSeries(sim; include_dead=include_dead, verbose=false);
                #! `MonadPopulationTimeSeries`'s own aggregation: a column per replicate that HAS the
                #! cell type, then an elementwise mean over however many that was.
-               reduce = _reduceKept(kept -> begin
+               reduce = kept -> begin
                    grid = first(kept).time
                    all(spts -> spts.time == grid, kept) || throw(ArgumentError(
                        "Replicates of this monad have different times in their time series, so they " *
@@ -306,5 +292,5 @@ function meanPopulationTimeSeriesQoI(; cell_types::Union{Nothing,Vector{String}}
                        name => vec(mean(reduce(hcat, [spts.cell_count[name] for spts in kept
                                                       if haskey(spts.cell_count, name)]), dims=2))
                        for name in names)
-               end))
+               end)
 end

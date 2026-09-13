@@ -20,18 +20,19 @@ folder itself.
     happens to produce. The number is not stable, so the same script would write a second,
     half-empty set of columns next time. From ModelManager 0.9.1 that is refused rather
     than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI) as above, or pass a named function.
-    A callback returning `nothing` stores nothing and is unaffected.
+    A callback returning `missing` stores nothing and is unaffected.
 
 ## Returning quantities of interest
 
 What the callback returns determines what gets stored:
 
-- **`nothing`** — side effects only (e.g. writing your own file, or an external log). Return it
-  explicitly, or PCMM will store whatever the callback's last expression evaluated to instead:
+- **`missing`** — side effects only (e.g. writing your own file, or an external log). Return it
+  explicitly: a callback's value is its last expression, and `nothing` — what a block returns by
+  accident — is refused rather than stored:
   ```julia
   run(sampling; post_processor = function (sim)
       exportSimulation(simulationID(sim), "results/$(simulationID(sim))")
-      return nothing
+      return missing
   end)
   ```
 - **A single scalar** (`Real`, `Bool`, or `String`) — stored in one column named after the QoI,
@@ -60,7 +61,7 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # onl
 
 If the requested snapshot doesn't exist for a given simulation (e.g. it was pruned by an
 *earlier* run before this feature's ordering guarantee applied to it), the builder returns
-`nothing` for that simulation rather than erroring.
+`missing` for that simulation, so nothing is recorded for it rather than erroring.
 
 !!! warning "Upgrading from v0.3.3"
     This builder wrote `count_<cell_type>` columns in v0.3.3, when the sink was one flat namespace

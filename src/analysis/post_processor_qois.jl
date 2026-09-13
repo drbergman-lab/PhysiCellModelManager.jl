@@ -23,16 +23,16 @@ one entry keyed by its name, stored by [`run`](@ref ModelManager.run) in the pos
 sink under the column `population_count.<cell_type>` (e.g. `population_count.default`) and
 readable back with [`postProcessingTable`](@ref) or `simulationsTable(...; post_processing=true)`.
 
-If the requested snapshot doesn't exist (e.g. it was pruned), `compute` returns `nothing` and
+If the requested snapshot doesn't exist (e.g. it was pruned), `compute` returns `missing` and
 nothing is recorded for that simulation rather than throwing.
 
 One QoI covers every cell type: they are read from the simulation's own output and so are not known
 until it has run, and ModelManager expands a `Dict` return into one column per key.
 
-**This QoI defines no `reduce`, so it is for the sink only.** The sink never reduces — it fires once
-per simulation — but every other consumer does, and the default `mean` cannot combine a vector of
-`Dict`s. Use [`endpointPopulationCountQoI`](@ref) for calibration; it measures the same thing and
-carries a reducer.
+This QoI defines no `reduce` of its own, so wherever it is reduced across replicates ModelManager's
+default applies: a mean per cell type, which refuses a monad whose replicates report different cell
+types. [`endpointPopulationCountQoI`](@ref) measures the same thing at the final snapshot and
+zero-fills a cell type a replicate lacks instead.
 
 # Arguments
 - `index`: Which snapshot to count — `:final`, `:initial`, or an integer snapshot index.
@@ -53,9 +53,11 @@ function populationCountQoI(; index::Union{Integer,Symbol}=:final,
                               include_dead::Bool=false)
     return QoI("population_count", function (simulation::Simulation)
         snapshot = PhysiCellSnapshot(simulationID(simulation), index; include_cells=true)
-        ismissing(snapshot) && return nothing
+        #! `missing`, never `nothing`: `missing` records nothing for this simulation, where
+        #! ModelManager refuses `nothing` as the value a block returns by accident.
+        ismissing(snapshot) && return missing
         counts = populationCount(snapshot; include_dead=include_dead)
-        ismissing(counts) && return nothing
+        ismissing(counts) && return missing
         isnothing(cell_types) || (counts = filter(p -> p.first in cell_types, counts))
         #! The key is the bare cell type. It used to be `"count_$(name)"`, from when the sink put
         #! every key in one flat namespace and a prefix was the only thing keeping two QoIs' "tumor"

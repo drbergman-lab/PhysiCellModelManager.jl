@@ -44,8 +44,8 @@ snapshot0 = PhysiCellSnapshot(qoi_sim_id, 0; include_cells=true)
 #! include_dead just needs to run without erroring and return a Dict
 @test measure(populationCountQoI(; include_dead=true)) isa Dict
 
-#! missing snapshot (pruned) -> nothing, not an error
-@test isnothing(populationCountQoI(; index=:initial).compute(Simulation(pruned_simulation_id)))
+#! missing snapshot (pruned) -> `missing`, not an error -- and not `nothing`, which the sink refuses
+@test ismissing(populationCountQoI(; index=:initial).compute(Simulation(pruned_simulation_id)))
 
 #! full integration: run(...; post_processor=populationCountQoI()) populates the sink
 qoi_simulation2 = createTrial(qoi_inputs, qoi_discrete_variations; use_previous=false)

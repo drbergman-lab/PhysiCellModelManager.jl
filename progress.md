@@ -33,6 +33,32 @@ at `Not Started`. `HPCTests` asserted the old shape on the no-`sbatch` path and 
 exception. Nothing in PCMM's source changed for this: `postSimulationCleanup` is never reached for a
 refused submission, as before.
 
+### ModelManager 0.10's QoI contract, on the PCMM side
+Found by running the suite against ModelManager `main` once every 0.10 PR had merged; two files
+failed (`PrunerTests`, `DocstringRefTests`) and the rest of these were prose that described 0.9.
+- A post-processor returning `nothing` is refused ("say `missing`"), so `populationCountQoI` returns
+  `missing` for a pruned snapshot and the manual's side-effect example returns `missing`.
+- `QoI`'s default `skip_missing=true` hands `reduce` only the replicates that produced a value and
+  reduces an empty monad to `missing` itself -- exactly what `_reduceKept` did. Deleted.
+- The default reducer is a per-key mean, so `populationCountQoI` is no longer sink-only; the
+  docstring and manual now say what that default refuses (replicates with different cell types)
+  and that `endpointPopulationCountQoI` zero-fills instead.
+- `distance` receives a `SummaryValues`; `mseDistance` iterates the observed keys, errors on one it
+  cannot resolve, ignores extra simulated components, and divides by the number of differences
+  computed. The manual's "treated as a simulated zero" paragraph and its `ts_dist` example typed on
+  `Vector{Float64}` described 0.9.
+- `registerSimulator!` is the public registration half of the backend contract and
+  `mm_globals_ref` is internal again, so `__init__` registers through it and
+  `_pcmmGlobalsRegistered`'s docstring no longer `@ref`s the Ref (that `@ref` was the
+  `DocstringRefTests` failure).
+- The manual claimed the QoI builders were "named, serializable" measurements. They are closures,
+  so a bare `resumeABC` on a PCMM calibration still needs `problem=` (#234); it now says so.
+- `docs/make.jl` runs `checkdocs=:exports` over ModelManager too, so every new ModelManager export
+  needs a home in `docs/src/lib/`: `samplePosterior` and `createTrial(::ABCResult, ::DataFrame)`
+  (ModelManager #72) are listed in `lib/calibration.md`. The test that compares the builders with
+  the monad-level functions now evaluates through ModelManager's own seam instead of a local copy
+  of it, since the copy is what drifted.
+
 ### Housekeeping
 - `requestHeaders` treats an empty `PCMM_PUBLIC_REPO_AUTH` as unset. An empty value sent
   `Authorization: token ` and GitHub answered 401 to a request that succeeds anonymously, so a shell

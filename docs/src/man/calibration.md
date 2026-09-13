@@ -182,7 +182,7 @@ The keys of `observed_data` are the comparison: `mseDistance` resolves each one 
 
 ### Distance functions
 
-A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref) holding what each QoI's `reduce` returned; index it by cell type (`sim["cancer"]`) while only one QoI reports that key, or by `"<qoi name>.<key>"` when several do. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
+A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["endpoint_population_count.cancer"]`), or by the exact tuple (`sim[("endpoint_population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
 
 ```julia
 # Weighted MSE on two cell populations
@@ -362,21 +362,23 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
 
 ### Resumability and anonymous functions
 
-!!! warning "Pass `problem=` when resuming a PCMM calibration"
+!!! warning "Resuming needs the problem's functions to be restorable"
     ModelManager saves the `CalibrationProblem` to `problem.jld2` at the start of each run, and can
     restore a function from it only when JLD2 can name it: a function defined at the top level of a
     file or module. A lambda or closure — including a named function defined *inside* another
     function — is saved as `nothing`, and a bare `resumeABC(Calibration(42))` then refuses with
-    "problem.jld2 contains only a partial manifest". Re-supply the problem:
+    "problem.jld2 contains only a partial manifest" until you re-supply the problem:
 
     ```julia
     result = resumeABC(Calibration(42); problem = problem)
     ```
 
-    **PCMM's QoI builders are closures** — `endpointPopulationCountQoI()` captures `cell_types` and
-    `include_dead` — so every calibration built from them needs `problem=` today (making them
-    restorable is issue #234). `mseDistance`, a top-level `my_stat`, and top-level `LatentVariation`
-    maps restore on their own:
+    PCMM's QoI builders restore on their own: their keyword arguments travel in the QoI's `data`
+    slot and both of their functions are named. Do the same for a measurement of your own that needs
+    parameters — pass them as `data=` instead of capturing them in a closure; that switches
+    `compute` and `reduce` to `(sim, data)` and `(values, data)`, and the
+    [ModelManager calibration manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/)
+    works through an example. `mseDistance` and any other top-level function restore as well:
 
     ```julia
     # Custom logic: define at module level (not inside another function or as a lambda).

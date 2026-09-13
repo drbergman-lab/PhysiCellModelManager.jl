@@ -120,20 +120,32 @@ end
 # anyone's numbers. The three statistics disagree with each other in ways a shared reducer would
 # silently erase, so each divergence gets its own assertion.
 
+#! The builders carry their keyword arguments in `data`, which selects the two-argument calling
+#! convention ModelManager uses for them: `compute(sim, data)` and `reduce(values, data)`.
+computeOn(q, sim) = q.compute(sim, q.data)
+reduceWith(q, values) = q.reduce(values, q.data)
+
 @testset "QoI builder reducers" begin
     counts_q = endpointPopulationCountQoI()
     fracs_q = endpointPopulationFractionQoI()
+
+    # Restorable by name: the keywords ride in `data` and both functions are top-level, so a
+    # `problem.jld2` written from any builder is complete. Asked of ModelManager's own predicate,
+    # the one `_saveProblem` consults; the bare `resumeABC` further down is the end-to-end form.
+    for q in (counts_q, fracs_q, meanPopulationTimeSeriesQoI(), populationCountQoI())
+        @test !PhysiCellModelManager.ModelManager._isAnonymousFunction(q)
+    end
 
     # Missing replicates never reach `reduce`: ModelManager drops them first (`skip_missing`, the
     # `QoI` default, which the builders keep) and reduces a monad with nothing readable to `missing`
     # itself -- reachable on ordinary data, because pruning makes a replicate unreadable. The
     # pruned-replicate path is exercised end to end further down.
     @test counts_q.skip_missing && fracs_q.skip_missing
-    @test counts_q.reduce([Dict("a" => 1), Dict("a" => 3)]) == Dict("a" => 2.0)
-    @test fracs_q.reduce([Dict("a" => 0.25), Dict("a" => 0.75)]) == Dict("a" => 0.5)
+    @test reduceWith(counts_q, [Dict("a" => 1), Dict("a" => 3)]) == Dict("a" => 2.0)
+    @test reduceWith(fracs_q, [Dict("a" => 0.25), Dict("a" => 0.75)]) == Dict("a" => 0.5)
     # A cell type absent from a replicate is zero-filled by both endpoint builders, and the counts
     # builder unions the keys rather than taking the first replicate's.
-    @test counts_q.reduce([Dict("a" => 3), Dict("a" => 3, "b" => 6)]) == Dict("a" => 3.0, "b" => 3.0)
+    @test reduceWith(counts_q, [Dict("a" => 3), Dict("a" => 3, "b" => 6)]) == Dict("a" => 3.0, "b" => 3.0)
 
     # Float associativity is observable, and the two existing functions disagree about it:
     # `finalPopulationCount(::Monad)` averages a generator (sequential summation) while
@@ -149,11 +161,11 @@ end
     # `finalPopulationCount(::Monad)`'s generator mean, the fractions builder reuses
     # `_averageStatDicts`' materialised one.
     as_dicts = [Dict("a" => x) for x in diverging]
-    @test counts_q.reduce(as_dicts)["a"] == mean(x for x in diverging)
-    @test fracs_q.reduce(as_dicts)["a"] == mean(Float64[x for x in diverging])
+    @test reduceWith(counts_q, as_dicts)["a"] == mean(x for x in diverging)
+    @test reduceWith(fracs_q, as_dicts)["a"] == mean(Float64[x for x in diverging])
     # ...and therefore differ from each other, which is what makes the two assertions above
     # load-bearing rather than two spellings of the same check.
-    @test counts_q.reduce(as_dicts)["a"] != fracs_q.reduce(as_dicts)["a"]
+    @test reduceWith(counts_q, as_dicts)["a"] != reduceWith(fracs_q, as_dicts)["a"]
 end
 
 @testset "QoI builders match the monad-level functions" begin
@@ -184,13 +196,13 @@ end
     #! `endpointPopulationFractionQoI` did exactly that. A nonexistent type is what discriminates
     #! here -- this model defines one cell type, so filtering *to* it cannot tell the two apart.
     for builder in (endpointPopulationCountQoI, endpointPopulationFractionQoI)
-        @test isempty(builder(; cell_types=["nonexistent_type"]).compute(Simulation(first(sids))))
-        @test haskey(builder(; cell_types=[cell_type]).compute(Simulation(first(sids))), cell_type)
+        @test isempty(computeOn(builder(; cell_types=["nonexistent_type"]), Simulation(first(sids))))
+        @test haskey(computeOn(builder(; cell_types=[cell_type]), Simulation(first(sids))), cell_type)
     end
     #! The fraction denominator stays every live cell, so restricting does not renormalise: a
     #! single-cell-type model still reads 1.0 whether or not the filter is applied.
-    @test endpointPopulationFractionQoI(; cell_types=[cell_type]).compute(Simulation(first(sids)))[cell_type] ==
-          endpointPopulationFractionQoI().compute(Simulation(first(sids)))[cell_type]
+    @test computeOn(endpointPopulationFractionQoI(; cell_types=[cell_type]), Simulation(first(sids)))[cell_type] ==
+          computeOn(endpointPopulationFractionQoI(), Simulation(first(sids)))[cell_type]
 
     for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
                                  (endpointPopulationFractionQoI, endpointPopulationFractions),
@@ -300,9 +312,10 @@ end
     result1 = runCalibration(method_initial, problem; description="resume test")
     @test length(result1.generations) == 1
 
-    # Resume with a method that allows 2 more generations
+    # Resume with a method that allows 2 more generations. No `problem=`: the builder's functions
+    # are named and its keywords ride in `data`, so `problem.jld2` restores the problem by itself.
     method_continue = ABCSMC(population_size=3, max_nr_populations=3, minimum_epsilon=0.0)
-    result2 = resumeABC(result1.calibration; problem=problem, method=method_continue)
+    result2 = resumeABC(result1.calibration; method=method_continue)
     @test length(result2.generations) > 1
     @test result2.calibration.id == result1.calibration.id
 

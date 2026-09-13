@@ -51,8 +51,18 @@ failed (`PrunerTests`, `DocstringRefTests`) and the rest of these were prose tha
   `mm_globals_ref` is internal again, so `__init__` registers through it and
   `_pcmmGlobalsRegistered`'s docstring no longer `@ref`s the Ref (that `@ref` was the
   `DocstringRefTests` failure).
-- The manual claimed the QoI builders were "named, serializable" measurements. They are closures,
-  so a bare `resumeABC` on a PCMM calibration still needs `problem=` (#234); it now says so.
+- The manual claimed the QoI builders were "named, serializable" measurements. They were closures
+  over `cell_types`/`include_dead`, so `problem.jld2` stored `nothing` for them and a bare
+  `resumeABC` of any PCMM calibration refused (#234). Fixed the way ModelManager intends: the
+  keywords travel in the QoI's `data` slot and `compute`/`reduce` are named top-level functions
+  (`_endpointCountsOf`/`_meanEndpointCounts` and so on), which JLD2 restores by name.
+  `_isAnonymousFunction` ignores `data` on purpose, so nothing in ModelManager changes and no
+  `AbstractQoI` is needed. The resume test now resumes bare. Rejected: callable structs -- also
+  restorable, but `data=` is the mechanism ModelManager documents for exactly this case.
+- Review (2026-09-13): the manual names `SummaryValues`' three spellings (the key `reduce`
+  returned, `"<qoi name>.<key>"`, the exact tuple) instead of "index it by cell type"; the
+  `march_flag` comments say PCMM's own `initializeModelManager` method sets it, since ModelManager
+  knows nothing about the flag and the constructor runs before the probe exists.
 - `docs/make.jl` runs `checkdocs=:exports` over ModelManager too, so every new ModelManager export
   needs a home in `docs/src/lib/`: `samplePosterior` and `createTrial(::ABCResult, ::DataFrame)`
   (ModelManager #72) are listed in `lib/calibration.md`. The test that compares the builders with

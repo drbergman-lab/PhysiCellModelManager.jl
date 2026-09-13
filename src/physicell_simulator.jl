@@ -17,9 +17,10 @@ Interface methods are implemented in `src/physicell_simulator.jl`.
 - `dir::String`: Path to the PhysiCell source directory.
 - `compiler::String`: C++ compiler command (default `"g++"`; overridden by `PHYSICELL_CPP` env var).
 - `current_version_id::Int`: Database ID for the active PhysiCell version; re-resolved before every compilation.
-- `march_flag::String`: `-march` flag for compilation, set by [`initializeModelManager`](@ref) to
-  `"x86-64"` when ModelManager detects a scheduler and `"native"` otherwise, since a cluster runs
-  the cached executable on a machine that did not build it.
+- `march_flag::String`: `-march` flag for compilation. PCMM's own [`initializeModelManager`](@ref)
+  method sets it once ModelManager has probed for a scheduler: `"x86-64"` on a cluster, where the
+  cached executable runs on a machine that did not build it, `"native"` otherwise. ModelManager
+  itself knows nothing about the flag.
 - `path_to_python::Union{Missing,String}`: Python executable path for PhysiCell Studio.
 - `path_to_studio::Union{Missing,String}`: PhysiCell Studio directory path.
 - `path_to_magick::Union{Missing,String}`: ImageMagick binary path for movie creation.
@@ -44,15 +45,16 @@ populated during `__init__` and [`initializeModelManager`](@ref).
 """
 #! No `isRunningOnHPC()` here. It shells out to `which sbatch`, and this constructor runs in
 #! `__init__` *before* the precompilation guard, so every precompilation of every dependent package
-#! spawned a process -- while the comment there called that block "pure in-memory work".
-#! `initializeModelManager` sets `march_flag` from the `run_on_hpc` ModelManager has just probed,
-#! which is also one source of truth instead of two independent probes.
+#! spawned a process -- while the comment there called that block "pure in-memory work". The answer
+#! does not exist yet at construction; PCMM's own `initializeModelManager(path_to_physicell,
+#! path_to_data)` method sets `march_flag` right after ModelManager's init has probed `run_on_hpc`,
+#! the first moment it does -- one probe instead of two. ModelManager knows nothing about the flag.
 function PhysiCellSimulator()
     return PhysiCellSimulator(
         "",          # dir — set by initializeModelManager
         "g++",       # compiler — overridden by __init__ from ENV
         -1,          # current_version_id — set during DB init, refreshed at each compile
-        "native",    # march_flag — set by initializeModelManager from ModelManager's HPC probe
+        "native",    # march_flag — PCMM's initializeModelManager sets it from ModelManager's HPC probe
         missing,     # path_to_python
         missing,     # path_to_studio
         missing,     # path_to_magick

@@ -27,7 +27,9 @@ If the requested snapshot doesn't exist (e.g. it was pruned), `compute` returns 
 nothing is recorded for that simulation rather than throwing.
 
 One QoI covers every cell type: they are read from the simulation's own output and so are not known
-until it has run, and ModelManager expands a `Dict` return into one column per key.
+until it has run, and ModelManager expands a `Dict` return into one column per key. The keyword
+arguments travel in the QoI's `data` slot, so a calibration's `problem.jld2` written from it is
+complete.
 
 This QoI defines no `reduce` of its own, so wherever it is reduced across replicates ModelManager's
 default applies: a mean per cell type, which refuses a monad whose replicates report different cell
@@ -51,18 +53,23 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["tumor"])) # onl
 function populationCountQoI(; index::Union{Integer,Symbol}=:final,
                               cell_types::Union{Nothing,Vector{String}}=nothing,
                               include_dead::Bool=false)
-    return QoI("population_count", function (simulation::Simulation)
-        snapshot = PhysiCellSnapshot(simulationID(simulation), index; include_cells=true)
-        #! `missing`, never `nothing`: `missing` records nothing for this simulation, where
-        #! ModelManager refuses `nothing` as the value a block returns by accident.
-        ismissing(snapshot) && return missing
-        counts = populationCount(snapshot; include_dead=include_dead)
-        ismissing(counts) && return missing
-        isnothing(cell_types) || (counts = filter(p -> p.first in cell_types, counts))
-        #! The key is the bare cell type. It used to be `"count_$(name)"`, from when the sink put
-        #! every key in one flat namespace and a prefix was the only thing keeping two QoIs' "tumor"
-        #! apart. ModelManager 0.9.1 names the column `"<qoi name>.<key>"`, which does that job, so
-        #! the prefix would only give `population_count.count_default`.
-        return Dict(name => n for (name, n) in counts)
-    end)
+    #! The keywords ride in `data` and `compute` is a named function, so the QoI restores by name
+    #! from a calibration's `problem.jld2` (see the note in `standard_qois.jl`).
+    return QoI("population_count", _populationCountsAt; data=(; index, cell_types, include_dead))
+end
+
+#! `compute` of `populationCountQoI`.
+function _populationCountsAt(simulation::Simulation, data)
+    snapshot = PhysiCellSnapshot(simulationID(simulation), data.index; include_cells=true)
+    #! `missing`, never `nothing`: `missing` records nothing for this simulation, where
+    #! ModelManager refuses `nothing` as the value a block returns by accident.
+    ismissing(snapshot) && return missing
+    counts = populationCount(snapshot; include_dead=data.include_dead)
+    ismissing(counts) && return missing
+    isnothing(data.cell_types) || (counts = filter(p -> p.first in data.cell_types, counts))
+    #! The key is the bare cell type. It used to be `"count_$(name)"`, from when the sink put
+    #! every key in one flat namespace and a prefix was the only thing keeping two QoIs' "tumor"
+    #! apart. ModelManager 0.9.1 names the column `"<qoi name>.<key>"`, which does that job, so
+    #! the prefix would only give `population_count.count_default`.
+    return Dict(name => n for (name, n) in counts)
 end

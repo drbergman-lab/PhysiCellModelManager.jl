@@ -186,8 +186,10 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
     end
     simulator().dir = path_to_physicell
     initialized = initializeModelManager(simulator(), path_to_data; auto_upgrade)
-    #! After ModelManager's own init, which is where `run_on_hpc` is probed. A scheduler means the
-    #! cached executable will run on a machine that did not build it, so `native` is unsafe there.
+    #! After ModelManager's own init, which is where `run_on_hpc` is probed. ModelManager knows
+    #! nothing about `march_flag`; PCMM decides it here, the first moment the probe's answer exists.
+    #! A scheduler means the cached executable will run on a machine that did not build it, so
+    #! `native` is unsafe there.
     initialized && (simulator().march_flag = mm_globals().run_on_hpc ? "x86-64" : "native")
     return initialized
 end

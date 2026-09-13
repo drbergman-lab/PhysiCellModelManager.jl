@@ -28,7 +28,8 @@ qoi_sim = Simulation(qoi_sim_id)
 #! named `"<qoi name>.<key>"` since 0.9.1. The keys here are therefore bare cell type names.
 @test populationCountQoI() isa QoI
 @test populationCountQoI().name == "population_count"
-measure(q) = q.compute(qoi_sim)
+#! `data` carries the keywords, so `compute` takes it as a second argument.
+measure(q) = q.compute(qoi_sim, q.data)
 
 #! default (:final) matches finalPopulationCount
 @test measure(populationCountQoI()) == finalPopulationCount(qoi_sim_id)
@@ -45,7 +46,9 @@ snapshot0 = PhysiCellSnapshot(qoi_sim_id, 0; include_cells=true)
 @test measure(populationCountQoI(; include_dead=true)) isa Dict
 
 #! missing snapshot (pruned) -> `missing`, not an error -- and not `nothing`, which the sink refuses
-@test ismissing(populationCountQoI(; index=:initial).compute(Simulation(pruned_simulation_id)))
+let q = populationCountQoI(; index=:initial)
+    @test ismissing(q.compute(Simulation(pruned_simulation_id), q.data))
+end
 
 #! full integration: run(...; post_processor=populationCountQoI()) populates the sink
 qoi_simulation2 = createTrial(qoi_inputs, qoi_discrete_variations; use_previous=false)

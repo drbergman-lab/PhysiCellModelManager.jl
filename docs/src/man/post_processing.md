@@ -3,7 +3,8 @@
 [Analyzing output](@ref analyzing_output_man) covers analysis *after* a run finishes. `run` also
 accepts a `post_processor` keyword: a callback invoked once per successful simulation, right
 after it finishes and before PhysiCellModelManager.jl prunes any output — so the callback always
-sees the intact output folder, however aggressive your `prune_options` are.
+sees the intact output folder, however aggressive your `prune_options` are. Pruning is the last of
+the steps that follow a simulation; it has [its own section below](@ref prune_output_pp).
 
 ```julia
 run(sampling; post_processor = QoI("final_count", sim -> finalPopulationCount(sim)["default"]))
@@ -80,3 +81,25 @@ simulationsTable(sampling; post_processing=true)  # joined with the varied param
 ```
 
 See [Querying parameters](@ref querying_parameters_man) for more on those tables.
+
+## [Pruning output after the callback](@id prune_output_pp)
+
+Every save interval PhysiCell writes an XML/MAT snapshot pair and an SVG, so a campaign of thousands
+of simulations is tens of gigabytes most analyses never open. Name the file types to drop in
+`prune_options`, and [`PruneOptions`](@ref) deletes them from each simulation's folder as the last
+step after it finishes — after your `post_processor` has run, which is why the callback is the place
+to compute what you need from the files:
+
+```julia
+run(sampling; prune_options = PruneOptions(prune_svg = true))    # keep the data, drop the pictures
+run(sampling; prune_options = PruneOptions(prune_svg = true, prune_mat = true, prune_txt = true,
+                                           prune_initial = true, prune_final = true))
+```
+
+`prune_svg`, `prune_mat`, `prune_txt` and `prune_xml` pick the types; the `initial*` and `final*`
+files of each type survive unless `prune_initial` and `prune_final` say otherwise, so a pruned
+simulation can still be loaded at its first and last snapshot. Know what stops working:
+[`makeMovie`](@ref) needs the SVGs; loading a snapshot or plotting a population time series needs
+that snapshot's XML and MAT files; a replicate whose files are gone is excluded from monad-level
+aggregates rather than zero-filled; and re-running does not bring the files back, since the
+database still holds the simulation as complete.

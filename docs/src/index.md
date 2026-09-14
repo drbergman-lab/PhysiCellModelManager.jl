@@ -38,6 +38,7 @@ New here? Start with [Installation](@ref installation_man), then [Your first pro
 | Compute quantities while runs are still in flight | [Post-processing and quantities of interest](@ref post_processing_man) |
 | Measure spatial structure or cell–cell contacts | [Pair correlation function](@ref pcf_section), [Graph analysis](@ref graph_analysis_section) |
 | Turn snapshots into a movie | [Movies](@ref movies_man) |
+| Keep a large campaign's disk usage down | [Pruning output after the callback](@ref prune_output_pp) |
 | Label a batch of runs and find them again later | [Tagging and recovery](@ref tagging_man) |
 
 ### Analyzing and fitting

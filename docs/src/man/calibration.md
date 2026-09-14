@@ -455,6 +455,17 @@ plot(result, :transition)                  # last complete transition
 plot(result, :transition; generation = 2)  # specific transition t → t+1
 ```
 
+On a two-parameter example — a cycle phase duration and an apoptosis rate, calibrated to one
+simulation's final cell count on the template project — the four plots look like this:
+
+![Corner plot of the final-generation posterior](../assets/calibration_corner.png)
+
+![Posterior narrowing across generations, one panel per parameter](../assets/calibration_ridgeline.png)
+
+![Convergence trace: epsilon, acceptance rate and ESS fraction per generation](../assets/calibration_convergence.png)
+
+![Generation transition: the previous posterior and the proposals drawn from it](../assets/calibration_transition.png)
+
 All plots also work with a `Calibration` object instead of an `ABCResult`, loading data from disk:
 
 ```julia

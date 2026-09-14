@@ -83,7 +83,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] HPC job submission — ModelManager owns launching; PCMM implements `simulationCommand` (what to run) and `simulationThreads` (each simulation's `omp_num_threads`, which ModelManager requests as `cpus-per-task`, since PhysiCell sets its thread count from its config and SLURM allocates one CPU unless asked)
 - [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
   - [x] Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and reported once per call site (`@info ... maxlog=1`), instead of vanishing silently
-  - [x] Plot recipes documented with rendered figures in the manual
+  - [x] Plot recipes documented with rendered figures in the manual: the population plots, and ModelManager's sensitivity-analysis and calibration plots on the template project (`docs/generate_figures.jl`)
   - [x] Fixed: `plotbycelltype` divided by the full replicate count while filling only the replicates that loaded, so plotting a monad with a pruned replicate understated every curve
 - [x] Sensitivity analysis — MOAT, Sobol, and RBD
 - [x] Calibration — PhysiCell-specific monad-level statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for analysing a finished monad; since ModelManager 0.9 a `summary_statistic` measures one `Simulation`, so the `QoI` builders below are the `CalibrationProblem` path. ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
@@ -97,6 +97,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
   - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix currently `0.1.7` (real users' oldest version; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`.
 - [x] Export and pruning of simulation outputs
+  - [x] `prune_options` documented on the post-processing page as the last step after a simulation: what each flag removes, the ordering against the `post_processor`, and what stops working afterwards
 - [x] Post-processing hook (`post_processor`) — user callback runs on intact simulation output before PCMM's destructive cleanup (`postSimulationCleanup`); results stored via ModelManager's QoI sink (`postProcessingTable`, `simulationsTable(...; post_processing=true)`)
   - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save. Returns a real `QoI`: one covering every cell type, since the types are read from the simulation's own output and ModelManager expands a `Dict` return into one sink column per key, named `population_count.<cell_type>` from ModelManager 0.9.1
 - [x] Intracellular model support (custom data, rules)

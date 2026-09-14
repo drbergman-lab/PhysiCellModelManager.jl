@@ -169,12 +169,12 @@ A plain function is averaged across replicates with `mean`; pass a `QoI` when yo
 reduction, or when the quantity must be computed *after* the replicates are combined rather than
 before.
 
-!!! warning "Changed in ModelManager 0.9"
-    Summary statistics used to be called once per **monad**, with an `Int` monad ID, and did their
-    own aggregation. Such a function now receives a `Simulation`. If it is untyped it will return a
-    different number rather than erroring, so annotate the argument `::Simulation` — ModelManager
-    warns when it is not declared. The three built-in statistics below remain monad-level and are no
-    longer valid `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss) instead.
+!!! note "Annotate the argument `::Simulation`"
+    A `summary_statistic` receives a `Simulation`, not a monad ID, and does no averaging of its own.
+    A function written against the monad-level contract returns a different number rather than
+    erroring if it is untyped, so declare the argument `::Simulation` — ModelManager warns when it
+    is not declared. The three built-in statistics below are monad-level and are not valid
+    `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss).
 
 The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
@@ -512,10 +512,10 @@ averaging over a monad's replicates, which is what makes them useful for analysi
 directly.
 
 !!! warning "These are not `summary_statistic` arguments"
-    Since ModelManager 0.9 a `summary_statistic` measures a single [`Simulation`](@ref) and
-    ModelManager reduces the replicates. Passing one of these three to
-    [`CalibrationProblem`](@ref) fails when the first monad is measured. Use the
-    [QoI form](@ref qoi_form_ss) below, which measures the same quantities in that shape.
+    A `summary_statistic` measures a single [`Simulation`](@ref) and ModelManager reduces the
+    replicates. Passing one of these three to [`CalibrationProblem`](@ref) fails when the first
+    monad is measured. Use the [QoI form](@ref qoi_form_ss) below, which measures the same
+    quantities in that shape.
 
 ### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
 
@@ -563,7 +563,7 @@ Pass `cell_types` to restrict the measurement; omit it and every cell type prese
 endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
 ```
 
-From ModelManager 0.9.1 the two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
+The two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
 [`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
 spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
 post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type

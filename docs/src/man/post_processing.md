@@ -19,9 +19,9 @@ folder itself.
     Every sink column is named after the QoI that wrote it, and a bare `sim -> ...` has only the
     name Julia derives for an anonymous function — `anon_9`, `anon_14`, whatever that session
     happens to produce. The number is not stable, so the same script would write a second,
-    half-empty set of columns next time. From ModelManager 0.9.1 that is refused rather
-    than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI) as above, or pass a named function.
-    A callback returning `missing` stores nothing and is unaffected.
+    half-empty set of columns next time; such a callback is refused rather than stored. Wrap it in a
+    [`QoI`](@ref ModelManager.QoI) as above, or pass a named function. A callback returning
+    `missing` stores nothing and is unaffected.
 
 ## Returning quantities of interest
 
@@ -60,9 +60,9 @@ run(sampling; post_processor = populationCountQoI(; index=0))              # cou
 run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # only the "cd8" cell type
 ```
 
-If the requested snapshot doesn't exist for a given simulation (e.g. it was pruned by an
-*earlier* run before this feature's ordering guarantee applied to it), the builder returns
-`missing` for that simulation, so nothing is recorded for it rather than erroring.
+If the requested snapshot doesn't exist for a given simulation (e.g. it was pruned by an earlier
+run), the builder returns `missing` for that simulation, so nothing is recorded for it rather than
+erroring.
 
 !!! warning "Upgrading from v0.3.3"
     This builder wrote `count_<cell_type>` columns in v0.3.3, when the sink was one flat namespace
@@ -71,7 +71,7 @@ If the requested snapshot doesn't exist for a given simulation (e.g. it was prun
     rewritten, so a project that spans the change has both families in
     [`postProcessingTable`](@ref), each populated only for the runs that produced it.
 
-The population summary statistics have `QoI`-returning builders too — [`endpointPopulationCountQoI`](@ref) and [`endpointPopulationFractionQoI`](@ref) — which work here as well as in calibration and, from ModelManager 0.9.1, sensitivity analysis. See [QoI form](@ref qoi_form_ss).
+The population summary statistics have `QoI`-returning builders too — [`endpointPopulationCountQoI`](@ref) and [`endpointPopulationFractionQoI`](@ref) — which work here as well as in calibration and sensitivity analysis. See [QoI form](@ref qoi_form_ss).
 
 ## Reading the stored quantities back
 

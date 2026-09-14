@@ -255,9 +255,7 @@ agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) # get the IDs f
 component_df = rightjoin(cells_df, agent_ids, on=:ID) # join on the agent IDs, keeping only the rows in the connected component
 ```
 
-## Movies and post-processing
-
-Two things that used to live on this page now have their own:
+## See also
 
 - [Movies](@ref movies_man) — turning a simulation's SVG snapshots into `output/out.mp4`.
 - [Post-processing and quantities of interest](@ref post_processing_man) — computing and

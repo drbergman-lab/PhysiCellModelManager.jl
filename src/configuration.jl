@@ -101,10 +101,10 @@ function prepareBaseFile(::PhysiCellSimulator, input_folder::InputFolder)
     #! constructors funnel into it -- so "unselected" and "basename names a real file" are mutually
     #! exclusive states rather than something PCMM has to re-derive here.
     #!
-    #! This test must come first. `:rulesets_collection` used to be checked ahead of it, so an
-    #! unselected rulesets folder never consulted `basename` at all: it went looking for
-    #! `base_rulesets.csv` under a path with no folder component and tripped an assertion inside
-    #! PhysiCellXMLRules that named neither the location nor the folder.
+    #! This test must come first. Checking `:rulesets_collection` ahead of it would leave an
+    #! unselected rulesets folder never consulting `basename` at all: it would go looking for
+    #! `base_rulesets.csv` under a path with no folder component and trip an assertion inside
+    #! PhysiCellXMLRules that names neither the location nor the folder.
     ismissing(input_folder.basename) && return nothing
     if input_folder.location == :rulesets_collection
         return prepareBaseRulesetsCollectionFile(input_folder)
@@ -317,10 +317,10 @@ function configPath(tokens::Vararg{Union{AbstractString,Integer}})
         elseif token2 == "motility"
             #! `<motility>` holds three scalars of its own -- speed, persistence_time,
             #! migration_bias -- alongside an `<options>` subtree for enabled/use_2D/chemotaxis.
-            #! This branch used to send every third token through `<options>`, so
-            #! `configPath("default", "motility", "speed")` resolved to `motility/options/speed`,
-            #! which does not exist. The two-token spelling, `configPath("default", "speed")`, was
-            #! unaffected, which is why this went unnoticed.
+            #! So the third token is routed by name: sending every one of them through `<options>`
+            #! would resolve `configPath("default", "motility", "speed")` to `motility/options/speed`,
+            #! which does not exist, while the two-token spelling `configPath("default", "speed")`
+            #! stays correct -- two spellings of one parameter disagreeing, and silently.
             if token3 ∈ ["speed", "persistence_time", "migration_bias"]
                 return motilityPath(token1, token3)
             elseif token3 ∈ ["enabled", "use_2D"]

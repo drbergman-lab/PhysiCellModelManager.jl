@@ -6,8 +6,8 @@ that: attach a few labels when you launch a run, then recover it by what it was 
 than by remembering a number.
 
 Tagging is provided by ModelManager and works on any trial object — `Simulation`, `Monad`,
-`Sampling`, or `Trial` — and, since ModelManager 0.9, on a `Calibration`. See the
-[Tags](@ref tags_lib) API reference for full signatures.
+`Sampling`, or `Trial` — and on a `Calibration`. See the [Tags](@ref tags_lib) API reference for
+full signatures.
 
 ## Tag a run when you launch it
 

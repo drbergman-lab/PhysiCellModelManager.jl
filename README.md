@@ -70,42 +70,32 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 
 ### Completed
 
-- [x] Project initialization (`createProject`, `initializeModelManager`)
-  - [x] Precompilation-safe loading — `using PhysiCellModelManager` auto-attaches to a project in the working directory, but skips it while Julia is writing a precompilation cache or system image, so precompiling a dependent package neither prints the banner nor opens a project database
+- [x] Project initialization (`createProject`, `initializeModelManager`). `using PhysiCellModelManager` auto-attaches to a project in the working directory, except while Julia is writing a precompilation cache or system image
 - [x] Model import from PhysiCell project folders (`importProject`, `InputFolders`)
   - [ ] Wizard for guiding users through the import process and recording their input folders
-- [x] Parameter variation — discrete, grid, distributed, latent, co-variation
-  - [x] Fixed: `configPath(<cell type>, "motility", <tag>)` routed `speed`, `persistence_time` and `migration_bias` through `<options>`, so a natural spelling resolved to a path not in the PhysiCell schema and failed later with a confusing "Element not found". The two-token spelling was always correct, so the two disagreed
+- [x] Parameter variation — discrete, grid, distributed, latent, co-variation. `configPath`/`behaviorPath` build the XML paths and reject an unrecognised tag by name
 - [x] Space-filling designs — LHS, Sobol, RBD
-- [x] Simulation execution — local multi-process runner
-  - [x] Executables named for the PhysiCell version they were built against, in a `pcmm_build/` subfolder of the custom code folder, so the file's existence is the only record of a finished build — a failed compilation can no longer be mistaken for a ready one
-  - [x] PhysiCell version re-resolved before every compilation, so pulling, checking out, or editing PhysiCell mid-session is picked up without restarting Julia
+- [x] Simulation execution — local multi-process runner. Executables are named for the PhysiCell version they were built against, in `pcmm_build/` inside the custom code folder, so the file's existence is the only record of a finished build; the PhysiCell version is re-resolved before every compilation, so pulling, checking out, or editing PhysiCell mid-session is picked up without restarting Julia
 - [x] HPC job submission — ModelManager owns launching; PCMM implements `simulationCommand` (what to run) and `simulationThreads` (each simulation's `omp_num_threads`, which ModelManager requests as `cpus-per-task`, since PhysiCell sets its thread count from its config and SLURM allocates one CPU unless asked)
-- [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`)
-  - [x] Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and reported once per call site (`@info ... maxlog=1`), instead of vanishing silently
+- [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `meanPopulationTimeSeries`). Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and plots, and reported once per call site (`@info ... maxlog=1`)
   - [x] Plot recipes documented with rendered figures in the manual: the population plots, and ModelManager's sensitivity-analysis and calibration plots on the template project (`docs/generate_figures.jl`)
-  - [x] Fixed: `plotbycelltype` divided by the full replicate count while filling only the replicates that loaded, so plotting a monad with a pruned replicate understated every curve
-- [x] Sensitivity analysis — MOAT, Sobol, and RBD
-- [x] Calibration — PhysiCell-specific monad-level statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for analysing a finished monad; since ModelManager 0.9 a `summary_statistic` measures one `Simulation`, so the `QoI` builders below are the `CalibrationProblem` path. ABC-SMC algorithm, posterior visualization, and `resumeABC` live in ModelManager
-  - [x] Single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) for `CalibrationProblem`; asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
-    - [x] The builders carry their keyword arguments in the QoI's `data` slot with named `compute`/`reduce`, so `problem.jld2` is complete and `resumeABC(Calibration(id))` resumes without `problem=`
-    - [x] The **two endpoint** builders also reach the post-processing sink and, from ModelManager 0.9.1, sensitivity analysis. `meanPopulationTimeSeriesQoI` reaches neither: its `compute` returns a `SimulationPopulationTimeSeries`, which the sink cannot store, and a `Vector` is not spread across GSA by index
-    - [x] The **two endpoint** builders also reach sensitivity analysis from ModelManager 0.9.1, which spreads a `Dict` into one analysis per key labelled `<qoi name>.<key>`. `meanPopulationTimeSeriesQoI` does not: its values are vectors, and a `Vector` is deliberately not spread by index
+- [x] Sensitivity analysis — MOAT, Sobol, and RBD via ModelManager; a `Dict`-valued `QoI` yields one analysis per key, labelled `<qoi name>.<key>`
+- [x] Calibration — ABC-SMC, posterior visualization, and `resumeABC` live in ModelManager. PCMM contributes the PhysiCell-specific measurements: monad-level statistics (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) for analysing a finished monad, and single `Dict`-valued `QoI` builders (`endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI`) to serve as a `CalibrationProblem`'s `summary_statistic`, asserted equal to the monad-level statistics exactly, including on a monad with a pruned replicate
+  - [x] The builders carry their keyword arguments in the QoI's `data` slot with named `compute`/`reduce`, so `problem.jld2` is complete and `resumeABC(Calibration(id))` resumes without `problem=`
+  - [x] The two endpoint builders serve calibration, the post-processing sink and sensitivity analysis alike, as does `populationCountQoI` below. `meanPopulationTimeSeriesQoI` serves calibration alone: its `compute` returns a `SimulationPopulationTimeSeries` the sink cannot store, and each component of its `reduce` is a series rather than the `Real` a sensitivity index is computed from
   - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
   - [ ] Bayesian optimization
   - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
 - [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
-  - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix currently `0.1.7` (real users' oldest version; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`.
-- [x] Export and pruning of simulation outputs
-  - [x] `prune_options` documented on the post-processing page as the last step after a simulation: what each flag removes, the ordering against the `post_processor`, and what stops working afterwards
+  - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix `0.1.7` (the oldest version a real user is on; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`
+- [x] Export and pruning of simulation outputs. `prune_options` is documented on the post-processing page as the last step after a simulation: what each flag removes, the ordering against the `post_processor`, and what stops working afterwards
 - [x] Post-processing hook (`post_processor`) — user callback runs on intact simulation output before PCMM's destructive cleanup (`postSimulationCleanup`); results stored via ModelManager's QoI sink (`postProcessingTable`, `simulationsTable(...; post_processing=true)`)
-  - [x] Ready-made PhysiCell QoI builder (`populationCountQoI`) so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save. Returns a real `QoI`: one covering every cell type, since the types are read from the simulation's own output and ModelManager expands a `Dict` return into one sink column per key, named `population_count.<cell_type>` from ModelManager 0.9.1
+  - [x] Ready-made QoI builder `populationCountQoI` so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save, one `population_count.<cell_type>` sink column per cell type, the types read from the simulation's own output
 - [x] Intracellular model support (custom data, rules)
 - [x] IC cell and IC ECM file management
-- [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — configurable `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
-- [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; both launch failure modes (interpreter not spawnable, Studio exiting non-zero) raise `PCMMStudioLaunchError`
+- [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
+- [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; either launch failure (interpreter not spawnable, Studio exiting non-zero) raises `PCMMStudioLaunchError`
 - [x] Typed exceptions — every PCMM-specific failure subtypes `PCMMException`, so a GUI consumer can catch the family or a concrete type
-- [x] ModelManager 0.9 compatibility — `packageName` removed, `getInstalledVersion` in place of `getPackageVersion`, and `rm_hpc_safe`'s new `:removed`/`:staged`/`:unremoved` contract reflected in the test suite
 
 ### Remaining
 

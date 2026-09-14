@@ -23,10 +23,10 @@ ModelManager takes to mean "record this simulation as failed and carry on with t
 `prepareSimulationCommand`, which also creates the `output` subfolder the command writes into;
 ModelManager creates the trial folder but not that subdirectory.
 
-PCMM used to launch the process itself, wrapping the command in `sbatch` and redirecting
-`hpc.out`/`hpc.err`. ModelManager v0.9.0 owns all of that — the local/HPC branch, the redirection,
-the submission, waiting for completion, and building the [`SimulationProcess`](@ref
-ModelManager.SimulationProcess). A simulator package only says what to run.
+ModelManager owns everything around the command — the local/HPC branch, the redirection to
+`hpc.out`/`hpc.err`, the submission, waiting for completion, and building the
+[`SimulationProcess`](@ref ModelManager.SimulationProcess). A simulator package only says what to
+run.
 
 Setup (compilation, varied input folders) is always performed by
 [`ModelManager.prepareTrialHierarchy`](@ref) before this function is called.
@@ -227,12 +227,11 @@ belongs in [`postSimulationProcessing`](@ref), which runs before the callback.
 """
 function postSimulationCleanup(::PhysiCellSimulator, simulation_process::SimulationProcess;
                                    prune_options::PruneOptions=PruneOptions(), kwargs...)
-    #! `cmd`, not `process`. The two coincided before v0.9.0, so this used to read `process`; now
-    #! `process === nothing` is also true for every SLURM job, whose work ran on a compute node and
-    #! left no local process object. Testing `process` would early-return for every simulation on a
-    #! cluster and silently skip everything below -- no pruning for a whole campaign, `output.err`
-    #! never cleaned or annotated, and nothing reported anywhere.
-    #! `isnothing(cmd)` means what `isnothing(process)` used to: nothing was ever launched.
+    #! `cmd`, not `process`. `process === nothing` is the norm for a *successful* SLURM job, whose
+    #! work ran on a compute node and left no local process object, so testing `process` would
+    #! early-return for every simulation on a cluster and silently skip everything below -- no
+    #! pruning for a whole campaign, `output.err` never cleaned or annotated, and nothing reported
+    #! anywhere. `isnothing(cmd)` is the real "nothing was ever launched" test.
     if isnothing(simulation_process.cmd)
         return
     end

@@ -67,9 +67,9 @@ ModelManager.SimulationBank
 
 ## Built-in summary statistics
 
-Monad-level, taking a monad ID. Since ModelManager 0.9 these are **not** valid `summary_statistic`
-arguments — a measurement function receives a `Simulation` — so use the `QoI` builders below for
-calibration and keep these for direct monad-level analysis.
+Monad-level, taking a monad ID. These are **not** valid `summary_statistic` arguments — a
+measurement function receives a `Simulation` — so use the `QoI` builders below for calibration and
+keep these for direct monad-level analysis.
 
 ```@docs
 endpointPopulationCounts

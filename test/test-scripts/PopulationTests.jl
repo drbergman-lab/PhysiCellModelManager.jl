@@ -149,5 +149,9 @@ let
 
     #! Every replicate gone is a different thing from one replicate gone, and says so rather than
     #! drawing nothing. `pruned_simulation_id` (PrunerTests.jl) has no initial XML at all.
-    @test_throws ArgumentError PhysiCellModelManager._trialCellTypeRoster(Simulation(pruned_simulation_id))
+    @test_throws ArgumentError PhysiCellModelManager._samplingCellTypeRoster(Simulation(pruned_simulation_id))
+
+    #! A Trial gathers samplings whose configs, and so rosters, may differ, so the recipe refuses it
+    #! and says what to pass instead (ClassesTests.jl created Trial 1).
+    @test_throws ArgumentError plotbycelltype(Trial(1))
 end

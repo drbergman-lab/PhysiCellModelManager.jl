@@ -11,10 +11,14 @@ Two gaps from the second review pass, neither a regression. Both hide a diagnosi
 produce a wrong number, which is why neither showed up as a failing test.
 
 **Decisions**
-- `plotbycelltype`'s cell-type roster comes from `_trialCellTypeRoster`: the first simulation in the
-  trial whose initial XML is still on disk, not `simulationIDs(T) |> first`. Replicates share a
-  config and so share a roster, so any one of them can speak for the trial; the first is only the
-  cheapest to reach, and skipping past a pruned one costs a parse of a file that is on disk anyway.
+- `plotbycelltype`'s cell-type roster comes from `_samplingCellTypeRoster`: the first simulation in
+  the sampling whose initial XML is still on disk, not `simulationIDs(T) |> first`. Replicates share
+  a config and so share a roster, so any one of them can speak for the sampling; the first is only
+  the cheapest to reach, and skipping past a pruned one costs a parse of a file that is on disk anyway.
+- Review: the roster is read from an `AbstractSampling`, not any `AbstractTrial`, because only a
+  sampling's simulations are guaranteed to share a config; a `Trial` gathers samplings whose rosters
+  may differ. The recipe therefore refuses a `Trial` with an `ArgumentError` that says what to pass
+  instead, where it used to accept any `AbstractTrial` behind a bare `@assert`.
 - Rejected: the union of the rosters of every replicate that loads. It parses one XML per
   simulation — which a sampling of hundreds would pay on every plot — to defend against a ragged
   roster the PRD already records as impossible without hand-editing files under `data/`.

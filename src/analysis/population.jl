@@ -446,7 +446,9 @@ Each cell type gets its own subplot.
 Each monad gets its own series within each subplot.
 
 # Arguments
-- `T::AbstractTrial`: The trial to plot.
+- `T::AbstractSampling`: The `Sampling`, `Monad` or `Simulation` to plot (or the output of `run` on
+  one). Its simulations share a config, and so the cell-type roster the panels are drawn from; a
+  `Trial` does not guarantee that and is refused.
 
 # Keyword Arguments
 - `include_dead::Bool`: Whether to include dead cells in the count. Default is `false`.
@@ -465,28 +467,30 @@ struct CellTypeInMonads
 end
 
 """
-    _trialCellTypeRoster(T::AbstractTrial)
+    _samplingCellTypeRoster(S::AbstractSampling)
 
-Return the cell type names declared by a trial, read from the first of its simulations whose
+Return the cell type names declared by a sampling, read from the first of its simulations whose
 initial-snapshot XML is still on disk.
 
-Any one simulation can speak for the trial, because the roster is a property of the config its
-simulations share; the first is only the cheapest to reach. It is not necessarily *present*,
+An `AbstractSampling` — a `Simulation`, `Monad` or `Sampling` — is the widest thing this can be read
+from: its simulations share one config, so the roster is a property of that config and any one
+simulation can speak for all of them; the first is only the cheapest to reach. A `Trial` gathers
+samplings with different configs, whose rosters need not agree, so it is not accepted here. It is not necessarily *present*,
 though — `cellTypeToNameDict` reads back an empty `Dict` for a pruned or deleted simulation, and
 taking the trial's first unconditionally meant that pruning that one replicate collapsed
 `plotbycelltype` to an empty `(0, 1)` layout with nothing said. Skipping to the next replicate
 costs a parse of an XML file that is on disk either way.
 
-Throws an `ArgumentError` naming the trial if no simulation in it has output left to read.
+Throws an `ArgumentError` naming the sampling if no simulation in it has output left to read.
 """
-function _trialCellTypeRoster(T::AbstractTrial)
-    for simulation_id in simulationIDs(T)
+function _samplingCellTypeRoster(S::AbstractSampling)
+    for simulation_id in simulationIDs(S)
         cell_type_to_name_dict = cellTypeToNameDict(simulation_id)
         isempty(cell_type_to_name_dict) && continue
         return values(cell_type_to_name_dict) |> collect
     end
-    throw(ArgumentError("Cannot read the cell type roster of $(typeof(T)) $(T.id): none of its \
-                         $(simulationIDs(T) |> length) simulations has output on disk (deleted or pruned)."))
+    throw(ArgumentError("Cannot read the cell type roster of $(typeof(S)) $(S.id): none of its \
+                         $(simulationIDs(S) |> length) simulations has output on disk (deleted or pruned)."))
 end
 
 @recipe function f(p::PlotByCellType; include_dead=false, include_cell_type_names=:all, exclude_cell_type_names=String[], time_unit=:min)
@@ -496,7 +500,13 @@ end
     else
         T = p.args[1]
     end
-    @assert typeof(T) <: AbstractTrial "Expected first argument to be a subtype of AbstractTrial, got $(typeof(p.args[1]))."
+    #! A `Sampling`, `Monad` or `Simulation`, not any `AbstractTrial`: the panels are one per cell
+    #! type of ONE config, and only an `AbstractSampling` guarantees that all of its simulations
+    #! share one. A `Trial` gathers samplings whose configs, and so rosters, may differ.
+    T isa AbstractSampling || throw(ArgumentError(
+        "plotbycelltype draws one panel per cell type of a single config, so it takes a " *
+        "Sampling, Monad or Simulation (or the output of `run` on one); got a $(typeof(T)). " *
+        "Plot a Trial's samplings one at a time."))
 
     if T isa Simulation
         monads = [Monad(T)]
@@ -504,7 +514,7 @@ end
         monads = Monad.(monadIDs(T))
     end
 
-    all_cell_types = _trialCellTypeRoster(T)
+    all_cell_types = _samplingCellTypeRoster(T)
 
     if haskey(plotattributes, :include_cell_types)
         @assert include_cell_type_names == :all "Do not use both `include_cell_types` and `include_cell_type_names` as keyword arguments. Use `include_cell_type_names` instead."

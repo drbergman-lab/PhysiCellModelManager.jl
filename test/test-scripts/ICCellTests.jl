@@ -57,7 +57,7 @@ for simulation_id in simulationIDs(out_fail.trial)
     err_contents = read(path_to_err, String)
     @test occursin("IC cell", err_contents)
     #! The cause itself, not just a header: the exception's own text, which is PhysiCellCellCreator's
-    #! to word, so match on the radii this variation set rather than on its sentence.
+    #! own wording, so match on the radii this variation set rather than on its sentence.
     cause = split(err_contents, "---cause---") |> last |> strip
     @test !isempty(cause)
     @test occursin("300.0", cause) && occursin("radius", cause)

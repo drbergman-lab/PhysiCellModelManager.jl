@@ -159,13 +159,13 @@ Path to a simulation's `output.err` — the file `run`'s closing summary tells t
 
 One definition, because two places write it: ModelManager redirects a launched simulation's stderr
 here (`stderr=` locally, `sbatch --error` on HPC) and `postSimulationCleanup` annotates it
-afterwards, while `_recordSetupFailure` writes it for a simulation that never launched at all.
+afterwards, while `_recordICSetupFailure` writes it for a simulation that never launched at all.
 Spelling the `joinpath` twice is how those two drift apart.
 """
 _pathToSimulationErr(simulation::Simulation) = joinpath(trialFolder(simulation), "output.err")
 
 """
-    _recordSetupFailure(simulation::Simulation, ic_name::String, e)
+    _recordICSetupFailure(simulation::Simulation, ic_name::String, e)
 
 Report a pre-launch IC setup failure twice over: a `@warn` now, and the cause written to the
 simulation's `output.err`.
@@ -180,7 +180,7 @@ the only record and it is interleaved across workers; each simulation's own `out
 rather than into whatever a worker happened to be writing mid-line, and a caller can silence or
 capture it like any other warning.
 """
-function _recordSetupFailure(simulation::Simulation, ic_name::String, e)
+function _recordICSetupFailure(simulation::Simulation, ic_name::String, e)
     cause = sprint(showerror, e)
     path_to_err = _pathToSimulationErr(simulation)
     open(path_to_err, "w") do io
@@ -202,7 +202,7 @@ Internal PhysiCell function to build the `Cmd` to run a single simulation.
 Setup (compilation, varied input folders) is always performed by
 [`ModelManager.prepareTrialHierarchy`](@ref) before this is called. Returns `nothing`
 if command construction fails (e.g. IC cell or IC ECM setup error); in that case the
-cause is written to the simulation's `output.err` by `_recordSetupFailure`, the caller
+cause is written to the simulation's `output.err` by `_recordICSetupFailure`, the caller
 returns a failed [`SimulationProcess`](@ref) and MM's `processSimulationTask` updates
 the database.
 """
@@ -217,7 +217,7 @@ function prepareSimulationCommand(simulation::Simulation)
         try
             append!(flags, ["-i", setUpICCell(simulation)])
         catch e
-            _recordSetupFailure(simulation, "IC cell", e)
+            _recordICSetupFailure(simulation, "IC cell", e)
             return nothing
         end
     end
@@ -228,7 +228,7 @@ function prepareSimulationCommand(simulation::Simulation)
         try
             append!(flags, ["-e", setUpICECM(simulation)])
         catch e
-            _recordSetupFailure(simulation, "IC ECM", e)
+            _recordICSetupFailure(simulation, "IC ECM", e)
             return nothing
         end
     end

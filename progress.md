@@ -46,6 +46,55 @@ produce a wrong number, which is why neither showed up as a failing test.
 - The new `plotbycelltype` test stashes the first replicate's `initial.xml` and puts it back rather
   than deleting it. Monad 1's first replicate is simulation 1, and `GraphsTests.jl` and `PCFTests.jl`
   read its snapshots later in the same run.
+## 2026-09-14 — One reducer for every QoI builder (#232)
+
+**Decisions**
+- **Both count builders stay.** `populationCountQoI` and `endpointPopulationCountQoI` measure the same
+  quantity at the final snapshot under two names and two families of sink columns, and #232 proposed
+  collapsing them into one. Not done: two names for similar measurements is acceptable, each reads
+  naturally at the call site it was written for, and both column families are already in users'
+  databases.
+- **The three bespoke reducers go.** `_meanEndpointCounts`, `_meanEndpointFractions` and
+  `_meanPopulationTimeSeriesOf` are deleted. `endpointPopulationCountQoI`,
+  `endpointPopulationFractionQoI` and `meanPopulationTimeSeriesQoI` now define no `reduce` and are
+  averaged by ModelManager's default per-key mean, as `populationCountQoI` already was. Whatever that
+  changes numerically is accepted rather than preserved.
+- **Zero-fill versus exclusion of a missing cell type is moot.** Each bespoke reducer existed to
+  reconcile a replicate lacking a cell type — the endpoint pair by filling in a zero, the time series
+  by shrinking the denominator. Neither case can arise: `populationCount` keys every cell type the
+  model declares rather than only the ones with living cells, so the replicates of a monad, which
+  share a config, cannot disagree about their roster. The default reducer's key-agreement rule is
+  satisfied by construction, and the reconciliation each reducer performed was unreachable code.
+- **`meanPopulationTimeSeriesQoI`'s `compute` returns the `Dict` itself.** It used to return a
+  `SimulationPopulationTimeSeries` and let its reducer turn the replicates into
+  `Dict{String,Vector{Float64}}`; `compute` now returns that shape directly — one entry per cell type,
+  the replicate's counts on its own time grid — and the default reducer averages the vectors
+  elementwise, which is all `MonadPopulationTimeSeries` ever did to them. The reducer's
+  shared-time-grid assertion went with it: replicates of one monad share a config and therefore a save
+  schedule. A consequence worth naming — the sink and sensitivity analysis now refuse this builder for
+  the *same* reason at both ends (a component that is a series, not a `Real`), where the sink used to
+  refuse an unstorable struct.
+- **Agreement with the monad-level functions is now up to summation order.** `endpointPopulationCounts`,
+  `endpointPopulationFractions` and `meanPopulationTimeSeries` keep their own accumulation, so the
+  `==` assertions in `CalibrationTests.jl` became `≈`. They still cannot disagree about *which*
+  replicates or cell types went into an average.
+
+**Not pursued**
+- The `times=`-keyed flat time-series builder from #232 (`Dict("<type>@<t>" => count)`, so the sink and
+  GSA could take a series). The `Dict`-of-`Vector`s shape is what calibration wants and what
+  `mseDistance` already walks, so nothing is broken; a flat form is a new feature with its own
+  questions (which times are on the grid, how many columns SQLite will take) and needs its own brief.
+
+**Removed**
+- `_meanEndpointCounts`, `_meanEndpointFractions`, `_meanPopulationTimeSeriesOf`.
+- In the "QoI builder reducers" testset: the zero-fill/union assertion, and the 1200-copies-of-0.1
+  block that pinned the float-associativity gap between the counts and fractions reducers. Both
+  described deleted code; there is one reducer now, so there is no gap between builders to pin.
+- Every claim in PRD.md, README.md and the manual that a builder zero-fills, excludes a replicate from
+  a key's average, or returns exactly (`==`) what its monad-level counterpart returns.
+
+`_restrict`, `_averageStatDicts` and `_excludedReplicates` stay — the monad-level functions still use
+them.
 
 ---
 

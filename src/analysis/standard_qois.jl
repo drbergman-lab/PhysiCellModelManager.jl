@@ -161,29 +161,33 @@ end
 # from the simulation like the monad-level functions do, where a vector of QoIs would have to name
 # them at construction.
 #
-# Each `reduce` is the corresponding monad-level function's own aggregation step, so the two agree by
-# construction rather than by coincidence — which matters because the three disagree with each other
-# about whether an absent cell type is zero-filled and about summation order. The tests still assert
-# `==` between them.
+# No builder defines a `reduce`. All four reduce under ModelManager's default per-key mean, whose one
+# rule is that the replicates of a monad carry the same keys -- satisfied by construction, because
+# `populationCount` keys every cell type the model declares rather than only the ones with living
+# cells, and replicates of a monad share a config and so a roster. No roster can be ragged, so nothing
+# here zero-fills an absent cell type or drops a replicate from one key's average; the three bespoke
+# reducers that did both are gone (#232). What is left is a difference of summation order against the
+# monad-level functions, which keep their own: the tests assert `≈`, not `==`.
 #
 # Sensitivity analysis spreads a keyed `reduce` into one analysis per key -- labelled
 # `"<qoi name>.<key>"`, the same reading the sink gives it -- so the two endpoint builders serve all
 # three consumers with no per-cell-type rewrite. `meanPopulationTimeSeriesQoI` reaches calibration
-# only: its `compute` returns a struct the sink cannot store, and each component of its `reduce` is a
-# series rather than the `Real` an index is computed from. Reduce a series to a scalar to ask a
-# sensitivity question about it.
+# only, and now for one reason at both ends: every component it reports is a time series rather than
+# the `Real` a sink column or a sensitivity index is computed from, so the sink refuses its `compute`
+# and sensitivity analysis refuses its `reduce`. Reduce a series to a scalar to ask either question
+# about it.
 #
-# Each `reduce` below sees only the replicates that produced a value: `QoI`'s default
-# `skip_missing=true` drops the `missing` ones (narrowing the element type, so `_averageStatDicts`
-# gets the `Vector{<:Dict}` it is written for) and reduces a monad with none to `missing` before
-# `reduce` is called.
+# The reducer sees only the replicates that produced a value: `QoI`'s default `skip_missing=true`
+# drops the `missing` ones and reduces a monad with none to `missing` before `reduce` is called.
 #
-# Restorability. A builder's keyword arguments travel in the QoI's `data` slot, and its `compute`
-# and `reduce` are the named top-level functions below, so JLD2 can bring a `problem.jld2` written
-# from a builder back by name and `resumeABC(Calibration(id))` needs no `problem=`. A closure
-# capturing `cell_types` would be saved as `nothing` -- ModelManager stores functions by name only --
-# and force every resume of a PCMM calibration to re-supply the problem. `data !== nothing` is what
-# selects the two-argument calling convention, `compute(sim, data)` and `reduce(values, data)`.
+# Restorability. A builder's keyword arguments travel in the QoI's `data` slot and its `compute` is
+# one of the named top-level functions below, so JLD2 can bring a `problem.jld2` written from a
+# builder back by name and `resumeABC(Calibration(id))` needs no `problem=`. A closure capturing
+# `cell_types` would be saved as `nothing` -- ModelManager stores functions by name only -- and force
+# every resume of a PCMM calibration to re-supply the problem. `data !== nothing` is what selects the
+# two-argument calling convention, `compute(sim, data)` and `reduce(values, data)`, ModelManager's
+# default reducer included: it takes `data` and ignores it, which is what lets a builder keep `data`
+# for `compute` alone and define no `reduce`.
 
 #! Restrict a per-simulation dict to `cell_types`, or leave it alone when none were named.
 _restrict(d, cell_types) = isnothing(cell_types) ? d : filter(p -> p.first in cell_types, d)
@@ -192,13 +196,6 @@ _restrict(d, cell_types) = isnothing(cell_types) ? d : filter(p -> p.first in ce
 function _endpointCountsOf(sim::Simulation, data)
     counts = finalPopulationCount(sim; include_dead=data.include_dead)
     return ismissing(counts) ? missing : _restrict(counts, data.cell_types)
-end
-
-#! `reduce` of `endpointPopulationCountQoI` -- `finalPopulationCount(::Monad)`'s own aggregation:
-#! union of the keys, and a generator mean that zero-fills a cell type a replicate does not have.
-function _meanEndpointCounts(kept, data)
-    all_keys = union(keys.(kept)...)
-    return Dict{String,Float64}(k => mean(get(c, k, 0) for c in kept) for k in all_keys)
 end
 
 #! `compute` of `endpointPopulationFractionQoI`. The denominator is every live cell, so `total` is
@@ -215,27 +212,16 @@ function _endpointFractionsOf(sim::Simulation, data)
     return _restrict(fractions, data.cell_types)
 end
 
-#! `reduce` of `endpointPopulationFractionQoI` -- `_averageStatDicts` is the monad-level function's
-#! aggregation, reused rather than reimplemented, including its zero-fill of a cell type absent from
-#! a replicate.
-_meanEndpointFractions(kept, data) = _averageStatDicts(kept, data.cell_types)
-
-#! `compute` of `meanPopulationTimeSeriesQoI`: one replicate's whole series.
-_populationTimeSeriesOf(sim::Simulation, data) =
-    SimulationPopulationTimeSeries(sim; include_dead=data.include_dead, verbose=false)
-
-#! `reduce` of `meanPopulationTimeSeriesQoI` -- `MonadPopulationTimeSeries`'s own aggregation: a
-#! column per replicate that HAS the cell type, then an elementwise mean over however many that was.
-function _meanPopulationTimeSeriesOf(kept, data)
-    grid = first(kept).time
-    all(spts -> spts.time == grid, kept) || throw(ArgumentError(
-        "Replicates of this monad have different times in their time series, so they " *
-        "cannot be averaged over."))
-    names = isnothing(data.cell_types) ? union(keys.(getfield.(kept, :cell_count))...) : data.cell_types
-    return Dict{String,Vector{Float64}}(
-        name => vec(mean(reduce(hcat, [spts.cell_count[name] for spts in kept
-                                       if haskey(spts.cell_count, name)]), dims=2))
-        for name in names)
+#! `compute` of `meanPopulationTimeSeriesQoI`: one replicate's counts per cell type, on that
+#! replicate's own time grid, restricted. A `Dict` of `Vector`s rather than the
+#! `SimulationPopulationTimeSeries` it reads, because the default reducer averages a keyed value per
+#! key and a `Vector` component averages elementwise -- which is the whole of what
+#! `MonadPopulationTimeSeries` does to these series. The grid is neither carried nor compared across
+#! replicates: replicates of one monad share a config and therefore a save schedule.
+function _populationTimeSeriesOf(sim::Simulation, data)
+    spts = SimulationPopulationTimeSeries(sim; include_dead=data.include_dead, verbose=false)
+    ismissing(spts) && return missing
+    return Dict{String,Vector{Float64}}(_restrict(spts.cell_count, data.cell_types))
 end
 
 """
@@ -244,11 +230,17 @@ end
 Return a [`QoI`](@ref ModelManager.QoI) giving mean final-snapshot counts per cell type across a
 monad's replicates.
 
-The keyword arguments travel in the QoI's `data` slot and both of its functions are named, so a
-calibration's `problem.jld2` is complete and `resumeABC(Calibration(id))` needs no `problem=`.
+The keyword arguments travel in the QoI's `data` slot and its `compute` is a named top-level
+function, so a calibration's `problem.jld2` is complete and `resumeABC(Calibration(id))` needs no
+`problem=`.
 
-Its value is a `Dict{String,Float64}` of cell type → mean count: the same thing
-[`endpointPopulationCounts`](@ref) returns, so `observed_data` does not change between them.
+Its value is a `Dict{String,Float64}` of cell type → mean count: the same shape
+[`endpointPopulationCounts`](@ref) returns, so `observed_data` does not change between them. It
+defines no `reduce`, so ModelManager's default per-key mean averages the replicates, and the two
+agree up to floating-point summation order.
+
+[`populationCountQoI`](@ref) measures the same quantity at the final snapshot, under a different
+name and a different family of sink columns.
 
 # Keyword Arguments
 - `cell_types`: restrict to these cell types. `nothing` (default) measures every cell type present.
@@ -261,8 +253,7 @@ problem = CalibrationProblem(inputs, parameters, observed, endpointPopulationCou
 """
 function endpointPopulationCountQoI(; cell_types::Union{Nothing,Vector{String}}=nothing,
                                       include_dead::Bool=false)
-    return QoI("endpoint_population_count", _endpointCountsOf;
-               reduce=_meanEndpointCounts, data=(; cell_types, include_dead))
+    return QoI("endpoint_population_count", _endpointCountsOf; data=(; cell_types, include_dead))
 end
 
 """
@@ -272,9 +263,11 @@ Return a [`QoI`](@ref ModelManager.QoI) giving mean final-snapshot fractions of 
 type across a monad's replicates. Restorable like [`endpointPopulationCountQoI`](@ref): the keyword
 arguments travel in `data`, so resuming needs no `problem=`.
 
-Its value is a `Dict{String,Float64}` of cell type → mean fraction, matching
-[`endpointPopulationFractions`](@ref). The ratio is taken per simulation and only then averaged —
-mean-of-ratios, not ratio-of-means — which is why it fits a per-simulation `compute` at all.
+Its value is a `Dict{String,Float64}` of cell type → mean fraction, the same shape
+[`endpointPopulationFractions`](@ref) returns and agreeing with it up to floating-point summation
+order; like the other builders it defines no `reduce` and is averaged by ModelManager's default
+per-key mean. The ratio is taken per simulation and only then averaged — mean-of-ratios, not
+ratio-of-means — which is why it fits a per-simulation `compute` at all.
 
 # Keyword Arguments
 - `cell_types`: restrict to these cell types. `nothing` (default) measures every cell type present.
@@ -287,8 +280,7 @@ problem = CalibrationProblem(inputs, parameters, observed, endpointPopulationFra
 """
 function endpointPopulationFractionQoI(; cell_types::Union{Nothing,Vector{String}}=nothing,
                                          include_dead::Bool=false)
-    return QoI("endpoint_population_fraction", _endpointFractionsOf;
-               reduce=_meanEndpointFractions, data=(; cell_types, include_dead))
+    return QoI("endpoint_population_fraction", _endpointFractionsOf; data=(; cell_types, include_dead))
 end
 
 """
@@ -298,13 +290,16 @@ Return a [`QoI`](@ref ModelManager.QoI) giving the mean population time series p
 a monad's replicates. Restorable like [`endpointPopulationCountQoI`](@ref): the keyword arguments
 travel in `data`, so resuming needs no `problem=`.
 
-Its value is a `Dict{String,Vector{Float64}}` on the shared time grid, matching
-[`meanPopulationTimeSeries`](@ref), so a `CalibrationProblem` using it wants `observed_data` values
-on that same grid.
+Its value is a `Dict{String,Vector{Float64}}` of cell type → mean count over time, the same shape
+[`meanPopulationTimeSeries`](@ref) returns and agreeing with it up to floating-point summation order,
+so a `CalibrationProblem` using it wants `observed_data` values on that same time grid. Its `compute`
+reports one replicate's counts on that replicate's own grid and it defines no `reduce`, so
+ModelManager's default per-key mean averages them elementwise. No grid check is needed: replicates of
+one monad share a config and therefore a save schedule.
 
-Unlike the two endpoint builders, a replicate lacking a cell type is **excluded** from that cell
-type's average rather than contributing a zero — `MonadPopulationTimeSeries` divides by the number
-of replicates having the cell type, and zero-filling would divide by a larger denominator.
+Calibration is its only consumer. Every component is a time series rather than the `Real` a sink
+column or a sensitivity index is computed from, so the post-processing sink refuses its `compute` and
+sensitivity analysis refuses its `reduce`.
 
 # Keyword Arguments
 - `cell_types`: restrict to these cell types. `nothing` (default) measures every cell type present.
@@ -317,8 +312,7 @@ problem = CalibrationProblem(inputs, parameters, observed, meanPopulationTimeSer
 """
 function meanPopulationTimeSeriesQoI(; cell_types::Union{Nothing,Vector{String}}=nothing,
                                        include_dead::Bool=false)
-    return QoI("mean_population_time_series", _populationTimeSeriesOf;
-               reduce=_meanPopulationTimeSeriesOf, data=(; cell_types, include_dead))
+    return QoI("mean_population_time_series", _populationTimeSeriesOf; data=(; cell_types, include_dead))
 end
 
 ################## Per-snapshot population counts ##################
@@ -343,9 +337,11 @@ arguments travel in the QoI's `data` slot, so a calibration's `problem.jld2` wri
 complete.
 
 This QoI defines no `reduce` of its own, so wherever it is reduced across replicates ModelManager's
-default applies: a mean per cell type, which refuses a monad whose replicates report different cell
-types. [`endpointPopulationCountQoI`](@ref) measures the same thing at the final snapshot and
-zero-fills a cell type a replicate lacks instead.
+default applies: a mean per cell type. [`endpointPopulationCountQoI`](@ref) measures the same thing at
+the final snapshot, under a different name and a different family of sink columns, and reduces under
+that same default. Neither can trip the default's one requirement — that the replicates agree about
+their keys — because [`populationCount`](@ref) keys every cell type the model declares rather than
+only those with living cells, and the replicates of a monad share a config.
 
 # Arguments
 - `index`: Which snapshot to count — `:final`, `:initial`, or an integer snapshot index.

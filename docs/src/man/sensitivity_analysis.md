@@ -121,9 +121,9 @@ simulation's own output.
     [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is then rejected
     for being a time series rather than a number. Reduce a series to a scalar to ask a sensitivity
     question about it.
-    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
-    mean applies, which refuses a monad whose replicates report different cell types;
-    [`endpointPopulationCountQoI`](@ref) zero-fills those instead.
+    No builder defines a `reduce` of its own, so ModelManager's default per-key mean averages the
+    replicates of all of them — [`populationCountQoI`](@ref) and
+    [`endpointPopulationCountQoI`](@ref), which measure the same quantity under two names, alike.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than

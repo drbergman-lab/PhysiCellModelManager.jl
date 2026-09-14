@@ -81,9 +81,12 @@ gsa_labels = PhysiCellModelManager.ModelManager.gsaLabels(moat_sampling)
 @test moat_sampling.results["endpoint_population_count.$(cell_type)"].variances ==
       moat_sampling.results["gs_fn"].variances
 
-#! The boundary, and it is not one shape: a `Vector` is deliberately not spread by index, because
-#! only its length can be checked across the design and equal length is not equal meaning. So a
-#! per-cell-type time series is refused rather than silently misaligned.
+#! The boundary. `meanPopulationTimeSeriesQoI` reduces to a `Dict` keyed by cell type, so it IS
+#! spread -- one analysis per key -- and each component is then rejected for being a time series
+#! rather than the `Real` a sensitivity index is computed from. The separate rule that a bare
+#! `Vector` return is not spread by index never comes into it: the value is keyed. (Before #232 the
+#! builder's `compute` returned a `SimulationPopulationTimeSeries`; only its `reduce` was keyed.
+#! Both ends are keyed now, and the refusal is the same one at both.)
 @test_throws ArgumentError PhysiCellModelManager.calculateGSA!(moat_sampling, meanPopulationTimeSeriesQoI())
 
 # test sensitivity with config, rules, ic_cells, and ic_ecm at once

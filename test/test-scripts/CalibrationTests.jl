@@ -115,15 +115,22 @@ end
 
 ################## QoI-returning builders ##################
 #
-# These assert the builders reproduce their monad-level counterparts EXACTLY (`==`, not `isapprox`).
-# That is the point of the migration: handing the same quantity to a `QoI` consumer must not move
-# anyone's numbers. The three statistics disagree with each other in ways a shared reducer would
-# silently erase, so each divergence gets its own assertion.
+# These assert the builders reproduce their monad-level counterparts up to floating-point summation
+# order (`≈`, not `==`). Handing the same quantity to a `QoI` consumer still must not move anyone's
+# numbers, but exact equality is no longer the claim: since #232 the builders define no `reduce` and
+# go through ModelManager's default per-key mean, while the monad-level functions keep their own
+# accumulation (`finalPopulationCount(::Monad)`'s generator mean, `_averageStatDicts`' materialised
+# one, `mean(array, dims=2)`). The two can therefore sum in different orders; they cannot disagree
+# about which replicates or which cell types are in the average, because no roster is ragged.
 
 #! The builders carry their keyword arguments in `data`, which selects the two-argument calling
 #! convention ModelManager uses for them: `compute(sim, data)` and `reduce(values, data)`.
 computeOn(q, sim) = q.compute(sim, q.data)
 reduceWith(q, values) = q.reduce(values, q.data)
+
+#! `≈` has no `Dict` method, and these dicts hold a `Float64` for the endpoint builders and a
+#! `Vector{Float64}` for the time-series one, so compare the key sets and then each value.
+approxDicts(a, b) = keys(a) == keys(b) && all(a[k] ≈ b[k] for k in keys(a))
 
 @testset "QoI builder reducers" begin
     counts_q = endpointPopulationCountQoI()
@@ -141,31 +148,21 @@ reduceWith(q, values) = q.reduce(values, q.data)
     # itself -- reachable on ordinary data, because pruning makes a replicate unreadable. The
     # pruned-replicate path is exercised end to end further down.
     @test counts_q.skip_missing && fracs_q.skip_missing
+    # No builder carries a `reduce` of its own any more (#232), so `q.reduce` here IS ModelManager's
+    # default per-key mean, reached through the two-argument convention `data` selects.
     @test reduceWith(counts_q, [Dict("a" => 1), Dict("a" => 3)]) == Dict("a" => 2.0)
     @test reduceWith(fracs_q, [Dict("a" => 0.25), Dict("a" => 0.75)]) == Dict("a" => 0.5)
-    # A cell type absent from a replicate is zero-filled by both endpoint builders, and the counts
-    # builder unions the keys rather than taking the first replicate's.
-    @test reduceWith(counts_q, [Dict("a" => 3), Dict("a" => 3, "b" => 6)]) == Dict("a" => 3.0, "b" => 3.0)
 
-    # Float associativity is observable, and the two existing functions disagree about it:
-    # `finalPopulationCount(::Monad)` averages a generator (sequential summation) while
-    # `_averageStatDicts` averages a materialised Vector. 1200 copies of 0.1 is a deliberately
-    # boring input that separates them: `sum` over an array switches to pairwise summation above a
-    # blocksize of 1024, so the divergence here comes from Julia's algorithm rather than from SIMD
-    # width, and therefore reproduces on any machine. (Shorter vectors can differ too, but only via
-    # vectorised reassociation, which varies by CPU and would make this test machine-dependent.)
-    diverging = fill(0.1, 1200)
-    @test mean(diverging) != mean(x for x in diverging)
-
-    # Each reducer matches its OWN original form on that input: the counts builder reuses
-    # `finalPopulationCount(::Monad)`'s generator mean, the fractions builder reuses
-    # `_averageStatDicts`' materialised one.
-    as_dicts = [Dict("a" => x) for x in diverging]
-    @test reduceWith(counts_q, as_dicts)["a"] == mean(x for x in diverging)
-    @test reduceWith(fracs_q, as_dicts)["a"] == mean(Float64[x for x in diverging])
-    # ...and therefore differ from each other, which is what makes the two assertions above
-    # load-bearing rather than two spellings of the same check.
-    @test reduceWith(counts_q, as_dicts)["a"] != reduceWith(fracs_q, as_dicts)["a"]
+    # Two things used to be pinned here and are deliberately gone, because the code they described
+    # is deleted rather than merely changed. One was the counts reducer's union-of-keys zero-fill
+    # of a cell type absent from a replicate; nothing zero-fills now, and nothing needs to -- the
+    # default reducer's one rule is that replicates agree about their keys, and they do by
+    # construction, since `populationCount` keys every cell type the model declares and a monad's
+    # replicates share a config. The other was the float-associativity gap between
+    # `finalPopulationCount(::Monad)`'s generator mean and `_averageStatDicts`' materialised one
+    # (1200 copies of 0.1) to prove the two bespoke reducers were genuinely different functions.
+    # There is one reducer now, so there is no gap between builders to pin; what is left is the gap
+    # between a builder and its monad-level counterpart, and the testset below asserts `≈` for it.
 end
 
 @testset "QoI builders match the monad-level functions" begin
@@ -210,10 +207,10 @@ end
         via_qoi = evaluate(builder(; cell_types=[cell_type]), monad_id)
         direct = monadwise(monad_id; cell_types=[cell_type])
         @test keys(via_qoi) == keys(direct)          # flat, keyed by cell type -- not nested
-        @test via_qoi[cell_type] == direct[cell_type]
+        @test via_qoi[cell_type] ≈ direct[cell_type]
         #! ...and with no `cell_types`, the QoI discovers them exactly as the monad-level function
         #! does -- the thing the previous `Vector{QoI}` shape could not do.
-        @test evaluate(builder(), monad_id) == monadwise(monad_id)
+        @test approxDicts(evaluate(builder(), monad_id), monadwise(monad_id))
     end
 
     # Now prune one replicate and assert the equality survives the path that actually differs.
@@ -231,7 +228,7 @@ end
     for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
                                  (endpointPopulationFractionQoI, endpointPopulationFractions),
                                  (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
-        @test evaluate(builder(; cell_types=[cell_type]), monad_id)[cell_type] ==
+        @test evaluate(builder(; cell_types=[cell_type]), monad_id)[cell_type] ≈
               monadwise(monad_id; cell_types=[cell_type])[cell_type]
     end
 end

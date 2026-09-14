@@ -573,11 +573,13 @@ without naming them in advance, labelled `endpoint_population_count.<cell_type>`
 than the `Real` an index is computed from. See
 [One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
 
-!!! note "Two builders, two reducers"
-    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
-    mean applies wherever it is reduced, and that default refuses a monad whose replicates report
-    different cell types. [`endpointPopulationCountQoI`](@ref) measures the same thing at the final
-    snapshot and zero-fills a cell type a replicate lacks.
+!!! note "Two builders, one reducer"
+    [`populationCountQoI`](@ref) and [`endpointPopulationCountQoI`](@ref) measure the same quantity
+    at the final snapshot, under two names and two families of sink columns. Neither defines a
+    `reduce`, nor does any other builder on this page: a monad's replicates are averaged by
+    ModelManager's default per-key mean throughout. That default asks the replicates to report the
+    same cell types, which they always do — the keys are the model's declared cell-type roster, and
+    replicates of a monad share a config.
 
 ## Built-in distance functions
 

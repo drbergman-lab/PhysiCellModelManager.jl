@@ -115,14 +115,15 @@ simulation's own output.
 [`endpointPopulationFractionQoI`](@ref) works the same way.
 
 !!! note "Two shapes that are not spread"
-    Two separate rules. A bare `Vector` return is **not** spread by index: only its length can be
-    checked across the design, and equal length is not equal meaning. Separately, every spread
-    component must itself be a `Real`. It is the second that rules out
+    Two separate rules. A bare `Vector` return is **not** spread by index — components are keyed,
+    for now, so that two parameter sets can be checked for the same components by name. Separately,
+    every spread component must itself be a `Real`. It is the second that rules out
     [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is then rejected
     for being a time series rather than a number. Reduce a series to a scalar to ask a sensitivity
     question about it.
-    [`populationCountQoI`](@ref) is also out, for a different reason: it defines no `reduce`, so it
-    is for the [post-processing sink](@ref post_processing_man) only.
+    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
+    mean applies, which refuses a monad whose replicates report different cell types;
+    [`endpointPopulationCountQoI`](@ref) zero-fills those instead.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than
@@ -180,3 +181,31 @@ Parameter columns in this CSV use the latent parameter names for the sampling de
 This can later be used to reload the `GSASampling` and continue doing analysis.
 The simplest way to do that in a new Julia session is to re-run the code that generated the `GSASampling` object.
 So long as the `use_previous` keyword argument is set to `true`, the previous results will be reused.
+
+## Plotting
+
+Requires a Plots.jl backend (`using Plots`). Every `GSASampling` has a plot recipe; a positional
+symbol picks the style where there is more than one, and `parameters=` restricts the x-axis to some
+parameters, drawn in the order given — anything `select` accepts on a `DataFrame` works.
+
+```julia
+plot(moat_sampling)                       # µ* per parameter (the default, :bar)
+plot(moat_sampling; show_sigma=true)      # σ as whiskers on the µ* bars
+plot(moat_sampling, :scatter)             # the µ*–σ screening scatter
+plot(moat_sampling, :violin)              # elementary-effect distributions; needs StatsPlots
+plot(sobol_sampling)                      # first-order S1 bars with total-order ST behind them
+plot(sobol_sampling; show_ST=false)       # S1 only
+plot(rbd_sampling)                        # first-order bars
+plot(moat_sampling; parameters=["Apoptosis rate"])   # a subset, in this order
+```
+
+On the template project, varying a cycle phase duration and the apoptosis rate with the final cell
+count as the measurement (the Sobol' bars are illustrative values rather than a measured design):
+
+![MOAT: µ* per parameter, σ as whiskers](../assets/gsa_moat_bar.png)
+
+![MOAT: µ*–σ screening scatter](../assets/gsa_moat_scatter.png)
+
+![Sobol': first-order bars in front of total-order bars (illustrative values)](../assets/gsa_sobol.png)
+
+![RBD: first-order indices](../assets/gsa_rbd.png)

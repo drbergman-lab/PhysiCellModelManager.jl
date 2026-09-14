@@ -38,12 +38,9 @@ include("pcmm_version.jl")
 include("physicell_version.jl")
 include("components.jl")
 
-include("user_api.jl")
-
 include("loader.jl")
 
 include("analysis/analysis.jl")
-include("sensitivity.jl")
 include("import.jl")
 include("movie.jl")
 
@@ -53,13 +50,13 @@ include("export.jl")
 """
     _pcmmGlobalsRegistered()
 
-Return `true` when [`ModelManager.mm_globals_ref`](@ref) already holds initialized globals whose
-simulator is a [`PhysiCellSimulator`](@ref) — that is, when PhysiCellModelManager.jl has already
-initialized a project in this Julia process.
+Return `true` when ModelManager's globals are initialized and their simulator is a
+[`PhysiCellSimulator`](@ref) — that is, when PhysiCellModelManager.jl has already initialized a
+project in this Julia process.
 
-`mm_globals_ref` is shared by every ModelManager backend but holds only one `simulator`, so the
-simulator type must be checked too: if another backend owns the globals, PhysiCellModelManager.jl
-has to claim them rather than defer and then run against a foreign simulator.
+ModelManager serves one backend per process, so the simulator type must be checked too: if another
+backend owns the globals, PhysiCellModelManager.jl has to claim them rather than defer and then run
+against a foreign simulator.
 
 # Returns
 - `Bool`: `true` only if PhysiCellModelManager.jl owns initialized globals.
@@ -117,8 +114,11 @@ function __init__()
     sim.path_to_magick = haskey(ENV, "PCMM_IMAGEMAGICK_PATH") ? ENV["PCMM_IMAGEMAGICK_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
     sim.path_to_ffmpeg = haskey(ENV, "PCMM_FFMPEG_PATH") ? ENV["PCMM_FFMPEG_PATH"] : (Sys.iswindows() ? missing : "/opt/homebrew/bin")
 
+    #! `registerSimulator!` is the backend half of ModelManager's contract: it creates the globals
+    #! around `sim`, or replaces (with a warning) the ones another backend left behind.
+    ModelManager.registerSimulator!(sim)
     n_parallel = haskey(ENV, "PCMM_NUM_PARALLEL_SIMS") ? parse(Int, ENV["PCMM_NUM_PARALLEL_SIMS"]) : 1
-    ModelManager.mm_globals_ref[] = ModelManagerGlobals(simulator=sim, max_number_of_parallel_simulations=n_parallel)
+    setNumberOfParallelSims(n_parallel)
 
     #! Registering the globals above is pure in-memory work, so it is safe to do while a cache file
     #! is being written — and keeps `mm_globals()` usable by any precompilation workload downstream.
@@ -185,7 +185,13 @@ function initializeModelManager(path_to_physicell::AbstractString, path_to_data:
         throw(PCMMMissingProject("Could not find PhysiCell and/or data directories. Looked for them in: $path_to_physicell, $path_to_data"))
     end
     simulator().dir = path_to_physicell
-    return initializeModelManager(simulator(), path_to_data; auto_upgrade)
+    initialized = initializeModelManager(simulator(), path_to_data; auto_upgrade)
+    #! After ModelManager's own init, which is where `run_on_hpc` is probed. ModelManager knows
+    #! nothing about `march_flag`; PCMM decides it here, the first moment the probe's answer exists.
+    #! A scheduler means the cached executable will run on a machine that did not build it, so
+    #! `native` is unsafe there.
+    initialized && (simulator().march_flag = mm_globals().run_on_hpc ? "x86-64" : "native")
+    return initialized
 end
 
 function initializeModelManager(path_to_project::AbstractString; kwargs...)

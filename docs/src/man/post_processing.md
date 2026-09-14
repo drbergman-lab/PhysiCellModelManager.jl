@@ -3,7 +3,8 @@
 [Analyzing output](@ref analyzing_output_man) covers analysis *after* a run finishes. `run` also
 accepts a `post_processor` keyword: a callback invoked once per successful simulation, right
 after it finishes and before PhysiCellModelManager.jl prunes any output — so the callback always
-sees the intact output folder, however aggressive your `prune_options` are.
+sees the intact output folder, however aggressive your `prune_options` are. Pruning is the last of
+the steps that follow a simulation; it has [its own section below](@ref prune_output_pp).
 
 ```julia
 run(sampling; post_processor = QoI("final_count", sim -> finalPopulationCount(sim)["default"]))
@@ -20,18 +21,19 @@ folder itself.
     happens to produce. The number is not stable, so the same script would write a second,
     half-empty set of columns next time. From ModelManager 0.9.1 that is refused rather
     than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI) as above, or pass a named function.
-    A callback returning `nothing` stores nothing and is unaffected.
+    A callback returning `missing` stores nothing and is unaffected.
 
 ## Returning quantities of interest
 
 What the callback returns determines what gets stored:
 
-- **`nothing`** — side effects only (e.g. writing your own file, or an external log). Return it
-  explicitly, or PCMM will store whatever the callback's last expression evaluated to instead:
+- **`missing`** — side effects only (e.g. writing your own file, or an external log). Return it
+  explicitly: a callback's value is its last expression, and `nothing` — what a block returns by
+  accident — is refused rather than stored:
   ```julia
   run(sampling; post_processor = function (sim)
       exportSimulation(simulationID(sim), "results/$(simulationID(sim))")
-      return nothing
+      return missing
   end)
   ```
 - **A single scalar** (`Real`, `Bool`, or `String`) — stored in one column named after the QoI,
@@ -60,7 +62,7 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # onl
 
 If the requested snapshot doesn't exist for a given simulation (e.g. it was pruned by an
 *earlier* run before this feature's ordering guarantee applied to it), the builder returns
-`nothing` for that simulation rather than erroring.
+`missing` for that simulation, so nothing is recorded for it rather than erroring.
 
 !!! warning "Upgrading from v0.3.3"
     This builder wrote `count_<cell_type>` columns in v0.3.3, when the sink was one flat namespace
@@ -79,3 +81,25 @@ simulationsTable(sampling; post_processing=true)  # joined with the varied param
 ```
 
 See [Querying parameters](@ref querying_parameters_man) for more on those tables.
+
+## [Pruning output after the callback](@id prune_output_pp)
+
+Every save interval PhysiCell writes an XML/MAT snapshot pair and an SVG, so a campaign of thousands
+of simulations is tens of gigabytes most analyses never open. Name the file types to drop in
+`prune_options`, and [`PruneOptions`](@ref) deletes them from each simulation's folder as the last
+step after it finishes — after your `post_processor` has run, which is why the callback is the place
+to compute what you need from the files:
+
+```julia
+run(sampling; prune_options = PruneOptions(prune_svg = true))    # keep the data, drop the pictures
+run(sampling; prune_options = PruneOptions(prune_svg = true, prune_mat = true, prune_txt = true,
+                                           prune_initial = true, prune_final = true))
+```
+
+`prune_svg`, `prune_mat`, `prune_txt` and `prune_xml` pick the types; the `initial*` and `final*`
+files of each type survive unless `prune_initial` and `prune_final` say otherwise, so a pruned
+simulation can still be loaded at its first and last snapshot. Know what stops working:
+[`makeMovie`](@ref) needs the SVGs; loading a snapshot or plotting a population time series needs
+that snapshot's XML and MAT files; a replicate whose files are gone is excluded from monad-level
+aggregates rather than zero-filled; and re-running does not bring the files back, since the
+database still holds the simulation as complete.

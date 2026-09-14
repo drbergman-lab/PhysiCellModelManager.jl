@@ -169,7 +169,7 @@ Note an explicit `@id` *replaces* a heading's title slug rather than aliasing it
 
 ## Integration Essentials
 - Module entrypoint: `src/PhysiCellModelManager.jl` (update includes when adding/moving files).
-- Public API likely lives in `src/user_api.jl`; prefer using/exposing APIs there.
+- The user-facing API is ModelManager's, re-exported wholesale; PCMM adds only PhysiCell-specific functions, each exported from the `src/*.jl` file that defines it.
 - Database changes must update both `src/database.jl` and `src/up.jl`.
 - Optional heavy dependencies belong in `ext/` as package extensions, not in `src/`. Use `[weakdeps]` + `[extensions]` in `Project.toml`.
 

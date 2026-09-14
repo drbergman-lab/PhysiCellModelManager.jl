@@ -178,22 +178,22 @@ before.
 
 The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
-When using `mseDistance` with dicts, line the keys up deliberately: a key in `observed_data` that the summary statistic did not produce is treated as a simulated zero, and an extra simulated key is ignored — each warns once rather than raising. A mistyped key therefore changes the distance instead of failing.
+The keys of `observed_data` are the comparison: `mseDistance` resolves each one in the simulated summary, an observed key the summary statistic did not produce is an error rather than a silent zero, and an extra simulated component is ignored — a simulation is always known better than the data.
 
 ### Distance functions
 
-A distance function is any `(simulated, observed) → Float64`, where the argument types are whatever your `summary_statistic` returns and whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option (dicts, vectors, scalars); a custom function can use any types:
+A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["endpoint_population_count.cancer"]`), or by the exact tuple (`sim[("endpoint_population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
 
 ```julia
-# Dict-based: weighted MSE on two cell populations
+# Weighted MSE on two cell populations
 function my_dist(sim, obs)
     return 0.9 * (sim["cancer"] - obs["cancer"])^2 +
            0.1 * (sim["immune"] - obs["immune"])^2
 end
 
-# Vector-based: L2 norm on a time series
-function ts_dist(sim_vec::Vector{Float64}, obs_vec::Vector{Float64})
-    return sum((sim_vec .- obs_vec).^2) / length(obs_vec)
+# L2 norm on one cell type's time series (the shape meanPopulationTimeSeriesQoI produces)
+function ts_dist(sim, obs)
+    return sum((sim["tumor"] .- obs["tumor"]).^2) / length(obs["tumor"])
 end
 ```
 
@@ -362,33 +362,27 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
 
 ### Resumability and anonymous functions
 
-!!! warning "Use named functions for full resumability"
-    ModelManager serializes the `CalibrationProblem` to `problem.jld2` at the start of each run.
-    **Anonymous functions** (including lambda-style `x -> ...` and closures that capture variables)
-    **cannot be serialized** and are stored as `nothing` in the saved manifest.
-
-    The following fields are affected:
-    - `summary_statistic` — e.g. `m -> Dict(...)` in the `CalibrationProblem` call
-    - `distance` — e.g. `(s, o) -> sum(...)` in the `CalibrationProblem` call
-    - `LatentVariation` map functions (`maps` and `inverse_maps`) — if any are anonymous
-
-    If any of these are anonymous, `problem.jld2` is incomplete, and `resumeABC` will throw an
-    error unless you re-supply the problem explicitly:
+!!! warning "Resuming needs the problem's functions to be restorable"
+    ModelManager saves the `CalibrationProblem` to `problem.jld2` at the start of each run, and can
+    restore a function from it only when JLD2 can name it: a function defined at the top level of a
+    file or module. A lambda or closure — including a named function defined *inside* another
+    function — is saved as `nothing`, and a bare `resumeABC(Calibration(42))` then refuses with
+    "problem.jld2 contains only a partial manifest" until you re-supply the problem:
 
     ```julia
     result = resumeABC(Calibration(42); problem = problem)
     ```
 
-    To avoid this requirement entirely, use named functions — either built-ins passed directly,
-    or functions defined at module level in your script:
+    PCMM's QoI builders restore on their own: their keyword arguments travel in the QoI's `data`
+    slot and both of their functions are named. Do the same for a measurement of your own that needs
+    parameters — pass them as `data=` instead of capturing them in a closure; that switches
+    `compute` and `reduce` to `(sim, data)` and `(values, data)`, and the
+    [ModelManager calibration manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/)
+    works through an example. `mseDistance` and any other top-level function restore as well:
 
     ```julia
-    # ✓  The built-in QoI builders return a named, serializable measurement
-    problem = CalibrationProblem(ref, params, observed, endpointPopulationCountQoI(), mseDistance)
-
-    # ✓  Custom logic: define at module level (not inside another function or as a lambda).
-    #    Since ModelManager 0.9 a summary statistic measures ONE simulation; the library
-    #    reduces the replicates.
+    # Custom logic: define at module level (not inside another function or as a lambda).
+    # A summary statistic measures ONE simulation; the library reduces the replicates.
     function my_stat(sim::Simulation)
         counts = finalPopulationCount(sim)
         # ... transform as needed ...
@@ -405,9 +399,9 @@ The original [`CalibrationProblem`](@ref) is loaded automatically from `problem.
         inverse_maps = [apoptosis_inv],
     )
 
-    # ✗  Anonymous: problem.jld2 will be incomplete
+    # Anonymous: problem.jld2 will be incomplete, so keep `problem` for `resumeABC`
     problem = CalibrationProblem(ref, params, observed,
-        sim -> finalPopulationCount(sim),   # anonymous — not serializable
+        sim -> finalPopulationCount(sim),   # a lambda cannot be restored by name
         mseDistance)
     ```
 
@@ -460,6 +454,17 @@ plot(ConvergenceSummary(result))
 plot(result, :transition)                  # last complete transition
 plot(result, :transition; generation = 2)  # specific transition t → t+1
 ```
+
+On a two-parameter example — a cycle phase duration and an apoptosis rate, calibrated to one
+simulation's final cell count on the template project — the four plots look like this:
+
+![Corner plot of the final-generation posterior](../assets/calibration_corner.png)
+
+![Posterior narrowing across generations, one panel per parameter](../assets/calibration_ridgeline.png)
+
+![Convergence trace: epsilon, acceptance rate and ESS fraction per generation](../assets/calibration_convergence.png)
+
+![Generation transition: the previous posterior and the proposals drawn from it](../assets/calibration_transition.png)
 
 All plots also work with a `Calibration` object instead of an `ABCResult`, loading data from disk:
 
@@ -564,25 +569,24 @@ spreads a `Dict`-valued measurement into one sensitivity analysis per key, the s
 post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
 without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
 
-[`meanPopulationTimeSeriesQoI`](@ref) does **not**: its values are per-cell-type time series, and a
-`Vector` is deliberately not spread by index. See
+[`meanPopulationTimeSeriesQoI`](@ref) does **not**: each of its components is a time series rather
+than the `Real` an index is computed from. See
 [One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
 
-!!! note "One QoI, one reducer"
-    [`populationCountQoI`](@ref) defines no `reduce`, so it stays a sink-only measurement: every
-    other consumer reduces across replicates, and the default `mean` cannot combine a vector of
-    `Dict`s. Use [`endpointPopulationCountQoI`](@ref), which measures the same thing and carries a
-    reducer.
+!!! note "Two builders, two reducers"
+    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
+    mean applies wherever it is reduced, and that default refuses a monad whose replicates report
+    different cell types. [`endpointPopulationCountQoI`](@ref) measures the same thing at the final
+    snapshot and zero-fills a cell type a replicate lacks.
 
 ## Built-in distance functions
 
 ### [`mseDistance`](@id mse_distance_section)
 
-```julia
-mseDistance(simulated, observed)
-```
-
-Computes the mean squared error between `simulated` and `observed`. Accepts dicts, vectors, or scalars:
-- **Dicts** (`Dict{String,<:Any}`): per-key MSE contributions are averaged across all keys in `observed`. Values may be scalars or vectors.
-- **Vectors**: sum of squared differences, `Σ(simᵢ − obsᵢ)²` — *not* averaged over the length. Mismatched lengths throw a `DimensionMismatch`. (A vector *inside* a dict is averaged over its length before the per-key mean, which is the shape `meanPopulationTimeSeriesQoI` produces.)
-- **Scalars**: squared error.
+[`mseDistance`](@ref) walks the keys of `observed_data`: each is resolved in the simulated
+[`SummaryValues`](@ref) (an observed key with no simulated counterpart is an error; extra simulated
+components are ignored), every squared difference is summed — a time-series value contributes one
+difference per time point — and the total is divided by the number of differences computed. A
+series key therefore weighs its whole length against an endpoint key's single term; write your own
+`distance` to weight them differently. Outside calibration it also compares two dicts, two arrays,
+or two scalars; its docstring lists all five forms.

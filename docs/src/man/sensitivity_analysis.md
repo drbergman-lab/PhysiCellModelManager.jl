@@ -200,12 +200,12 @@ plot(moat_sampling; parameters=["Apoptosis rate"])   # a subset, in this order
 ```
 
 On the template project, varying a cycle phase duration and the apoptosis rate with the final cell
-count as the measurement:
+count as the measurement (the Sobol' bars are illustrative values rather than a measured design):
 
 ![MOAT: µ* per parameter, σ as whiskers](../assets/gsa_moat_bar.png)
 
 ![MOAT: µ*–σ screening scatter](../assets/gsa_moat_scatter.png)
 
-![Sobol': first-order and total-order indices](../assets/gsa_sobol.png)
+![Sobol': first-order bars in front of total-order bars (illustrative values)](../assets/gsa_sobol.png)
 
 ![RBD: first-order indices](../assets/gsa_rbd.png)

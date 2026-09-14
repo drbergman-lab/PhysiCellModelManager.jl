@@ -8,10 +8,8 @@ export populationCountQoI
 # in one way only: they read simulation output through the PhysiCell loader (finalPopulationCount,
 # PhysiCellSnapshot, MonadPopulationTimeSeries). Everything that consumes a `QoI` -- calibration
 # (CalibrationProblem, ABCSMC, mseDistance), sensitivity analysis and the post-processing sink --
-# lives in ModelManager, and since ModelManager 0.10 one `QoI` reaches all three, so there is no
-# separate file for "sink" builders: `populationCountQoI` at the bottom used to live in one because
-# it was written for `run(T; post_processor=...)` alone, back when the default reducer could not
-# combine keyed values.
+# lives in ModelManager, and one `QoI` reaches all three, so every builder lives here, including
+# `populationCountQoI` at the bottom, which is aimed at `run(T; post_processor=...)`.
 #
 
 """
@@ -21,11 +19,11 @@ Built-in summary statistic: mean final-snapshot cell counts across all replicate
 
 Returns a `Dict{String,Float64}` mapping cell type name → mean count.
 
-This is a **monad-level** function: it takes a monad ID and does its own averaging. Since
-ModelManager 0.9 a `summary_statistic` measures a single `Simulation` and ModelManager reduces the
-replicates, so this is no longer a valid `summary_statistic` argument — passing it fails when the
-first monad is measured. Use [`endpointPopulationCountQoI`](@ref), which measures the same
-quantity in that shape. Keep this one for analysing a monad directly.
+This is a **monad-level** function: it takes a monad ID and does its own averaging. A
+`summary_statistic` measures a single `Simulation` and ModelManager reduces the replicates, so this
+is not a valid `summary_statistic` argument — passing it fails when the first monad is measured.
+Use [`endpointPopulationCountQoI`](@ref), which measures the same quantity in that shape. Keep this
+one for analysing a monad directly.
 
 # Arguments
 - `monad_id`: ID of the monad whose replicates to average.
@@ -58,10 +56,9 @@ across all replicates in a monad.
 
 Returns a `Dict{String,Float64}` mapping cell type name → mean fraction.
 
-This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
-argument — see [`endpointPopulationCounts`](@ref) for why. Use
-[`endpointPopulationFractionQoI`](@ref) for calibration and keep this one for analysing a monad
-directly.
+This is a **monad-level** function and not a valid `summary_statistic` argument — see
+[`endpointPopulationCounts`](@ref) for why. Use [`endpointPopulationFractionQoI`](@ref) for
+calibration and keep this one for analysing a monad directly.
 
 # Arguments
 - `monad_id`: ID of the monad whose replicates to average.
@@ -93,9 +90,9 @@ Built-in summary statistic: mean population time series across all replicates in
 
 Returns a `Dict{String,Vector{Float64}}` mapping cell type name → mean count over time.
 The time axis is shared across replicates (an error is thrown if they differ).
-This is a **monad-level** function and, since ModelManager 0.9, not a valid `summary_statistic`
-argument — see [`endpointPopulationCounts`](@ref) for why. Use [`meanPopulationTimeSeriesQoI`](@ref)
-when calibrating against time-series data, and keep this one for analysing a monad directly.
+This is a **monad-level** function and not a valid `summary_statistic` argument — see
+[`endpointPopulationCounts`](@ref) for why. Use [`meanPopulationTimeSeriesQoI`](@ref) when
+calibrating against time-series data, and keep this one for analysing a monad directly.
 The corresponding `observed_data` values should be `Vector{Float64}` on the same time grid.
 
 # Arguments
@@ -381,9 +378,8 @@ function _populationCountsAt(simulation::Simulation, data)
     counts = populationCount(snapshot; include_dead=data.include_dead)
     ismissing(counts) && return missing
     isnothing(data.cell_types) || (counts = filter(p -> p.first in data.cell_types, counts))
-    #! The key is the bare cell type. It used to be `"count_$(name)"`, from when the sink put
-    #! every key in one flat namespace and a prefix was the only thing keeping two QoIs' "tumor"
-    #! apart. ModelManager 0.9.1 names the column `"<qoi name>.<key>"`, which does that job, so
-    #! the prefix would only give `population_count.count_default`.
+    #! The key is the bare cell type: ModelManager names the column `"<qoi name>.<key>"`, so a
+    #! `"count_"` prefix (which 0.3.x carried, when the sink was one flat namespace) would only
+    #! give `population_count.count_default`.
     return Dict(name => n for (name, n) in counts)
 end

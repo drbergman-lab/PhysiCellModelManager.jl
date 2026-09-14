@@ -47,6 +47,22 @@ push!(discrete_variations, DiscreteVariation(xml_path, 300.0))
 out_fail = run(out.trial.monads[1], discrete_variations; n_replicates=n_replicates)
 @test out_fail.n_success == 0
 
+#! An IC setup failure happens before the simulation launches: `prepareSimulationCommand` returns
+#! `nothing`, ModelManager records the failure with no `cmd`, and `postSimulationCleanup`
+#! early-returns on `isnothing(cmd)` -- so nothing used to write `output.err`, while `run`'s closing
+#! summary told the user to go read it. The cause is now written there before the `nothing`.
+for simulation_id in simulationIDs(out_fail.trial)
+    path_to_err = PhysiCellModelManager._pathToSimulationErr(Simulation(simulation_id))
+    @test isfile(path_to_err)
+    err_contents = read(path_to_err, String)
+    @test occursin("IC cell", err_contents)
+    #! The cause itself, not just a header: the exception's own text, which is PhysiCellCellCreator's
+    #! to word, so match on the radii this variation set rather than on its sentence.
+    cause = split(err_contents, "---cause---") |> last |> strip
+    @test !isempty(cause)
+    @test occursin("300.0", cause) && occursin("radius", cause)
+end
+
 deleteSimulations(out_fail.trial.id)
 
 ic_cell_folder = PhysiCellModelManager.createICCellXMLTemplate("2_xml")

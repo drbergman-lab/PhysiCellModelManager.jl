@@ -5,6 +5,46 @@
 
 ---
 
+## 2026-09-14 — Issue #235: the roster `plotbycelltype` trusted, and the `output.err` nobody wrote
+
+Two gaps from the second review pass, neither a regression. Both hide a diagnosis rather than
+produce a wrong number, which is why neither showed up as a failing test.
+
+**Decisions**
+- `plotbycelltype`'s cell-type roster comes from `_trialCellTypeRoster`: the first simulation in the
+  trial whose initial XML is still on disk, not `simulationIDs(T) |> first`. Replicates share a
+  config and so share a roster, so any one of them can speak for the trial; the first is only the
+  cheapest to reach, and skipping past a pruned one costs a parse of a file that is on disk anyway.
+- Rejected: the union of the rosters of every replicate that loads. It parses one XML per
+  simulation — which a sampling of hundreds would pay on every plot — to defend against a ragged
+  roster the PRD already records as impossible without hand-editing files under `data/`.
+- Rejected: reading the roster from the config instead of the output. The config names cell types
+  but the plot's data comes from the output XML's `cell_types` element, and a roster from a
+  different source is a roster that can disagree with the curves.
+- A trial with no readable output anywhere now throws an `ArgumentError` naming it. The old code
+  drew a `(0, 1)` layout in silence, so "I pruned too much" was indistinguishable from "plotting is
+  broken".
+- `MonadPopulationTimeSeries`'s time-mismatch assertion names `first_kept_id` — the replicate `time`
+  was actually taken from — where it named `simulation_ids[1]`, which may have been `continue`d for
+  having no output. `plotbycelltype` already did this correctly with `kept_ids`; this is that fix in
+  the other place.
+- An IC cell / IC ECM setup failure writes its cause to the simulation's `output.err` before
+  `prepareSimulationCommand` returns `nothing`. Rejected the alternative in the issue — having
+  `postSimulationCleanup` annotate whenever `!success` regardless of `cmd` — on two counts: the
+  cause is an exception that exists only inside the catch block and would have to be smuggled
+  forward, and the `isnothing(cmd)` guard is load-bearing for the SLURM path it was written for.
+- `_pathToSimulationErr` is now the single definition of that path, because the failure writer and
+  the cleanup annotator agreeing on it is the whole point.
+- The `println` became a `@warn`: it reaches the logger's stream rather than interleaving into
+  whatever a worker was writing mid-line, and a caller can silence or capture it.
+
+**Traps**
+- The new `plotbycelltype` test stashes the first replicate's `initial.xml` and puts it back rather
+  than deleting it. Monad 1's first replicate is simulation 1, and `GraphsTests.jl` and `PCFTests.jl`
+  read its snapshots later in the same run.
+
+---
+
 ## 2026-09-14 — Compact the maintainer records
 
 `progress.md`, `PRD.md`, `README.md`, the manual and the source comments restated the ModelManager

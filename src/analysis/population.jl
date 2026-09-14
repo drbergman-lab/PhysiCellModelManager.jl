@@ -245,7 +245,12 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
     cell_count = Dict{String, NamedTuple}()
     _counts = Dict{String,Any}()
     n_kept = 0
-    for (i, simulation_id) in enumerate(simulation_ids)
+    #! The replicate `time` was actually taken from, which is not `simulation_ids[1]`: that one may
+    #! have been `continue`d in the loop below for having no output, and naming it pointed the
+    #! reader at a simulation this assertion never compared anything against. `plotbycelltype` names
+    #! its `kept_ids[1]` for the same reason.
+    first_kept_id = 0
+    for simulation_id in simulation_ids
         spts = SimulationPopulationTimeSeries(simulation_id; include_dead=include_dead)
         if ismissing(spts)
             continue
@@ -253,8 +258,9 @@ function MonadPopulationTimeSeries(monad::Monad; include_dead::Bool=false)
         n_kept += 1
         if isempty(time)
             time = spts.time
+            first_kept_id = simulation_id
         else
-            @assert time == spts.time "Simulations $(simulation_ids[1]) and $(simulation_id) in monad $(monad.id) have different times in their time series."
+            @assert time == spts.time "Simulations $(first_kept_id) and $(simulation_id) in monad $(monad.id) have different times in their time series."
         end
         for (name, cell_count) in pairs(spts.cell_count)
             if !haskey(_counts, name)
@@ -458,6 +464,31 @@ struct CellTypeInMonads
     cell_count_stds::Vector{Vector{Real}}
 end
 
+"""
+    _trialCellTypeRoster(T::AbstractTrial)
+
+Return the cell type names declared by a trial, read from the first of its simulations whose
+initial-snapshot XML is still on disk.
+
+Any one simulation can speak for the trial, because the roster is a property of the config its
+simulations share; the first is only the cheapest to reach. It is not necessarily *present*,
+though — `cellTypeToNameDict` reads back an empty `Dict` for a pruned or deleted simulation, and
+taking the trial's first unconditionally meant that pruning that one replicate collapsed
+`plotbycelltype` to an empty `(0, 1)` layout with nothing said. Skipping to the next replicate
+costs a parse of an XML file that is on disk either way.
+
+Throws an `ArgumentError` naming the trial if no simulation in it has output left to read.
+"""
+function _trialCellTypeRoster(T::AbstractTrial)
+    for simulation_id in simulationIDs(T)
+        cell_type_to_name_dict = cellTypeToNameDict(simulation_id)
+        isempty(cell_type_to_name_dict) && continue
+        return values(cell_type_to_name_dict) |> collect
+    end
+    throw(ArgumentError("Cannot read the cell type roster of $(typeof(T)) $(T.id): none of its \
+                         $(simulationIDs(T) |> length) simulations has output on disk (deleted or pruned)."))
+end
+
 @recipe function f(p::PlotByCellType; include_dead=false, include_cell_type_names=:all, exclude_cell_type_names=String[], time_unit=:min)
     @assert length(p.args) == 1 "Expected exactly 1 argument, got $(length(p.args))."
     if (p.args[1] isa PCMMOutput)
@@ -473,8 +504,7 @@ end
         monads = Monad.(monadIDs(T))
     end
 
-    simulation_id = simulationIDs(T) |> first
-    all_cell_types = cellTypeToNameDict(simulation_id) |> values |> collect
+    all_cell_types = _trialCellTypeRoster(T)
 
     if haskey(plotattributes, :include_cell_types)
         @assert include_cell_type_names == :all "Do not use both `include_cell_types` and `include_cell_type_names` as keyword arguments. Use `include_cell_type_names` instead."
@@ -526,8 +556,8 @@ end
                 if !haskey(cell_count_arrays, k)
                     cell_count_arrays[k] = zeros(Int, length(time), monad_length)
                 end
-                #! `kept_ids[i]`, not the `simulation_id` bound far above this loop: that is the
-                #! whole trial's first simulation, unrelated to this failure.
+                #! `kept_ids[i]`, not `simulation_ids[i]`: filtering `sptss` broke the
+                #! correspondence with `simulation_ids`, so that would name the wrong replicate.
                 @assert [haskey(spts.cell_count, ct) for ct in k] |> all "A cell type in $k not found in simulation $(kept_ids[i]) which has cell types $(keys(spts.cell_count))."
                 cell_count_arrays[k][:,i] = sum([spts.cell_count[ct] for ct in k])
             end

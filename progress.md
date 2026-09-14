@@ -59,6 +59,11 @@ failed (`PrunerTests`, `DocstringRefTests`) and the rest of these were prose tha
   `_isAnonymousFunction` ignores `data` on purpose, so nothing in ModelManager changes and no
   `AbstractQoI` is needed. The resume test now resumes bare. Rejected: callable structs -- also
   restorable, but `data=` is the mechanism ModelManager documents for exactly this case.
+- `post_processor_qois.jl` is folded into `standard_qois.jl`. It existed (#217, 2026-07) because
+  `populationCountQoI` was written for the sink alone, when the default reducer could not combine
+  keyed values; under 0.10 the same `QoI` reaches every consumer, so "where the value goes" no
+  longer separates the files. Collapsing `populationCountQoI` with `endpointPopulationCountQoI`
+  themselves is #232 and still needs its own brief (zero-fill vs the default reducer, column names).
 - Review (2026-09-13): the manual names `SummaryValues`' three spellings (the key `reduce`
   returned, `"<qoi name>.<key>"`, the exact tuple) instead of "index it by cell type"; the
   `march_flag` comments say PCMM's own `initializeModelManager` method sets it, since ModelManager

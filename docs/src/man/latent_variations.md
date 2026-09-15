@@ -11,7 +11,14 @@ To construct one, provide:
 Each target parameter needs a mapping function that takes **a vector of latent parameter values** (even with a single latent parameter) and returns one target value. The input vector is ordered as the latent parameters were given at construction. Mappings can be arbitrarily simple or complex.
 
 ## Latent Parameter Names
-Optionally name the latent parameters; the names appear in the `LatentVariation` display, which helps when reading sensitivity-analysis or optimization results. If omitted, names default from the target parameters and their index (the target portion follows PhysiCellModelManager.jl short variation naming). See [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames).
+Optionally name the latent parameters; the names appear in the `LatentVariation` display, which helps when reading sensitivity-analysis or optimization results. If omitted, names default from the target parameters and their index (the target portion follows PhysiCellModelManager.jl short variation naming).
+
+!!! tierdev
+    [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames)
+    builds those fallback names: `"<target_1> | <target_2> | … | lp#<i>"`, joining every target's
+    column name and appending the latent parameter's index. It is called by the `LatentVariation`
+    constructor whenever `lp_names` is empty, so overriding the naming convention means passing
+    names in, not extending this function.
 
 ## Variation Names
 You can optionally name a `LatentVariation` using the `name` keyword argument:

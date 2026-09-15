@@ -398,6 +398,29 @@
 
 ---
 
+## Feature: Documentation — Tiered Manual with Full Public-API Coverage
+
+**Description:** The manual serves every reader from one source. A sidebar selector picks a depth — Code, Brief, Full, Dev, Journal — and holds it across the site. Every name a user can reach through `using PhysiCellModelManager` (exported or `public`, in PCMM or re-exported from ModelManager) has a home in the manual: user-facing names on a task page under `docs/src/man/`, developer-facing names on a Dev-tier page under `docs/src/dev/` or in a `!!! tierdev` block beside the code they concern.
+
+**Acceptance Criteria:**
+- The built site shows a Detail selector in the sidebar; `?tier=code` on any URL selects a depth and the choice persists in `localStorage`.
+- Without JavaScript, or in print, every tier is visible.
+- `docs/src/dev/*` pages are hidden from the sidebar below the Dev tier; the Journal page below the Journal tier. The page being viewed is never hidden.
+- `test/test-scripts/ManualCoverageTests.jl` fails if any public name of PhysiCellModelManager or ModelManager is absent from every page under `docs/src/man/` and `docs/src/dev/` (the alphabetical index and the generated journal do not count).
+- A public name classed as developer-facing appears on user pages only inside `!!! tierdev` / `!!! tierjournal` blocks or code blocks. The classification is the one recorded on 2026-09-15 (113 user-facing, 187 developer-facing); it is a documentation judgment, not enforced by a test.
+- `docs/journal.jl` regenerates `docs/src/dev/journal.md` from every `!!! tierjournal "YYYY-MM-DD — Title"` block, newest first, and is deterministic. The generated file is committed.
+- `AGENTS.md` at the repo root carries the exact commands (tests, one test, docs build, doctests), invariants, and conventions; `CLAUDE.md` points to it rather than duplicating.
+- `CONTRIBUTING.md` holds process and style; the former `docs/src/man/developer_guide.md` is removed.
+- `julia --project=docs docs/make.jl` builds clean.
+
+**Edge Cases:**
+- No code block may sit inside a tier block; the Code-tier reader is the one who came for it.
+- `tiergloss`, `tierwhy`, `tierdev` take no title (the header is hidden); `tierjournal` must carry an ISO date and title.
+- A search hit or shared `#anchor` inside a hidden block reveals it for that page view without changing the saved depth.
+- `progress.md` remains the working session journal required by the repo workflow; `tierjournal` blocks hold only decisions that explain user-visible behaviour.
+
+---
+
 ## Non-Functional Requirements
 
 ### Reliability

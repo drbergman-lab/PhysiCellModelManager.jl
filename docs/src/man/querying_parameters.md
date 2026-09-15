@@ -28,7 +28,20 @@ xml_path = split(col1, "/") # convert to XML path format
 dv = DiscreteVariation(xml_path, [0.0, 1.0]) # create a discrete variation using this parameter
 ```
 
-[`columnName`](@ref ModelManager.columnName) and [`columnNameToXMLPath`](@ref ModelManager.columnNameToXMLPath) convert between column names and XML paths. Both are exported by ModelManager and re-exported here, so they need no prefix.
+!!! tierdev
+    **Column names are XML paths.** [`columnName`](@ref ModelManager.columnName) joins a path vector
+    into the slash-separated string used as a column name, and
+    [`columnNameToXMLPath`](@ref ModelManager.columnNameToXMLPath) is its inverse; the `split` above
+    is the hand-rolled version of the latter. Both are exported by ModelManager and re-exported here,
+    so they need no prefix.
+
+    **One value at a time.** `getParameterValue(M, xp)` reads a single parameter for a monad or
+    simulation ID: it takes the value from the variations database when that column exists and falls
+    back to the base XML file when it does not, which is what makes an unvaried parameter readable
+    the same way as a varied one. The location is inferred from the `XMLPath` unless you pass it
+    explicitly as a middle argument. `"true"`/`"false"` come back as `Bool` and numeric strings as
+    `Float64`; anything else is returned as-is. [`getAllParameterValues`](@ref) is the bulk form and
+    is what user code should normally call.
 
 !!! note
     The XML paths returned by [`getAllParameterValues`](@ref) as column names **may** include what look like attributes to distinguish between multiple children with the same tag. Find these by searching for column names containing `":temp_id:"`:

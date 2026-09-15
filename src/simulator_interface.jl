@@ -153,6 +153,48 @@ function setupSampling(::PhysiCellSimulator, S::AbstractSampling; force_recompil
 end
 
 """
+    _pathToSimulationErr(simulation::Simulation)
+
+Path to a simulation's `output.err` — the file `run`'s closing summary tells the user to check.
+
+One definition, because two places write it: ModelManager redirects a launched simulation's stderr
+here (`stderr=` locally, `sbatch --error` on HPC) and `postSimulationCleanup` annotates it
+afterwards, while `_recordICSetupFailure` writes it for a simulation that never launched at all.
+Spelling the `joinpath` twice is how those two drift apart.
+"""
+_pathToSimulationErr(simulation::Simulation) = joinpath(trialFolder(simulation), "output.err")
+
+"""
+    _recordICSetupFailure(simulation::Simulation, ic_name::String, e)
+
+Report a pre-launch IC setup failure twice over: a `@warn` now, and the cause written to the
+simulation's `output.err`.
+
+The file is the point. A simulation that fails here never launches, so `prepareSimulationCommand`
+returns `nothing`, ModelManager records the failure with no `cmd`, and `postSimulationCleanup`
+early-returns on `isnothing(cmd)` without touching `output.err` — leaving `run`'s summary pointing
+at a file that does not exist. On a sampling where many simulations fail this way, the console is
+the only record and it is interleaved across workers; each simulation's own `output.err` is not.
+
+`@warn` rather than `println`: the message carries the simulation id into the logger's own stream
+rather than into whatever a worker happened to be writing mid-line, and a caller can silence or
+capture it like any other warning.
+"""
+function _recordICSetupFailure(simulation::Simulation, ic_name::String, e)
+    cause = sprint(showerror, e)
+    path_to_err = _pathToSimulationErr(simulation)
+    open(path_to_err, "w") do io
+        println(io, "Simulation $(simulation.id) failed before launching: could not initialize the $(ic_name) file.")
+        println(io, "No PhysiCell command was run, so there is no PhysiCell stderr below.")
+        println(io, "\n---cause---")
+        println(io, cause)
+    end
+    @warn "Simulation $(simulation.id) failed to initialize the $(ic_name) file and will not be \
+           run. Cause: $(cause). Written to $(path_to_err)."
+    return
+end
+
+"""
     prepareSimulationCommand(simulation::Simulation)
 
 Internal PhysiCell function to build the `Cmd` to run a single simulation.
@@ -160,8 +202,9 @@ Internal PhysiCell function to build the `Cmd` to run a single simulation.
 Setup (compilation, varied input folders) is always performed by
 [`ModelManager.prepareTrialHierarchy`](@ref) before this is called. Returns `nothing`
 if command construction fails (e.g. IC cell or IC ECM setup error); in that case the
-caller returns a failed [`SimulationProcess`](@ref) and MM's `processSimulationTask`
-updates the database.
+cause is written to the simulation's `output.err` by `_recordICSetupFailure`, the caller
+returns a failed [`SimulationProcess`](@ref) and MM's `processSimulationTask` updates
+the database.
 """
 function prepareSimulationCommand(simulation::Simulation)
     path_to_simulation_output = joinpath(trialFolder(simulation), "output")
@@ -174,7 +217,7 @@ function prepareSimulationCommand(simulation::Simulation)
         try
             append!(flags, ["-i", setUpICCell(simulation)])
         catch e
-            println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC cell file.\n\tCause: $e\n")
+            _recordICSetupFailure(simulation, "IC cell", e)
             return nothing
         end
     end
@@ -185,7 +228,7 @@ function prepareSimulationCommand(simulation::Simulation)
         try
             append!(flags, ["-e", setUpICECM(simulation)])
         catch e
-            println("\nWARNING: Simulation $(simulation.id) failed to initialize the IC ECM file.\n\tCause: $e\n")
+            _recordICSetupFailure(simulation, "IC ECM", e)
             return nothing
         end
     end
@@ -237,7 +280,7 @@ function postSimulationCleanup(::PhysiCellSimulator, simulation_process::Simulat
     end
     simulation = simulation_process.simulation
     path_to_simulation_folder = trialFolder(simulation)
-    path_to_err = joinpath(path_to_simulation_folder, "output.err")
+    path_to_err = _pathToSimulationErr(simulation)
     if simulation_process.success
         rm(path_to_err; force=true)
         rm(joinpath(path_to_simulation_folder, "hpc.err"); force=true)

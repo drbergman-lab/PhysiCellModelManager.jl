@@ -100,3 +100,58 @@ let
     @test !isapprox(Float64.(expected), Float64.(zero_filled))
     @test !isapprox(Float64.(plotted), Float64.(zero_filled))
 end
+
+################## The cell type roster survives a pruned FIRST replicate ##################
+#
+# Regression: the fix above corrected the denominator but not the roster. `plotbycelltype` still
+# read its cell types from `simulationIDs(T) |> first`, and `cellTypeToNameDict` reads back an empty
+# `Dict` for a simulation whose initial XML is gone -- so pruning *that* replicate left `:all`
+# expanding to no cell types at all, a `(0, 1)` layout, and an empty figure with nothing said.
+# Which replicate was pruned decided whether plotting worked; the test above prunes the last, so it
+# never saw this.
+#
+# The initial XML is stashed and put back rather than deleted: simulation 1 is monad 1's first
+# replicate, and GraphsTests.jl and PCFTests.jl read its snapshots later in the run.
+
+let
+    out = Monad(1; n_replicates=3) |> run
+    monad = out.trial
+    sids = simulationIDs(monad)
+
+    #! The roster the monad ought to report, read from a replicate that still has its initial XML.
+    i_surviving = findfirst(sid -> !isempty(PhysiCellModelManager.cellTypeToNameDict(sid)), sids)
+    @test !isnothing(i_surviving)
+    roster = PhysiCellModelManager.cellTypeToNameDict(sids[i_surviving]) |> values |> collect
+    @test !isempty(roster)
+
+    #! Naming the roster explicitly never consults `cellTypeToNameDict`, so this is the panel count
+    #! an intact monad plots: one series per cell type per monad.
+    expected_n_series = plotbycelltype(monad; include_cell_type_names=roster).series_list |> length
+    @test expected_n_series == length(roster)
+
+    #! Take the initial XML off the FIRST replicate -- the one the roster came from unconditionally.
+    #! A real prune leaves `summary/population_time_series.csv` behind, so this replicate still
+    #! contributes its counts; only the roster lookup goes missing, which is the reported bug.
+    victim = first(sids)
+    path_to_initial_xml = PhysiCellModelManager.pathToOutputXML(victim, :initial)
+    @test isfile(path_to_initial_xml)
+    path_to_stash = path_to_initial_xml * ".stashed"
+    mv(path_to_initial_xml, path_to_stash)
+    try
+        @test isempty(PhysiCellModelManager.cellTypeToNameDict(victim))
+
+        plt = plotbycelltype(monad)
+        @test length(plt.series_list) == expected_n_series
+        @test !isempty(plt.series_list) #! ...and specifically not the old empty figure.
+    finally
+        mv(path_to_stash, path_to_initial_xml)
+    end
+
+    #! Every replicate gone is a different thing from one replicate gone, and says so rather than
+    #! drawing nothing. `pruned_simulation_id` (PrunerTests.jl) has no initial XML at all.
+    @test_throws ArgumentError PhysiCellModelManager._samplingCellTypeRoster(Simulation(pruned_simulation_id))
+
+    #! A Trial gathers samplings whose configs, and so rosters, may differ, so the recipe refuses it
+    #! and says what to pass instead (ClassesTests.jl created Trial 1).
+    @test_throws ArgumentError plotbycelltype(Trial(1))
+end

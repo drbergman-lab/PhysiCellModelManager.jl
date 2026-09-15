@@ -34,4 +34,15 @@ cv = CoVariation(dv1, dv2)
 out_fail = run(out.trial.monads[1], cv; n_replicates=n_replicates)
 @test out_fail.n_success == 0
 
+#! The IC ECM catch is a separate branch from the IC cell one and writes `output.err` through the
+#! same helper; a regression in this branch alone would pass `n_success == 0`, so assert the file.
+for simulation_id in simulationIDs(out_fail.trial)
+    path_to_err = PhysiCellModelManager._pathToSimulationErr(Simulation(simulation_id))
+    @test isfile(path_to_err)
+    err_contents = read(path_to_err, String)
+    @test occursin("IC ECM", err_contents)
+    cause = split(err_contents, "---cause---") |> last |> strip
+    @test !isempty(cause)
+end
+
 deleteSimulations(out_fail.trial.id)

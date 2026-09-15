@@ -5,6 +5,27 @@
 
 ---
 
+## 2026-09-15 — `_excludedReplicates` deleted in #237, restored in 0.5.1
+
+A user's ABC run on 0.5.0 printed `UndefVarError: _excludedReplicates` from
+`finalPopulationCount(::Monad)`. The helper formatted the one-line "Excluding k/n replicates of
+monad m" notice for the three `@info` sites in `population.jl`; it lived in the "Internal Helpers"
+block of `standard_qois.jl`, and #237's third commit removed that block with the monad-level
+statistics — while its own message, this file and the PRD all said the helper stays. Never in
+ModelManager.
+
+- **Consequence was noise, not a wrong number.** `@info` builds its message inside a try/catch, so
+  the error was logged as "Exception while generating log record" and the aggregate still returned
+  the mean of the surviving replicates. That is also why the suite stayed green: `PopulationTests`
+  already prunes a replicate and plots the monad, reaching the third site, but nothing asserted on
+  the log.
+- **Fix.** The definition is restored verbatim in `population.jl`, next to its callers, rather than
+  back in `standard_qois.jl` where nothing uses it. The pruned-replicate plotting test now wraps the
+  call in `@test_logs` matching the notice, so a missing helper fails instead of printing past.
+- **Release.** 0.5.1, patch. Nothing else changes.
+
+---
+
 ## 2026-09-14 — Issue #235: the roster `plotbycelltype` trusted, and the `output.err` nobody wrote
 
 Two gaps from the second review pass, neither a regression. Both hide a diagnosis rather than

@@ -94,7 +94,13 @@ let
     expected = mean(survivors, dims=2) |> vec
     zero_filled = (sum(survivors, dims=2) ./ length(sids)) |> vec
 
-    plotted = plotbycelltype(monad; include_cell_type_names=[cell_type]).series_list[1][:y]
+    #! `@test_logs`, not just the value: the notice's text comes from `_excludedReplicates`, and
+    #! `@info` builds its message inside a try/catch, so a missing helper prints "Exception while
+    #! generating log record" and carries on. 0.5.0 shipped exactly that (the helper was deleted
+    #! with `standard_qois.jl`'s monad-level statistics) and this file stayed green.
+    plotted = @test_logs (:info, r"^Excluding 1/3 replicates of monad \d+ with no output on disk") match_mode=:any begin
+        plotbycelltype(monad; include_cell_type_names=[cell_type]).series_list[1][:y]
+    end
     @test isapprox(Float64.(plotted), Float64.(expected))
     #! ...and specifically not the old behaviour. Guard against the two coinciding on flat data.
     @test !isapprox(Float64.(expected), Float64.(zero_filled))

@@ -37,7 +37,20 @@ variationName(dv)
 "max time"
 ```
 
-If `name` is omitted, PhysiCellModelManager.jl assigns a default based on the target/location naming conventions used by [`shortVariationName`](@ref PhysiCellModelManager.shortVariationName).
+!!! tierdev
+    **Reading a name back.** [`variationName`](@ref) returns the string a variation reports under.
+    If `name` was omitted at construction, that string is the convention-based default
+    `shortVariationName(location, columnName(target))`.
+    [`shortVariationName`](@ref PhysiCellModelManager.shortVariationName) dispatches on the
+    simulator — ModelManager's fallback returns the column name unchanged, and
+    PhysiCellModelManager.jl extends it to produce the readable `"default: apoptosis death rate"`
+    form. Extend it for a new simulator rather than renaming columns.
+
+    **Types underneath.** `DiscreteVariation` and `DistributedVariation` are the two subtypes of
+    [`ElementaryVariation`](@ref), the base type for varying a single parameter. Each stores its
+    target as an [`XMLPath`](@ref) — a vector of tag strings carrying the same `:` attribute and
+    `::` child-content filters described above — so the plain `Vector{String}` that
+    [`configPath`](@ref) returns is wrapped by the constructor.
 
 Pass variations to [`createTrial`](@ref) or [`run`](@ref) to create (or run) simulations with those parameters, automatically recording them in the database. Multiple variations are combined on a grid by default (all combinations).
 
@@ -61,6 +74,13 @@ d = Uniform(0, 0.001)
 dv = DistributedVariation(xml_path, d)
 ```
 
+Two shorthands cover the common distributions, inferring the location from the XML path:
+
+```julia
+dv_u = UniformDistributedVariation(configPath("cd8", "apoptosis", "death_rate"), 0.0, 1e-3)
+dv_n = NormalDistributedVariation(configPath("cd8", "necrosis", "death_rate"), 1e-4, 1e-5; lb=0.0, ub=1.0) #! truncated Normal(mu, sigma)
+```
+
 Like discrete variations, distributed variations also support optional naming:
 
 ```julia
@@ -68,3 +88,48 @@ dv = DistributedVariation(xml_path, d; name="apoptosis rate")
 ```
 
 These variations are useful for doing [Sensitivity analysis](@ref sensitivity_analysis_man).
+
+## Sampling the variation space
+Several variations define a space of parameter sets; a *design method* decides which points in that
+space actually get run. Pass it as the first argument to [`createTrial`](@ref) (or [`run`](@ref)) —
+omit it and you get the full factorial grid.
+
+```julia
+createTrial(inputs, dv_g1, dv_s; n_replicates=4)                  #! full factorial grid (the default)
+createTrial(GridVariation(), inputs, [dv_g1, dv_s])               #! the same thing, spelled out
+createTrial(LHSVariation(20), inputs, [dv_apop, dv_cycle])        #! 20 Latin hypercube samples
+createTrial(SobolVariation(64), inputs, [dv_apop, dv_cycle])      #! 64 points of a Sobol' sequence
+createTrial(RBDVariation(64), inputs, [dv_apop, dv_cycle])        #! 64 points of a random balance design
+```
+
+!!! tierdev
+    **Choosing one.** [`LHSVariation`](@ref) spreads `n` samples so that each parameter's range is
+    covered once — the usual choice for broad coverage of a continuous space on a fixed budget. The
+    quasi-random and random-balance designs exist mainly to feed
+    [Sensitivity analysis](@ref sensitivity_analysis_man), which drives them for you.
+
+    **The method types.** `GridVariation()` takes no arguments;
+    [`LHSVariation`](@ref)`(n; add_noise=false, rng=Random.GLOBAL_RNG, orthogonalize=true)`,
+    [`SobolVariation`](@ref)`(n; n_matrices=1, randomization=NoRand(), skip_start=missing,
+    include_one=missing)`, and [`RBDVariation`](@ref)`(n; rng=Random.GLOBAL_RNG, use_sobol=true,
+    pow2_diff=missing, num_cycles=missing)` each take the sample count first. All four are subtypes
+    of `AddVariationMethod`; a new sampling scheme is a new subtype plus an `addVariations` method.
+
+    **The function underneath.** `createTrial` and `run` call
+    [`addVariations`](@ref ModelManager.addVariations)`(method, inputs, avs, reference_variation_id)`, which writes the sampled
+    parameter sets into the variations database and returns an
+    [`AddVariationsResult`](@ref ModelManager.AddVariationsResult) — one subtype per method, carrying what that method's consumer
+    needs. [`AddGridVariationsResult`](@ref) holds `variation_ids` shaped like the grid axes;
+    [`AddLHSVariationsResult`](@ref) adds the `cdfs` matrix (one row per latent dimension, one column
+    per point); [`AddSobolVariationsResult`](@ref) carries a three-dimensional `cdfs` indexed by
+    dimension, sample, and design matrix; and [`AddRBDVariationsResult`](@ref) adds
+    `variation_matrix`, the IDs re-sorted into the layout RBD-FAST spectral analysis consumes. Call
+    `addVariations` directly only when you want the IDs without building a trial around them.
+
+    **Domain bounds in bulk.** [`domainVariations`](@ref) is a PhysiCellModelManager.jl helper that turns a
+    named tuple of domain boundaries into the corresponding `DiscreteVariation`s, so a domain-size
+    sweep does not need six hand-written `configPath` calls. Keys are matched loosely — each must
+    contain `min` or `max` and one of `x`, `y`, `z` — so `x_min`, `xmax`, and `min_y` all work, and
+    you need not give all three dimensions. Values may be scalars or vectors; with `covary=true` it
+    returns a single `CoVariation` stepping the boundaries together (every multi-valued boundary must
+    then have the same number of values) instead of a full factorial over them.

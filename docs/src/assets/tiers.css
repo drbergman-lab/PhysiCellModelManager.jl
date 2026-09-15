@@ -1,0 +1,153 @@
+/* Nothing is hidden unless tiers.js has set data-docs-tier on <html>, so the
+   docs degrade to "show everything" without JavaScript. Both rule sets are
+   !important at equal specificity, so the reveal wins on source order. To add
+   a tier: one row in TIERS in tiers.js, one line in each list below. */
+
+html[data-docs-tier] .admonition.is-category-tiergloss,
+html[data-docs-tier] .admonition.is-category-tierwhy,
+html[data-docs-tier] .admonition.is-category-tierdev,
+html[data-docs-tier] .admonition.is-category-tierjournal {
+  display: none !important;
+}
+
+html[data-tier-show~="gloss"] .admonition.is-category-tiergloss,
+html[data-tier-show~="why"] .admonition.is-category-tierwhy,
+html[data-tier-show~="dev"] .admonition.is-category-tierdev,
+html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
+  display: block !important;
+}
+
+.docs-tier-hidden { display: none !important; }
+
+@media print {
+  .admonition.is-category-tiergloss,
+  .admonition.is-category-tierwhy,
+  .admonition.is-category-tierdev,
+  .admonition.is-category-tierjournal { display: block !important; }
+  .docs-tier-selector { display: none !important; }
+  .docs-tier-hidden { display: list-item !important; }
+}
+
+/* Tier blocks read as prose, not as admonition boxes. */
+.admonition.is-category-tiergloss,
+.admonition.is-category-tierwhy,
+.admonition.is-category-tierdev,
+.admonition.is-category-tierjournal {
+  background: none;
+  box-shadow: none;
+  border: none;
+  border-radius: 0;
+  border-left: 3px solid #b5bdc4;
+  border-left-color: color-mix(in srgb, currentColor 30%, transparent);
+  margin: 1em 0;
+  padding: 0 0 0 1em;
+  font-size: inherit;
+}
+
+.admonition.is-category-tiergloss > .admonition-header,
+.admonition.is-category-tierwhy > .admonition-header,
+.admonition.is-category-tierdev > .admonition-header { display: none; }
+
+.admonition.is-category-tierjournal > .admonition-header {
+  display: block;
+  background: none;
+  color: inherit;
+  padding: 0;
+  margin: 0 0 0.35em;
+  font-size: 0.9em;
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.admonition.is-category-tiergloss > .admonition-body,
+.admonition.is-category-tierwhy > .admonition-body,
+.admonition.is-category-tierdev > .admonition-body,
+.admonition.is-category-tierjournal > .admonition-body {
+  background: none;
+  padding: 0;
+}
+
+.admonition.is-category-tiergloss > .admonition-body > :last-child,
+.admonition.is-category-tierwhy > .admonition-body > :last-child,
+.admonition.is-category-tierdev > .admonition-body > :last-child,
+.admonition.is-category-tierjournal > .admonition-body > :last-child {
+  margin-bottom: 0;
+}
+
+/* Quiet markers, so a reader who went deeper can see what that revealed.
+   Delete these to make the reveal invisible. */
+.admonition.is-category-tierwhy > .admonition-body::before { content: "why"; }
+.admonition.is-category-tierdev > .admonition-body::before { content: "extending"; }
+.admonition.is-category-tierjournal > .admonition-header::before { content: "journal \00a0"; }
+
+.admonition.is-category-tierwhy > .admonition-body::before,
+.admonition.is-category-tierdev > .admonition-body::before {
+  display: block;
+  font-size: 0.7em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin-bottom: 0.35em;
+}
+
+.admonition.is-category-tierjournal > .admonition-header::before {
+  font-size: 0.75em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  font-weight: 400;
+}
+
+/* The selector, in the sidebar. */
+.docs-tier-selector { margin: 0.6rem 1rem 0.4rem; font-size: 0.7rem; }
+
+.docs-tier-selector .docs-tier-title {
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  margin-bottom: 0.3rem;
+}
+
+.docs-tier-selector .docs-tier-options {
+  display: flex;
+  flex-wrap: wrap;
+  border: 1px solid #b5bdc4;
+  border-color: color-mix(in srgb, currentColor 35%, transparent);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.docs-tier-selector input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+.docs-tier-selector label {
+  flex: 1 1 auto;
+  min-width: 0;
+  text-align: center;
+  padding: 0.25rem 0.28rem;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+  white-space: nowrap;
+  border-left: 1px solid #b5bdc4;
+  border-left-color: color-mix(in srgb, currentColor 35%, transparent);
+}
+
+.docs-tier-selector label:first-of-type { border-left: none; }
+.docs-tier-selector label:hover { background: color-mix(in srgb, currentColor 10%, transparent); }
+
+.docs-tier-selector input:checked + label {
+  background: #b5bdc4;
+  background: color-mix(in srgb, currentColor 22%, transparent);
+  font-weight: 600;
+}
+
+.docs-tier-selector input:focus-visible + label {
+  outline: 2px solid currentColor;
+  outline-offset: -2px;
+}

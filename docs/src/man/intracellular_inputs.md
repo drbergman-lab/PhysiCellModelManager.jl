@@ -19,6 +19,15 @@ xml_path = ["intracellulars", "intracellular:ID:$(component.id)", ...]
 
 where the `...` is the path starting with the root of the XML file (`sbml` for SBML files).
 
+!!! tierdev
+    [`PhysiCellComponent`](@ref) carries three fields: `type` (the subdirectory of
+    `data/components/`, currently only `"roadrunner"`), `name` (the file inside it), and `id`. Only
+    `type` and `name` participate in equality, because `id` is assigned during assembly — a freshly
+    constructed component holds `-1` to mean "not yet set", and `assembleIntracellular!` replaces
+    each entry of the dictionary with a copy carrying the id it wrote into the XML. That is the
+    whole reason the function is mutating, and why reading `component.id` before assembling gives
+    you `-1` rather than an error.
+
 Finally, pass this folder into `InputFolders` to use this input in simulation runs:
 ```julia
 inputs = InputFolders(...; ..., intracellular=intracellular_folder, ...)

@@ -1,5 +1,5 @@
 export endpointPopulationCounts, endpointPopulationFractions, meanPopulationTimeSeries
-export endpointPopulationCountQoI, endpointPopulationFractionQoI, meanPopulationTimeSeriesQoI
+export endpointPopulationFractionQoI, meanPopulationTimeSeriesQoI
 export populationCountQoI
 
 ################## PhysiCell-specific measurements ##################
@@ -22,7 +22,7 @@ Returns a `Dict{String,Float64}` mapping cell type name → mean count.
 This is a **monad-level** function: it takes a monad ID and does its own averaging. A
 `summary_statistic` measures a single `Simulation` and ModelManager reduces the replicates, so this
 is not a valid `summary_statistic` argument — passing it fails when the first monad is measured.
-Use [`endpointPopulationCountQoI`](@ref), which measures the same quantity in that shape. Keep this
+Use [`populationCountQoI`](@ref), which measures the same quantity in that shape. Keep this
 one for analysing a monad directly.
 
 # Arguments
@@ -37,7 +37,7 @@ counts = endpointPopulationCounts(monad_id; cell_types=["tumor", "immune"])
 
 # For calibration, use the QoI form instead — it measures one simulation, as ModelManager 0.9 requires
 problem = CalibrationProblem(inputs, parameters, observed,
-                             endpointPopulationCountQoI(; cell_types=["tumor", "immune"]),
+                             populationCountQoI(; cell_types=["tumor", "immune"]),
                              mseDistance)
 ```
 """
@@ -150,9 +150,10 @@ end
 
 ################## QoI-returning builders ##################
 #
-# The `QoI` form of the three summary statistics above: one QoI each, whose value is a
+# The `QoI` form of the summary statistics above: one QoI each, whose value is a
 # `Dict(cell_type => value)` — the same shape the monad-level function returns, and the same shape
-# `populationCountQoI` uses for the sink.
+# `populationCountQoI` uses for the sink. `endpointPopulationCounts` has no builder of its own here:
+# `populationCountQoI` at the bottom, whose `index` defaults to `:final`, is its QoI form.
 #
 # A single QoI is what makes that possible. Calibration hands `distance` a `SummaryValues` keyed by
 # `(qoi name, cell type)`, in which a bare `"tumor"` resolves while only one QoI reports that key, so
@@ -161,7 +162,7 @@ end
 # from the simulation like the monad-level functions do, where a vector of QoIs would have to name
 # them at construction.
 #
-# No builder defines a `reduce`. All four reduce under ModelManager's default per-key mean, whose one
+# No builder defines a `reduce`. All three reduce under ModelManager's default per-key mean, whose one
 # rule is that the replicates of a monad carry the same keys -- satisfied by construction, because
 # `populationCount` keys every cell type the model declares rather than only the ones with living
 # cells, and replicates of a monad share a config and so a roster. No roster can be ragged, so nothing
@@ -170,8 +171,8 @@ end
 # monad-level functions, which keep their own: the tests assert `≈`, not `==`.
 #
 # Sensitivity analysis spreads a keyed `reduce` into one analysis per key -- labelled
-# `"<qoi name>.<key>"`, the same reading the sink gives it -- so the two endpoint builders serve all
-# three consumers with no per-cell-type rewrite. `meanPopulationTimeSeriesQoI` reaches calibration
+# `"<qoi name>.<key>"`, the same reading the sink gives it -- so `endpointPopulationFractionQoI` and
+# `populationCountQoI` serve all three consumers with no per-cell-type rewrite. `meanPopulationTimeSeriesQoI` reaches calibration
 # only, and now for one reason at both ends: every component it reports is a time series rather than
 # the `Real` a sink column or a sensitivity index is computed from, so the sink refuses its `compute`
 # and sensitivity analysis refuses its `reduce`. Reduce a series to a scalar to ask either question
@@ -191,12 +192,6 @@ end
 
 #! Restrict a per-simulation dict to `cell_types`, or leave it alone when none were named.
 _restrict(d, cell_types) = isnothing(cell_types) ? d : filter(p -> p.first in cell_types, d)
-
-#! `compute` of `endpointPopulationCountQoI`: one replicate's final counts, restricted.
-function _endpointCountsOf(sim::Simulation, data)
-    counts = finalPopulationCount(sim; include_dead=data.include_dead)
-    return ismissing(counts) ? missing : _restrict(counts, data.cell_types)
-end
 
 #! `compute` of `endpointPopulationFractionQoI`. The denominator is every live cell, so `total` is
 #! summed BEFORE restricting -- matching `endpointPopulationFractions`, which likewise divides by the
@@ -225,42 +220,10 @@ function _populationTimeSeriesOf(sim::Simulation, data)
 end
 
 """
-    endpointPopulationCountQoI(; cell_types=nothing, include_dead::Bool=false)
-
-Return a [`QoI`](@ref ModelManager.QoI) giving mean final-snapshot counts per cell type across a
-monad's replicates.
-
-The keyword arguments travel in the QoI's `data` slot and its `compute` is a named top-level
-function, so a calibration's `problem.jld2` is complete and `resumeABC(Calibration(id))` needs no
-`problem=`.
-
-Its value is a `Dict{String,Float64}` of cell type → mean count: the same shape
-[`endpointPopulationCounts`](@ref) returns, so `observed_data` does not change between them. It
-defines no `reduce`, so ModelManager's default per-key mean averages the replicates, and the two
-agree up to floating-point summation order.
-
-[`populationCountQoI`](@ref) measures the same quantity at the final snapshot, under a different
-name and a different family of sink columns.
-
-# Keyword Arguments
-- `cell_types`: restrict to these cell types. `nothing` (default) measures every cell type present.
-- `include_dead`: whether to include dead cells in the count (default `false`).
-
-# Examples
-```julia
-problem = CalibrationProblem(inputs, parameters, observed, endpointPopulationCountQoI(), mseDistance)
-```
-"""
-function endpointPopulationCountQoI(; cell_types::Union{Nothing,Vector{String}}=nothing,
-                                      include_dead::Bool=false)
-    return QoI("endpoint_population_count", _endpointCountsOf; data=(; cell_types, include_dead))
-end
-
-"""
     endpointPopulationFractionQoI(; cell_types=nothing, include_dead::Bool=false)
 
 Return a [`QoI`](@ref ModelManager.QoI) giving mean final-snapshot fractions of total cells per cell
-type across a monad's replicates. Restorable like [`endpointPopulationCountQoI`](@ref): the keyword
+type across a monad's replicates. Restorable like [`populationCountQoI`](@ref): the keyword
 arguments travel in `data`, so resuming needs no `problem=`.
 
 Its value is a `Dict{String,Float64}` of cell type → mean fraction, the same shape
@@ -287,7 +250,7 @@ end
     meanPopulationTimeSeriesQoI(; cell_types=nothing, include_dead::Bool=false)
 
 Return a [`QoI`](@ref ModelManager.QoI) giving the mean population time series per cell type across
-a monad's replicates. Restorable like [`endpointPopulationCountQoI`](@ref): the keyword arguments
+a monad's replicates. Restorable like [`populationCountQoI`](@ref): the keyword arguments
 travel in `data`, so resuming needs no `problem=`.
 
 Its value is a `Dict{String,Vector{Float64}}` of cell type → mean count over time, the same shape
@@ -337,11 +300,11 @@ arguments travel in the QoI's `data` slot, so a calibration's `problem.jld2` wri
 complete.
 
 This QoI defines no `reduce` of its own, so wherever it is reduced across replicates ModelManager's
-default applies: a mean per cell type. [`endpointPopulationCountQoI`](@ref) measures the same thing at
-the final snapshot, under a different name and a different family of sink columns, and reduces under
-that same default. Neither can trip the default's one requirement — that the replicates agree about
-their keys — because [`populationCount`](@ref) keys every cell type the model declares rather than
-only those with living cells, and the replicates of a monad share a config.
+default applies: a mean per cell type. That makes it the count builder for calibration and
+sensitivity analysis as well as for the sink. It cannot trip the default's one requirement — that
+the replicates agree about their keys — because [`populationCount`](@ref) keys every cell type the
+model declares rather than only those with living cells, and the replicates of a monad share a
+config.
 
 # Arguments
 - `index`: Which snapshot to count — `:final`, `:initial`, or an integer snapshot index.
@@ -355,6 +318,8 @@ run(sampling; post_processor = populationCountQoI())                       # fin
 run(sampling; post_processor = populationCountQoI(; index=0))              # counts at snapshot 0
 run(sampling; post_processor = populationCountQoI(; include_dead=true))    # include dead cells
 run(sampling; post_processor = populationCountQoI(; cell_types=["tumor"])) # only "tumor"
+
+problem = CalibrationProblem(inputs, parameters, observed, populationCountQoI(), mseDistance)
 ```
 """
 function populationCountQoI(; index::Union{Integer,Symbol}=:final,

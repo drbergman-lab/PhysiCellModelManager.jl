@@ -66,19 +66,19 @@ PhysiCellModelManager.calculateGSA!(rbd_sampling, gs_fn)
 #! read from the simulation's own output, so they cannot be named when the analysis is written.
 #! Evaluated over the design already run above rather than a fresh one -- `calculateGSA!` needs no
 #! new simulations.
-PhysiCellModelManager.calculateGSA!(moat_sampling, endpointPopulationCountQoI())
+PhysiCellModelManager.calculateGSA!(moat_sampling, populationCountQoI())
 gsa_labels = PhysiCellModelManager.ModelManager.gsaLabels(moat_sampling)
-@test filter(l -> startswith(l, "endpoint_population_count"), gsa_labels) ==
-      ["endpoint_population_count.$(cell_type)"]
+@test filter(l -> startswith(l, "population_count"), gsa_labels) ==
+      ["population_count.$(cell_type)"]
 #! A spread key gets a full analysis with the RIGHT NUMBERS, not merely an object of the right type:
 #! `evaluateFunctionOnSampling` always allocates `Float64` matrices, so every entry in `results` is a
 #! `MorrisResult{Matrix{Float64},Matrix{Float64}}` and comparing `typeof` could never fail.
 #! `gs_fn` measures `finalPopulationCount(sim)["default"]` reduced by `mean`, and
-#! `endpointPopulationCountQoI()` reduces to a Dict whose "default" entry is that same mean, so the
+#! `populationCountQoI()` reduces to a Dict whose "default" entry is that same mean, so the
 #! spread analysis must land on identical Morris indices.
-@test moat_sampling.results["endpoint_population_count.$(cell_type)"].means ==
+@test moat_sampling.results["population_count.$(cell_type)"].means ==
       moat_sampling.results["gs_fn"].means
-@test moat_sampling.results["endpoint_population_count.$(cell_type)"].variances ==
+@test moat_sampling.results["population_count.$(cell_type)"].variances ==
       moat_sampling.results["gs_fn"].variances
 
 #! The boundary. `meanPopulationTimeSeriesQoI` reduces to a `Dict` keyed by cell type, so it IS

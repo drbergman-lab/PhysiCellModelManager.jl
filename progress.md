@@ -49,16 +49,25 @@ produce a wrong number, which is why neither showed up as a failing test.
 ## 2026-09-14 — One reducer for every QoI builder (#232)
 
 **Decisions**
-- **Both count builders stay.** `populationCountQoI` and `endpointPopulationCountQoI` measure the same
-  quantity at the final snapshot under two names and two families of sink columns, and #232 proposed
-  collapsing them into one. Not done: two names for similar measurements is acceptable, each reads
-  naturally at the call site it was written for, and both column families are already in users'
-  databases.
+- **One count builder (revised 2026-09-14).** The first pass kept both `populationCountQoI` and
+  `endpointPopulationCountQoI` on the grounds that two names for similar measurements is acceptable
+  and both column families were already in users' databases. The maintainer reversed that once the
+  two reduced identically: with no bespoke reducers left, `endpointPopulationCountQoI()` was
+  `populationCountQoI()` under a second name and a second family of sink columns, so it is removed
+  and `populationCountQoI(; index)` — `index` defaulting to `:final` — is the single count builder.
+  Callers of the old name pass the same `cell_types`/`include_dead` keywords to the new one; the sink
+  column family and the GSA/calibration label become `population_count.<cell_type>`, and
+  `observed_data` keyed by bare cell type is unaffected.
+- **`endpointPopulationFractionQoI` and `meanPopulationTimeSeriesQoI` stay.** Neither is a second
+  name for anything: there is no `index`-taking builder that measures a fraction or a time series, so
+  removing them would delete a measurement rather than a duplicate name. The monad-level functions
+  (`endpointPopulationCounts` and the rest) also stay — they answer a different question, about a
+  finished monad.
 - **The three bespoke reducers go.** `_meanEndpointCounts`, `_meanEndpointFractions` and
-  `_meanPopulationTimeSeriesOf` are deleted. `endpointPopulationCountQoI`,
-  `endpointPopulationFractionQoI` and `meanPopulationTimeSeriesQoI` now define no `reduce` and are
-  averaged by ModelManager's default per-key mean, as `populationCountQoI` already was. Whatever that
-  changes numerically is accepted rather than preserved.
+  `_meanPopulationTimeSeriesOf` are deleted. `endpointPopulationFractionQoI` and
+  `meanPopulationTimeSeriesQoI` now define no `reduce` and are averaged by ModelManager's default
+  per-key mean, as `populationCountQoI` already was; the count builder's reducer went with the
+  builder. Whatever that changes numerically is accepted rather than preserved.
 - **Zero-fill versus exclusion of a missing cell type is moot.** Each bespoke reducer existed to
   reconcile a replicate lacking a cell type — the endpoint pair by filling in a zero, the time series
   by shrinking the denominator. Neither case can arise: `populationCount` keys every cell type the

@@ -35,11 +35,11 @@ end
     #! The monad-level statistics are no longer valid `summary_statistic` arguments: since #46 a
     #! measurement function receives a `Simulation`, and these take a monad ID. The QoI builders are
     #! the replacement for that role; the monad-level functions remain monad-level analysis.
-    prob = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoI(), mseDistance)
+    prob = CalibrationProblem(inputs, [dv], observed, populationCountQoI(), mseDistance)
     @test prob.n_replicates == 1
     @test prob.reference_variation_id == PhysiCellModelManager.VariationID(inputs)
 
-    prob_with_ref = CalibrationProblem(inputs, [dv], observed, endpointPopulationCountQoI(), mseDistance;
+    prob_with_ref = CalibrationProblem(inputs, [dv], observed, populationCountQoI(), mseDistance;
         n_replicates=3, reference_variation_id=ref.variation_id)
     @test prob_with_ref.n_replicates == 3
     @test !ismissing(prob_with_ref.reference_variation_id)
@@ -133,13 +133,13 @@ reduceWith(q, values) = q.reduce(values, q.data)
 approxDicts(a, b) = keys(a) == keys(b) && all(a[k] ≈ b[k] for k in keys(a))
 
 @testset "QoI builder reducers" begin
-    counts_q = endpointPopulationCountQoI()
+    counts_q = populationCountQoI()
     fracs_q = endpointPopulationFractionQoI()
 
     # Restorable by name: the keywords ride in `data` and both functions are top-level, so a
     # `problem.jld2` written from any builder is complete. Asked of ModelManager's own predicate,
     # the one `_saveProblem` consults; the bare `resumeABC` further down is the end-to-end form.
-    for q in (counts_q, fracs_q, meanPopulationTimeSeriesQoI(), populationCountQoI())
+    for q in (counts_q, fracs_q, meanPopulationTimeSeriesQoI())
         @test !PhysiCellModelManager.ModelManager._isAnonymousFunction(q)
     end
 
@@ -192,7 +192,7 @@ end
     #! write a column for every cell type and silently ignore the argument.
     #! `endpointPopulationFractionQoI` did exactly that. A nonexistent type is what discriminates
     #! here -- this model defines one cell type, so filtering *to* it cannot tell the two apart.
-    for builder in (endpointPopulationCountQoI, endpointPopulationFractionQoI)
+    for builder in (populationCountQoI, endpointPopulationFractionQoI)
         @test isempty(computeOn(builder(; cell_types=["nonexistent_type"]), Simulation(first(sids))))
         @test haskey(computeOn(builder(; cell_types=[cell_type]), Simulation(first(sids))), cell_type)
     end
@@ -201,7 +201,7 @@ end
     @test computeOn(endpointPopulationFractionQoI(; cell_types=[cell_type]), Simulation(first(sids)))[cell_type] ==
           computeOn(endpointPopulationFractionQoI(), Simulation(first(sids)))[cell_type]
 
-    for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
+    for (builder, monadwise) in [(populationCountQoI, endpointPopulationCounts),
                                  (endpointPopulationFractionQoI, endpointPopulationFractions),
                                  (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
         via_qoi = evaluate(builder(; cell_types=[cell_type]), monad_id)
@@ -225,7 +225,7 @@ end
     @test ismissing(PhysiCellModelManager.SimulationPopulationTimeSeries(victim; verbose=false))
     @test ismissing(finalPopulationCount(victim))
 
-    for (builder, monadwise) in [(endpointPopulationCountQoI, endpointPopulationCounts),
+    for (builder, monadwise) in [(populationCountQoI, endpointPopulationCounts),
                                  (endpointPopulationFractionQoI, endpointPopulationFractions),
                                  (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
         @test evaluate(builder(; cell_types=[cell_type]), monad_id)[cell_type] ≈
@@ -241,7 +241,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCountQoI(), mseDistance;
+        populationCountQoI(), mseDistance;
         reference_variation_id=ref.variation_id
     )
 
@@ -299,7 +299,7 @@ end
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
-        endpointPopulationCountQoI(), mseDistance;
+        populationCountQoI(), mseDistance;
         reference_variation_id=ref.variation_id
     )
 

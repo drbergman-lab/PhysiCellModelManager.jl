@@ -40,7 +40,7 @@ problem = CalibrationProblem(
     ref,                        # Monad — sets inputs + reference_variation_id
     parameters,
     observed_data,
-    endpointPopulationCountQoI(),  # summary statistic (QoI form — see below)
+    populationCountQoI(),  # summary statistic (QoI form — see below)
     mseDistance;                # distance function
     n_replicates = 3,
 )
@@ -182,7 +182,7 @@ The keys of `observed_data` are the comparison: `mseDistance` resolves each one 
 
 ### Distance functions
 
-A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["endpoint_population_count.cancer"]`), or by the exact tuple (`sim[("endpoint_population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
+A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["population_count.cancer"]`), or by the exact tuple (`sim[("population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
 
 ```julia
 # Weighted MSE on two cell populations
@@ -552,34 +552,34 @@ Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so
 measurement serves a `CalibrationProblem` without being rewritten:
 
 ```julia
-problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)
+problem = CalibrationProblem(inputs, params, observed, populationCountQoI(), mseDistance)
 ```
 
-[`endpointPopulationFractionQoI`](@ref) and [`meanPopulationTimeSeriesQoI`](@ref) are the other two. Each yields a `Dict` keyed by cell type — the same shape as the monad-level statistic above — so `observed_data` does not change between them.
+[`populationCountQoI`](@ref) is the QoI form of [`endpointPopulationCounts`](@ref): its `index`
+defaults to `:final`. [`endpointPopulationFractionQoI`](@ref) and
+[`meanPopulationTimeSeriesQoI`](@ref) are the other two. Each yields a `Dict` keyed by cell type — the same shape as the monad-level statistic above — so `observed_data` does not change between them.
 
 Pass `cell_types` to restrict the measurement; omit it and every cell type present is measured, exactly as the monad-level functions do.
 
 ```julia
-endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
+populationCountQoI(; cell_types=["cancer", "immune"])
 ```
 
-The two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
-[`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
-spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
-post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
-without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
+[`populationCountQoI`](@ref) and [`endpointPopulationFractionQoI`](@ref) also work with
+`run(::GSAMethod, ...; functions=)`, which spreads a `Dict`-valued measurement into one sensitivity
+analysis per key, the same reading the post-processing sink gives it. So `populationCountQoI()`
+yields one analysis per cell type without naming them in advance, labelled
+`population_count.<cell_type>`.
 
 [`meanPopulationTimeSeriesQoI`](@ref) does **not**: each of its components is a time series rather
 than the `Real` an index is computed from. See
 [One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
 
-!!! note "Two builders, one reducer"
-    [`populationCountQoI`](@ref) and [`endpointPopulationCountQoI`](@ref) measure the same quantity
-    at the final snapshot, under two names and two families of sink columns. Neither defines a
-    `reduce`, nor does any other builder on this page: a monad's replicates are averaged by
-    ModelManager's default per-key mean throughout. That default asks the replicates to report the
-    same cell types, which they always do — the keys are the model's declared cell-type roster, and
-    replicates of a monad share a config.
+!!! note "One reducer everywhere"
+    No builder on this page defines a `reduce`: a monad's replicates are averaged by ModelManager's
+    default per-key mean throughout. That default asks the replicates to report the same cell types,
+    which they always do — the keys are the model's declared cell-type roster, and replicates of a
+    monad share a config.
 
 ## Built-in distance functions
 

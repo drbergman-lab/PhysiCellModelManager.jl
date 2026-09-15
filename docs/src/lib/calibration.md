@@ -81,10 +81,11 @@ meanPopulationTimeSeries
 
 One [`QoI`](@ref ModelManager.QoI) each, whose value is a `Dict` keyed by cell type — the same
 shape as the monad-level statistic above, so `observed_data` keeps the same keys. Pass `cell_types`
-to restrict the measurement; omit it and every cell type in the output is measured.
+to restrict the measurement; omit it and every cell type in the output is measured. The count at the
+final snapshot has no builder of its own: [`populationCountQoI`](@ref) measures it, since its `index`
+defaults to `:final`.
 
 ```@docs
-endpointPopulationCountQoI
 endpointPopulationFractionQoI
 meanPopulationTimeSeriesQoI
 ```

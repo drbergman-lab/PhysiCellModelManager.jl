@@ -58,11 +58,30 @@ produce a wrong number, which is why neither showed up as a failing test.
   Callers of the old name pass the same `cell_types`/`include_dead` keywords to the new one; the sink
   column family and the GSA/calibration label become `population_count.<cell_type>`, and
   `observed_data` keyed by bare cell type is unaffected.
-- **`endpointPopulationFractionQoI` and `meanPopulationTimeSeriesQoI` stay.** Neither is a second
-  name for anything: there is no `index`-taking builder that measures a fraction or a time series, so
-  removing them would delete a measurement rather than a duplicate name. The monad-level functions
-  (`endpointPopulationCounts` and the rest) also stay — they answer a different question, about a
-  finished monad.
+- **`endpointPopulationFractionQoI` becomes `populationFractionQoI(; index)` (2026-09-14).** Having
+  settled on one builder per quantity, the fraction gets the same treatment as the count: it reads
+  the snapshot at `index` (defaulting to `:final`) through `PhysiCellSnapshot` + `populationCount`
+  rather than `finalPopulationCount`, and the two computes share `_populationCountsAt` so the
+  snapshot handling — and the `missing` a pruned snapshot produces — has one definition. The
+  denominator is still summed before the `cell_types` restriction, so filtering to one type reports
+  its share of everything. Sink columns and GSA labels become `population_fraction.<cell_type>`. The
+  old name is removed outright, not aliased: 0.5.0 is already breaking.
+- **The three monad-level statistics are removed (2026-09-14).** `endpointPopulationCounts`,
+  `endpointPopulationFractions` and `meanPopulationTimeSeries` each took a monad ID and did their own
+  averaging — the pre-0.9 measurement contract, which is why none of them was a valid
+  `summary_statistic`. Once every builder reduced under the default per-key mean, each was its
+  builder's value computed a second way, so they duplicated the builders and the tests comparing the
+  two were testing float summation order. `finalPopulationCount(::Monad)` and
+  `MonadPopulationTimeSeries` in `population.jl` already answer the analyse-a-finished-monad
+  question, so nothing a user could do is lost.
+- **What replaced the comparison tests.** The builder-vs-monad-level equalities in
+  `CalibrationTests.jl` are now direct assertions on each builder's value, computed from the
+  replicates' own output: `populationCountQoI` reduced over the monad equals the mean of the
+  replicates' `finalPopulationCount`; every replicate's fractions sum to 1 and so does the reduced
+  value; `meanPopulationTimeSeriesQoI` equals the elementwise mean of the replicates'
+  `SimulationPopulationTimeSeries` counts. The pruned-replicate case keeps the same form, against the
+  survivors. `_averageStatDicts` went with the deleted functions; `_excludedReplicates` stays,
+  because `population.jl` logs through it at three sites.
 - **The three bespoke reducers go.** `_meanEndpointCounts`, `_meanEndpointFractions` and
   `_meanPopulationTimeSeriesOf` are deleted. `endpointPopulationFractionQoI` and
   `meanPopulationTimeSeriesQoI` now define no `reduce` and are averaged by ModelManager's default

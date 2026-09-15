@@ -112,7 +112,7 @@ run(method, inputs, evs; n_replicates=n_replicates, functions=[populationCountQo
 That yields `population_count.cancer`, `population_count.immune`, and one more for
 every other cell type — without naming any of them in advance, since they are read from the
 simulation's own output.
-[`endpointPopulationFractionQoI`](@ref) works the same way.
+[`populationFractionQoI`](@ref) works the same way.
 
 !!! note "Two shapes that are not spread"
     Two separate rules. A bare `Vector` return is **not** spread by index — components are keyed,

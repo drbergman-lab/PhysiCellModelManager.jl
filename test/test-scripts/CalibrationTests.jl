@@ -70,71 +70,35 @@ end
 ################## Built-in Summary Statistic Tests ##################
 # Monad 1 was created by earlier tests (RunnerTests.jl); use it here.
 
-@testset "endpointPopulationCounts" begin
-    counts = endpointPopulationCounts(1)
-    @test counts isa Dict{String,Float64}
-    @test all(v >= 0.0 for v in values(counts))
-    @test haskey(counts, cell_type)
-
-    # filter to a specific cell type
-    counts_filtered = endpointPopulationCounts(1; cell_types=[cell_type])
-    @test length(counts_filtered) == 1
-    @test haskey(counts_filtered, cell_type)
-    @test counts_filtered[cell_type] ≈ counts[cell_type]
-end
-
-@testset "endpointPopulationFractions" begin
-    fracs = endpointPopulationFractions(1)
-    @test fracs isa Dict{String,Float64}
-    @test all(0.0 <= v <= 1.0 for v in values(fracs))
-    # fractions sum to 1 (within floating-point tolerance)
-    @test sum(values(fracs)) ≈ 1.0 atol=1e-10
-
-    fracs_filtered = endpointPopulationFractions(1; cell_types=[cell_type])
-    @test length(fracs_filtered) == 1
-end
-
-@testset "meanPopulationTimeSeries" begin
-    ts = meanPopulationTimeSeries(1)
-    @test ts isa Dict{String,Vector{Float64}}
-    @test haskey(ts, cell_type)
-    @test all(v >= 0.0 for vec in values(ts) for v in vec)
-
-    ts_filtered = meanPopulationTimeSeries(1; cell_types=[cell_type])
-    @test length(ts_filtered) == 1
-    @test haskey(ts_filtered, cell_type)
-    @test ts_filtered[cell_type] ≈ ts[cell_type]
-end
-
 @testset "finalPopulationCount(Monad)" begin
     counts = finalPopulationCount(Monad(1))
     @test counts isa Dict{String,Float64}
     @test haskey(counts, cell_type)
-    @test counts[cell_type] ≈ endpointPopulationCounts(1)[cell_type]
+    @test all(v >= 0.0 for v in values(counts))
 end
 
 ################## QoI-returning builders ##################
 #
-# These assert the builders reproduce their monad-level counterparts up to floating-point summation
-# order (`≈`, not `==`). Handing the same quantity to a `QoI` consumer still must not move anyone's
-# numbers, but exact equality is no longer the claim: since #232 the builders define no `reduce` and
-# go through ModelManager's default per-key mean, while the monad-level functions keep their own
-# accumulation (`finalPopulationCount(::Monad)`'s generator mean, `_averageStatDicts`' materialised
-# one, `mean(array, dims=2)`). The two can therefore sum in different orders; they cannot disagree
-# about which replicates or which cell types are in the average, because no roster is ragged.
+# These assert what each builder's value IS, computed from the replicates' own output rather than
+# compared against a second implementation. The monad-level statistics these used to be checked
+# against are gone (#232): under the default reducer each was its builder's value computed a second
+# way, so the comparison had stopped testing anything but float summation order. Tolerances stay
+# `≈`: the builders reduce through ModelManager's default per-key mean, which need not sum in the
+# same order as a mean written here.
 
 #! The builders carry their keyword arguments in `data`, which selects the two-argument calling
 #! convention ModelManager uses for them: `compute(sim, data)` and `reduce(values, data)`.
 computeOn(q, sim) = q.compute(sim, q.data)
 reduceWith(q, values) = q.reduce(values, q.data)
 
-#! `≈` has no `Dict` method, and these dicts hold a `Float64` for the endpoint builders and a
-#! `Vector{Float64}` for the time-series one, so compare the key sets and then each value.
-approxDicts(a, b) = keys(a) == keys(b) && all(a[k] ≈ b[k] for k in keys(a))
+#! ModelManager's own seam -- compute per replicate, drop the `missing` ones, reduce -- which is the
+#! path calibration and sensitivity analysis take, and so the path these equalities are about.
+#! Internal, but the alternative is re-implementing it here and asserting against a copy.
+evaluate(q, monad_id) = PhysiCellModelManager.ModelManager._reduceOverMonad(q, monad_id)
 
 @testset "QoI builder reducers" begin
     counts_q = populationCountQoI()
-    fracs_q = endpointPopulationFractionQoI()
+    fracs_q = populationFractionQoI()
 
     # Restorable by name: the keywords ride in `data` and both functions are top-level, so a
     # `problem.jld2` written from any builder is complete. Asked of ModelManager's own predicate,
@@ -158,23 +122,19 @@ approxDicts(a, b) = keys(a) == keys(b) && all(a[k] ≈ b[k] for k in keys(a))
     # of a cell type absent from a replicate; nothing zero-fills now, and nothing needs to -- the
     # default reducer's one rule is that replicates agree about their keys, and they do by
     # construction, since `populationCount` keys every cell type the model declares and a monad's
-    # replicates share a config. The other was the float-associativity gap between
-    # `finalPopulationCount(::Monad)`'s generator mean and `_averageStatDicts`' materialised one
-    # (1200 copies of 0.1) to prove the two bespoke reducers were genuinely different functions.
-    # There is one reducer now, so there is no gap between builders to pin; what is left is the gap
-    # between a builder and its monad-level counterpart, and the testset below asserts `≈` for it.
+    # replicates share a config. The other was the float-associativity gap between the two bespoke
+    # reducers' accumulations (1200 copies of 0.1), pinned to prove they were genuinely different
+    # functions.
+    # There is one reducer now, so there is no gap between builders to pin; the testset below
+    # asserts each builder's value against the replicates' own output instead.
 end
 
-@testset "QoI builders match the monad-level functions" begin
+@testset "QoI builder values" begin
     # Evaluate each QoI the way ModelManager does -- `reduce` over `compute` for every replicate --
     # using only the QoI's own documented parts. An earlier version of this test called
     # `ModelManager._asSummaryStatistic`, which was renamed to `_validateSummaryStatistic` in #46 and
     # took the test with it. Pinning another package's internals is the same mistake as pinning its
     # on-disk layout: the flat-vs-nested dict shape is ModelManager's contract to keep, not ours.
-    #! ModelManager's own seam -- compute per replicate, drop the `missing` ones, reduce -- which is
-    #! the path calibration and sensitivity analysis take, and so the path these equalities are
-    #! about. Internal, but the alternative is re-implementing it here and asserting against a copy.
-    evaluate(q, monad_id) = PhysiCellModelManager.ModelManager._reduceOverMonad(q, monad_id)
 
     # A monad of this test's own, distinguished by a phase duration nothing else uses. PCMM reuses
     # matching simulations, so pruning a replicate of a monad another file also builds -- Monad(1)
@@ -190,28 +150,42 @@ end
     #! `cell_types` has to be applied by `compute`, not only by `reduce`: the post-processing sink
     #! calls `compute` and never `reduce`, so a builder that filtered in its reducer alone would
     #! write a column for every cell type and silently ignore the argument.
-    #! `endpointPopulationFractionQoI` did exactly that. A nonexistent type is what discriminates
-    #! here -- this model defines one cell type, so filtering *to* it cannot tell the two apart.
-    for builder in (populationCountQoI, endpointPopulationFractionQoI)
+    #! The fraction builder did exactly that once. A nonexistent type is what discriminates here --
+    #! this model defines one cell type, so filtering *to* it cannot tell the two apart.
+    for builder in (populationCountQoI, populationFractionQoI)
         @test isempty(computeOn(builder(; cell_types=["nonexistent_type"]), Simulation(first(sids))))
         @test haskey(computeOn(builder(; cell_types=[cell_type]), Simulation(first(sids))), cell_type)
     end
-    #! The fraction denominator stays every live cell, so restricting does not renormalise: a
+    #! The fraction denominator stays the whole population, so restricting does not renormalise: a
     #! single-cell-type model still reads 1.0 whether or not the filter is applied.
-    @test computeOn(endpointPopulationFractionQoI(; cell_types=[cell_type]), Simulation(first(sids)))[cell_type] ==
-          computeOn(endpointPopulationFractionQoI(), Simulation(first(sids)))[cell_type]
-
-    for (builder, monadwise) in [(populationCountQoI, endpointPopulationCounts),
-                                 (endpointPopulationFractionQoI, endpointPopulationFractions),
-                                 (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
-        via_qoi = evaluate(builder(; cell_types=[cell_type]), monad_id)
-        direct = monadwise(monad_id; cell_types=[cell_type])
-        @test keys(via_qoi) == keys(direct)          # flat, keyed by cell type -- not nested
-        @test via_qoi[cell_type] ≈ direct[cell_type]
-        #! ...and with no `cell_types`, the QoI discovers them exactly as the monad-level function
-        #! does -- the thing the previous `Vector{QoI}` shape could not do.
-        @test approxDicts(evaluate(builder(), monad_id), monadwise(monad_id))
+    @test computeOn(populationFractionQoI(; cell_types=[cell_type]), Simulation(first(sids)))[cell_type] ==
+          computeOn(populationFractionQoI(), Simulation(first(sids)))[cell_type]
+    #! ...and every replicate's fractions sum to 1 over the whole roster.
+    for sid in sids
+        @test sum(values(computeOn(populationFractionQoI(), Simulation(sid)))) ≈ 1.0 atol=1e-10
     end
+
+    #! Each builder's reduced value, against the replicates' own output. Flat and keyed by cell type
+    #! -- not nested -- and, with no `cell_types`, discovered from the output rather than named at
+    #! construction, which is the thing the previous `Vector{QoI}` shape could not do.
+    countsOfReplicates(ids) = [finalPopulationCount(Simulation(sid))[cell_type] for sid in ids]
+    seriesOfReplicates(ids) =
+        [PhysiCellModelManager.SimulationPopulationTimeSeries(sid; verbose=false).cell_count[cell_type]
+         for sid in ids]
+
+    via_counts = evaluate(populationCountQoI(; cell_types=[cell_type]), monad_id)
+    @test collect(keys(via_counts)) == [cell_type]
+    @test via_counts[cell_type] ≈ mean(countsOfReplicates(sids))
+    @test haskey(evaluate(populationCountQoI(), monad_id), cell_type)
+
+    via_fracs = evaluate(populationFractionQoI(; cell_types=[cell_type]), monad_id)
+    @test collect(keys(via_fracs)) == [cell_type]
+    @test 0.0 <= via_fracs[cell_type] <= 1.0
+    @test sum(values(evaluate(populationFractionQoI(), monad_id))) ≈ 1.0 atol=1e-10
+
+    via_series = evaluate(meanPopulationTimeSeriesQoI(; cell_types=[cell_type]), monad_id)
+    @test collect(keys(via_series)) == [cell_type]
+    @test via_series[cell_type] ≈ mean(seriesOfReplicates(sids))
 
     # Now prune one replicate and assert the equality survives the path that actually differs.
     # A clean monad agrees under any reducer and proves nothing.
@@ -225,19 +199,21 @@ end
     @test ismissing(PhysiCellModelManager.SimulationPopulationTimeSeries(victim; verbose=false))
     @test ismissing(finalPopulationCount(victim))
 
-    for (builder, monadwise) in [(populationCountQoI, endpointPopulationCounts),
-                                 (endpointPopulationFractionQoI, endpointPopulationFractions),
-                                 (meanPopulationTimeSeriesQoI, meanPopulationTimeSeries)]
-        @test evaluate(builder(; cell_types=[cell_type]), monad_id)[cell_type] ≈
-              monadwise(monad_id; cell_types=[cell_type])[cell_type]
-    end
+    #! The pruned replicate is dropped rather than zero-filled: each builder now averages the two
+    #! that are still readable, and nothing throws.
+    kept = filter(!=(victim), sids)
+    @test evaluate(populationCountQoI(; cell_types=[cell_type]), monad_id)[cell_type] ≈
+          mean(countsOfReplicates(kept))
+    @test evaluate(meanPopulationTimeSeriesQoI(; cell_types=[cell_type]), monad_id)[cell_type] ≈
+          mean(seriesOfReplicates(kept))
+    @test sum(values(evaluate(populationFractionQoI(), monad_id))) ≈ 1.0 atol=1e-10
 end
 
 ################## ABC-SMC End-to-End Test (with PhysiCell) ##################
 # Uses the actual PhysiCell simulator with a tiny population/generation budget.
 
 @testset "runABC end-to-end" begin
-    observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))
+    observed = Dict(cell_type => finalPopulationCount(Monad(1))[cell_type])
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,
@@ -295,7 +271,7 @@ end
 
 @testset "resumeABC" begin
     # Run a short calibration, then resume with more generations
-    observed = Dict(cell_type => Float64(endpointPopulationCounts(1)[cell_type]))
+    observed = Dict(cell_type => finalPopulationCount(Monad(1))[cell_type])
     params = [DistributedVariation(xml_path_phase, Uniform(200.0, 400.0); name="phase_dur")]
     problem = CalibrationProblem(
         inputs, params, observed,

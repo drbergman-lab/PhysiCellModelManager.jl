@@ -67,27 +67,20 @@ ModelManager.SimulationBank
 
 ## Built-in summary statistics
 
-Monad-level, taking a monad ID. These are **not** valid `summary_statistic` arguments — a
-measurement function receives a `Simulation` — so use the `QoI` builders below for calibration and
-keep these for direct monad-level analysis.
+One [`QoI`](@ref ModelManager.QoI) builder per quantity, each measuring a single `Simulation` — what
+every consumer of a measurement asks for — and reduced across a monad's replicates by ModelManager.
+Each value is a `Dict` keyed by cell type, so `observed_data` is keyed by cell type too. Pass
+`cell_types` to restrict the measurement; omit it and every cell type in the output is measured.
+[`populationCountQoI`](@ref) is documented with the other `post_processor` builders under
+[Analysis](@ref).
 
 ```@docs
-endpointPopulationCounts
-endpointPopulationFractions
-meanPopulationTimeSeries
-```
-
-### QoI builders
-
-One [`QoI`](@ref ModelManager.QoI) each, whose value is a `Dict` keyed by cell type — the same
-shape as the monad-level statistic above, so `observed_data` keeps the same keys. Pass `cell_types`
-to restrict the measurement; omit it and every cell type in the output is measured.
-
-```@docs
-endpointPopulationCountQoI
-endpointPopulationFractionQoI
+populationFractionQoI
 meanPopulationTimeSeriesQoI
 ```
+
+To analyse a finished monad directly, without a `QoI`, use [`finalPopulationCount`](@ref) on a
+`Monad` or `MonadPopulationTimeSeries`.
 
 ## Built-in distance functions
 

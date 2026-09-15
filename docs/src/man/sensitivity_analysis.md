@@ -106,13 +106,13 @@ whose `reduce` returns a `Dict` instead, and each key becomes its own sensitivit
 `"<qoi name>.<key>"`. The ready-made builders do this already:
 
 ```julia
-run(method, inputs, evs; n_replicates=n_replicates, functions=[endpointPopulationCountQoI()])
+run(method, inputs, evs; n_replicates=n_replicates, functions=[populationCountQoI()])
 ```
 
-That yields `endpoint_population_count.cancer`, `endpoint_population_count.immune`, and one more for
+That yields `population_count.cancer`, `population_count.immune`, and one more for
 every other cell type — without naming any of them in advance, since they are read from the
 simulation's own output.
-[`endpointPopulationFractionQoI`](@ref) works the same way.
+[`populationFractionQoI`](@ref) works the same way.
 
 !!! note "Two shapes that are not spread"
     Two separate rules. A bare `Vector` return is **not** spread by index — components are keyed,
@@ -121,9 +121,8 @@ simulation's own output.
     [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is then rejected
     for being a time series rather than a number. Reduce a series to a scalar to ask a sensitivity
     question about it.
-    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
-    mean applies, which refuses a monad whose replicates report different cell types;
-    [`endpointPopulationCountQoI`](@ref) zero-fills those instead.
+    No builder defines a `reduce` of its own, so ModelManager's default per-key mean averages the
+    replicates of all of them.
 
 Every parameter set in the design must reduce to the *same* keys; a mismatch is refused rather than
 filled in, because a sensitivity index computed over a missing value is wrong rather than
@@ -168,7 +167,7 @@ measurement that produced them — a measurement's own name, or `"<name>.<key>"`
 `Dict`-valued one. [`gsaLabels`](@ref ModelManager.gsaLabels) lists what is there — it is public in
 ModelManager but not exported, so it needs the prefix:
 ```julia
-ModelManager.gsaLabels(sensitivity_sampling)   # e.g. ["endpoint_population_count.cancer", "f"]
+ModelManager.gsaLabels(sensitivity_sampling)   # e.g. ["population_count.cancer", "f"]
 println(sensitivity_sampling.results["f"])
 ```
 

@@ -5,7 +5,7 @@ ABC-SMC is a likelihood-free inference method that iteratively refines a populat
 It is well-suited to agent-based models where an explicit likelihood function is unavailable or intractable.
 
 The implementation is native Julia — no Python or conda environment is required.
-All algorithm infrastructure lives in ModelManager; PCMM contributes the PhysiCell-specific summary statistics ([`endpointPopulationCounts`](@ref), [`endpointPopulationFractions`](@ref), [`meanPopulationTimeSeries`](@ref)).
+All algorithm infrastructure lives in ModelManager; PCMM contributes the PhysiCell-specific summary statistics ([`populationCountQoI`](@ref), [`populationFractionQoI`](@ref), [`meanPopulationTimeSeriesQoI`](@ref)).
 
 ## Quick start
 
@@ -40,7 +40,7 @@ problem = CalibrationProblem(
     ref,                        # Monad — sets inputs + reference_variation_id
     parameters,
     observed_data,
-    endpointPopulationCountQoI(),  # summary statistic (QoI form — see below)
+    populationCountQoI(),  # summary statistic (QoI form — see below)
     mseDistance;                # distance function
     n_replicates = 3,
 )
@@ -173,8 +173,7 @@ before.
     A `summary_statistic` receives a `Simulation`, not a monad ID, and does no averaging of its own.
     A function written against the monad-level contract returns a different number rather than
     erroring if it is untyped, so declare the argument `::Simulation` — ModelManager warns when it
-    is not declared. The three built-in statistics below are monad-level and are not valid
-    `summary_statistic` arguments; use their [QoI form](@ref qoi_form_ss).
+    is not declared. The built-in measurements below already have that shape.
 
 The built-in measurements are described in [Built-in summary statistics](@ref builtin_ss).
 
@@ -182,7 +181,7 @@ The keys of `observed_data` are the comparison: `mseDistance` resolves each one 
 
 ### Distance functions
 
-A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["endpoint_population_count.cancer"]`), or by the exact tuple (`sim[("endpoint_population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
+A distance function is any `(simulated, observed) → Float64`. `simulated` is a [`SummaryValues`](@ref): what each QoI's `reduce` returned, keyed by `(qoi name, key)` and indexable three ways — by the key your own `reduce` returned (`sim["cancer"]`, while only one QoI reports that key), by the `"<qoi name>.<key>"` label the sink and sensitivity analysis also use (`sim["population_count.cancer"]`), or by the exact tuple (`sim[("population_count", "cancer")]`). A `Real`-valued QoI sits under its name alone. `observed` is whatever you set `observed_data` to. [`mseDistance`](@ref) is the built-in option; a custom function can use any types:
 
 ```julia
 # Weighted MSE on two cell populations
@@ -507,77 +506,69 @@ ModelManager owns this layout and documents it in full — including what each c
 
 ## [Built-in summary statistics](@id builtin_ss)
 
-Three built-in **monad-level** statistics accept a monad ID and return a `Dict`. They do their own
-averaging over a monad's replicates, which is what makes them useful for analysing a finished monad
-directly.
+Three built-in builders each return a [`QoI`](@ref ModelManager.QoI) measuring a single
+[`Simulation`](@ref) — the shape [`CalibrationProblem`](@ref) asks for — whose value is a `Dict`
+keyed by cell type. ModelManager reduces a monad's replicates.
 
-!!! warning "These are not `summary_statistic` arguments"
-    A `summary_statistic` measures a single [`Simulation`](@ref) and ModelManager reduces the
-    replicates. Passing one of these three to [`CalibrationProblem`](@ref) fails when the first
-    monad is measured. Use the [QoI form](@ref qoi_form_ss) below, which measures the same
-    quantities in that shape.
-
-### [`endpointPopulationCounts`](@id endpoint_population_counts_section)
+### [`populationCountQoI`](@id population_count_qoi_section)
 
 ```julia
-endpointPopulationCounts(monad_id; cell_types=nothing, include_dead=false)
+populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Float64}` mapping each cell type to its mean population count at the final simulation time point, averaged across all replicates.
-Returns `missing` if no simulation output is available.
+Each cell type's population count at the snapshot `index` names — `:final` by default.
+`compute` returns `missing` when that snapshot is not on disk.
 
-### [`endpointPopulationFractions`](@id endpoint_population_fractions_section)
+### [`populationFractionQoI`](@id population_fraction_qoi_section)
 
 ```julia
-endpointPopulationFractions(monad_id; cell_types=nothing, include_dead=false)
+populationFractionQoI(; index=:final, cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Float64}` mapping each cell type to its **fraction** of the total live cell population at the final time point, averaged across replicates.
-Returns `missing` if no simulation output is available.
+Each cell type's **fraction** of the total population at that same snapshot. The denominator is the
+whole population, so restricting to one cell type reports its share of everything rather than 1.0.
 
-### [`meanPopulationTimeSeries`](@id mean_population_time_series_section)
+### [`meanPopulationTimeSeriesQoI`](@id mean_population_time_series_qoi_section)
 
 ```julia
-meanPopulationTimeSeries(monad_id; cell_types=nothing, include_dead=false)
+meanPopulationTimeSeriesQoI(; cell_types=nothing, include_dead=false)
 ```
 
-Returns a `Dict{String,Vector{Float64}}` mapping each cell type to a vector of mean population counts across all output time points.
-Useful when `observed_data` is a time series rather than a single endpoint value.
-
-For all three statistics, pass `cell_types = ["cancer", "immune"]` to restrict the output to specific cell types.
+Each cell type's count over time, on the replicate's own grid, averaged elementwise across
+replicates. Use it when `observed_data` is a time series rather than a single endpoint value.
 
 ### [QoI form](@id qoi_form_ss)
 
-Each statistic also has a builder returning a [`QoI`](@ref ModelManager.QoI), so the same
-measurement serves a `CalibrationProblem` without being rewritten:
-
 ```julia
-problem = CalibrationProblem(inputs, params, observed, endpointPopulationCountQoI(), mseDistance)
+problem = CalibrationProblem(inputs, params, observed, populationCountQoI(), mseDistance)
 ```
 
-[`endpointPopulationFractionQoI`](@ref) and [`meanPopulationTimeSeriesQoI`](@ref) are the other two. Each yields a `Dict` keyed by cell type — the same shape as the monad-level statistic above — so `observed_data` does not change between them.
-
-Pass `cell_types` to restrict the measurement; omit it and every cell type present is measured, exactly as the monad-level functions do.
+Pass `cell_types` to restrict the measurement; omit it and every cell type present in the output is
+measured, since one QoI discovers them from the simulation rather than naming them at construction.
 
 ```julia
-endpointPopulationCountQoI(; cell_types=["cancer", "immune"])
+populationCountQoI(; cell_types=["cancer", "immune"])
 ```
 
-The two **endpoint** builders — [`endpointPopulationCountQoI`](@ref) and
-[`endpointPopulationFractionQoI`](@ref) — also work with `run(::GSAMethod, ...; functions=)`, which
-spreads a `Dict`-valued measurement into one sensitivity analysis per key, the same reading the
-post-processing sink gives it. So `endpointPopulationCountQoI()` yields one analysis per cell type
-without naming them in advance, labelled `endpoint_population_count.<cell_type>`.
+[`populationCountQoI`](@ref) and [`populationFractionQoI`](@ref) also work with
+`run(::GSAMethod, ...; functions=)`, which spreads a `Dict`-valued measurement into one sensitivity
+analysis per key, the same reading the post-processing sink gives it. So `populationCountQoI()`
+yields one analysis per cell type without naming them in advance, labelled
+`population_count.<cell_type>`.
+
+To analyse a finished monad directly rather than calibrate against it, use
+[`finalPopulationCount`](@ref) on a `Monad` or `MonadPopulationTimeSeries`: they take a monad
+and do their own averaging.
 
 [`meanPopulationTimeSeriesQoI`](@ref) does **not**: each of its components is a time series rather
 than the `Real` an index is computed from. See
 [One measurement, one analysis per cell type](@ref gsa_keyed_qoi).
 
-!!! note "Two builders, two reducers"
-    [`populationCountQoI`](@ref) defines no `reduce` of its own, so ModelManager's default per-key
-    mean applies wherever it is reduced, and that default refuses a monad whose replicates report
-    different cell types. [`endpointPopulationCountQoI`](@ref) measures the same thing at the final
-    snapshot and zero-fills a cell type a replicate lacks.
+!!! note "One reducer everywhere"
+    No builder on this page defines a `reduce`: a monad's replicates are averaged by ModelManager's
+    default per-key mean throughout. That default asks the replicates to report the same cell types,
+    which they always do — the keys are the model's declared cell-type roster, and replicates of a
+    monad share a config.
 
 ## Built-in distance functions
 

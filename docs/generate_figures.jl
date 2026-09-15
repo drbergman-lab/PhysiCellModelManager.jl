@@ -104,7 +104,7 @@ phase_name, apoptosis_name = "cycle phase 0 duration", "apoptosis rate"
 #! Parallelism: the template config asks for 6 OpenMP threads per simulation.
 setNumberOfParallelSims(max(1, Sys.CPU_THREADS ÷ 6))
 
-count_qoi = endpointPopulationCountQoI(; cell_types=["default"])
+count_qoi = populationCountQoI(; cell_types=["default"])
 gsa_params = [UniformDistributedVariation(phase_path, 150.0, 600.0; name=phase_name),
               UniformDistributedVariation(apoptosis_path, 1e-5, 4e-4; name=apoptosis_name)]
 gsa_kwargs = (; functions=[count_qoi], n_replicates=1)
@@ -126,7 +126,7 @@ save("gsa_rbd.png",          plot(rbd; gsa_size...))
 #! real `SobolSampling` uses. `_sobolBarData` and `SobolResult` are internals of ModelManager and
 #! GlobalSensitivity; if either moves, this block is the one to fix.
 sobol_bars = ModelManager._sobolBarData(
-    Dict("endpoint_population_count.default" =>
+    Dict("population_count.default" =>
          ModelManager.GlobalSensitivity.SobolResult([0.28, 0.55], nothing, nothing, nothing,
                                                     [0.41, 0.69], nothing)),
     ModelManager.DataFrames.DataFrame("A" => Int[], "B" => Int[],

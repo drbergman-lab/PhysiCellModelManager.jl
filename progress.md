@@ -46,6 +46,83 @@ produce a wrong number, which is why neither showed up as a failing test.
 - The new `plotbycelltype` test stashes the first replicate's `initial.xml` and puts it back rather
   than deleting it. Monad 1's first replicate is simulation 1, and `GraphsTests.jl` and `PCFTests.jl`
   read its snapshots later in the same run.
+## 2026-09-14 — One reducer for every QoI builder (#232)
+
+**Decisions**
+- **One count builder (revised 2026-09-14).** The first pass kept both `populationCountQoI` and
+  `endpointPopulationCountQoI` on the grounds that two names for similar measurements is acceptable
+  and both column families were already in users' databases. The maintainer reversed that once the
+  two reduced identically: with no bespoke reducers left, `endpointPopulationCountQoI()` was
+  `populationCountQoI()` under a second name and a second family of sink columns, so it is removed
+  and `populationCountQoI(; index)` — `index` defaulting to `:final` — is the single count builder.
+  Callers of the old name pass the same `cell_types`/`include_dead` keywords to the new one; the sink
+  column family and the GSA/calibration label become `population_count.<cell_type>`, and
+  `observed_data` keyed by bare cell type is unaffected.
+- **`endpointPopulationFractionQoI` becomes `populationFractionQoI(; index)` (2026-09-14).** Having
+  settled on one builder per quantity, the fraction gets the same treatment as the count: it reads
+  the snapshot at `index` (defaulting to `:final`) through `PhysiCellSnapshot` + `populationCount`
+  rather than `finalPopulationCount`, and the two computes share `_populationCountsAt` so the
+  snapshot handling — and the `missing` a pruned snapshot produces — has one definition. The
+  denominator is still summed before the `cell_types` restriction, so filtering to one type reports
+  its share of everything. Sink columns and GSA labels become `population_fraction.<cell_type>`. The
+  old name is removed outright, not aliased: 0.5.0 is already breaking.
+- **The three monad-level statistics are removed (2026-09-14).** `endpointPopulationCounts`,
+  `endpointPopulationFractions` and `meanPopulationTimeSeries` each took a monad ID and did their own
+  averaging — the pre-0.9 measurement contract, which is why none of them was a valid
+  `summary_statistic`. Once every builder reduced under the default per-key mean, each was its
+  builder's value computed a second way, so they duplicated the builders and the tests comparing the
+  two were testing float summation order. `finalPopulationCount(::Monad)` and
+  `MonadPopulationTimeSeries` in `population.jl` already answer the analyse-a-finished-monad
+  question, so nothing a user could do is lost.
+- **What replaced the comparison tests.** The builder-vs-monad-level equalities in
+  `CalibrationTests.jl` are now direct assertions on each builder's value, computed from the
+  replicates' own output: `populationCountQoI` reduced over the monad equals the mean of the
+  replicates' `finalPopulationCount`; every replicate's fractions sum to 1 and so does the reduced
+  value; `meanPopulationTimeSeriesQoI` equals the elementwise mean of the replicates'
+  `SimulationPopulationTimeSeries` counts. The pruned-replicate case keeps the same form, against the
+  survivors. `_averageStatDicts` went with the deleted functions; `_excludedReplicates` stays,
+  because `population.jl` logs through it at three sites.
+- **The three bespoke reducers go.** `_meanEndpointCounts`, `_meanEndpointFractions` and
+  `_meanPopulationTimeSeriesOf` are deleted. `endpointPopulationFractionQoI` and
+  `meanPopulationTimeSeriesQoI` now define no `reduce` and are averaged by ModelManager's default
+  per-key mean, as `populationCountQoI` already was; the count builder's reducer went with the
+  builder. Whatever that changes numerically is accepted rather than preserved.
+- **Zero-fill versus exclusion of a missing cell type is moot.** Each bespoke reducer existed to
+  reconcile a replicate lacking a cell type — the endpoint pair by filling in a zero, the time series
+  by shrinking the denominator. Neither case can arise: `populationCount` keys every cell type the
+  model declares rather than only the ones with living cells, so the replicates of a monad, which
+  share a config, cannot disagree about their roster. The default reducer's key-agreement rule is
+  satisfied by construction, and the reconciliation each reducer performed was unreachable code.
+- **`meanPopulationTimeSeriesQoI`'s `compute` returns the `Dict` itself.** It used to return a
+  `SimulationPopulationTimeSeries` and let its reducer turn the replicates into
+  `Dict{String,Vector{Float64}}`; `compute` now returns that shape directly — one entry per cell type,
+  the replicate's counts on its own time grid — and the default reducer averages the vectors
+  elementwise, which is all `MonadPopulationTimeSeries` ever did to them. The reducer's
+  shared-time-grid assertion went with it: replicates of one monad share a config and therefore a save
+  schedule. A consequence worth naming — the sink and sensitivity analysis now refuse this builder for
+  the *same* reason at both ends (a component that is a series, not a `Real`), where the sink used to
+  refuse an unstorable struct.
+- **Agreement with the monad-level functions is now up to summation order.** `endpointPopulationCounts`,
+  `endpointPopulationFractions` and `meanPopulationTimeSeries` keep their own accumulation, so the
+  `==` assertions in `CalibrationTests.jl` became `≈`. They still cannot disagree about *which*
+  replicates or cell types went into an average.
+
+**Not pursued**
+- The `times=`-keyed flat time-series builder from #232 (`Dict("<type>@<t>" => count)`, so the sink and
+  GSA could take a series). The `Dict`-of-`Vector`s shape is what calibration wants and what
+  `mseDistance` already walks, so nothing is broken; a flat form is a new feature with its own
+  questions (which times are on the grid, how many columns SQLite will take) and needs its own brief.
+
+**Removed**
+- `_meanEndpointCounts`, `_meanEndpointFractions`, `_meanPopulationTimeSeriesOf`.
+- In the "QoI builder reducers" testset: the zero-fill/union assertion, and the 1200-copies-of-0.1
+  block that pinned the float-associativity gap between the counts and fractions reducers. Both
+  described deleted code; there is one reducer now, so there is no gap between builders to pin.
+- Every claim in PRD.md, README.md and the manual that a builder zero-fills, excludes a replicate from
+  a key's average, or returns exactly (`==`) what its monad-level counterpart returns.
+
+`_restrict`, `_averageStatDicts` and `_excludedReplicates` stay — the monad-level functions still use
+them.
 
 ---
 

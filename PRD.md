@@ -168,7 +168,7 @@
 - `finalPopulationCount(sim_id)` → `Dict{String,Int}` of cell type → count at final time point.
 - `finalPopulationCount(monad)` → `Dict{String,Float64}` averaged across replicates.
 - `populationTimeSeries(sim_id)` → time-indexed counts per cell type.
-- `meanPopulationTimeSeries(monad_id)` → mean time series across replicates.
+- `MonadPopulationTimeSeries(monad_id)` → mean time series across replicates.
 - `populationCount(sim_id, t)` → counts at a specific time point.
 - All functions accept `include_dead=true` to include dead cells.
 - Replicates whose output is no longer on disk (deleted or pruned) are **excluded** from monad-level aggregates, and their exclusion is reported once per call site with `@info ... maxlog=1`. Pruning is a deliberate user action, so this is informational, not a warning.
@@ -188,7 +188,7 @@
 - Replicates of a monad are **assumed** to declare the same cell-type roster (they share a config, and the roster is read from the output XML). PCMM does not verify this: a ragged roster requires hand-editing files under `data/`, which `best_practices.md` forbids.
 - A monad-level plot with some replicates' output removed averages over the survivors only; the removed replicates are not counted in the denominator.
 - Every simulation in a trial pruned or deleted → `plotbycelltype` throws an `ArgumentError` naming the trial, rather than drawing an empty figure.
-- Pruning degrades the analysis functions asymmetrically, by design: `meanPopulationTimeSeries` reads a `summary/population_time_series.csv` cache that survives any prune; `finalPopulationCount` reads `final.xml`/`final.mat`, has no cache, and does **not** fall back to the time series' last row (that row is the last full-save interval, not the simulation's true end, so the substitution would be undetectable).
+- Pruning degrades the analysis functions asymmetrically, by design: `MonadPopulationTimeSeries` reads a `summary/population_time_series.csv` cache that survives any prune; `finalPopulationCount` reads `final.xml`/`final.mat`, has no cache, and does **not** fall back to the time series' last row (that row is the last full-save interval, not the simulation's true end, so the substitution would be undetectable).
 
 ---
 
@@ -200,7 +200,7 @@
 - The designs, the indices, and `calculateGSA!` live in ModelManager. PCMM adds its `QoI` builders and the PhysiCell measurement functions a user writes, and nothing else.
 - `run(method, inputs_or_reference, variations; n_replicates, functions=[...])`, with `method` one of `MOAT(n)`, `Sobolʼ(n)` (alias `SobolMM`) or `RBD(n)`, runs the design and computes one sensitivity analysis per measurement. `inputs_or_reference` is an `InputFolders` or a reference `Monad`.
 - A measurement is a function of one `Simulation` whose per-replicate values reduce to a `Real`, or a `QoI` whose `reduce` returns a `Real` or a `Dict`/`NamedTuple` of `Real`s. A keyed result is spread into one analysis per key, labelled `"<qoi name>.<key>"`; `ModelManager.gsaLabels(sampling)` lists the labels and `sampling.results[label]` holds each analysis.
-- `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` are valid measurements: one analysis per cell type, keyed by the model's cell-type roster from the snapshot metadata, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
+- `populationCountQoI` and `populationFractionQoI` are valid measurements: one analysis per cell type, keyed by the model's cell-type roster from the snapshot metadata, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
 
 **Acceptance criteria:**
 - Sensitivity indices sum to approximately 1 for well-behaved models.
@@ -220,29 +220,30 @@
 
 **Behavioral specification:**
 - All calibration infrastructure (ABC-SMC algorithm, `CalibrationProblem`, `runABC`, `resumeABC`, kernels, posterior visualization) lives in ModelManager. PCMM contributes the PhysiCell-specific measurements passed as `summary_statistic` in a `CalibrationProblem`.
-- **A summary statistic measures one simulation.** Every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. The three monad-level functions below take a monad ID, do their own averaging, and are for direct analysis of a finished monad; they are **not** valid `summary_statistic` arguments, and the `QoI` builders fill that role.
-- `endpointPopulationCounts(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean final count across replicates. Returns `missing` if no simulation output is available.
-- `endpointPopulationFractions(monad_id; cell_types, include_dead)` → `Dict{String,Float64}` mapping cell type → mean fraction of total live cells. Returns `missing` if no output available.
-- `meanPopulationTimeSeries(monad_id; cell_types, include_dead)` → `Dict{String,Vector{Float64}}` mapping cell type → mean count over time across replicates.
-- Each statistic also has a builder returning a single `QoI` — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `meanPopulationTimeSeriesQoI` — whose value is a `Dict` keyed by cell type, the same shape as the monad-level statistic, so `observed_data` does not change. Calibration hands `distance` a `SummaryValues` in which a bare cell-type key resolves while only one QoI reports it, so `observed_data` stays keyed by cell type for `mseDistance`. Each builder's keyword arguments travel in the QoI's `data` slot and its `compute`/`reduce` are named top-level functions, so a `problem.jld2` written from a builder is complete and `resumeABC(Calibration(id))` needs no `problem=`.
+- **A summary statistic measures one simulation.** Every measurement function — `summary_statistic`, sensitivity analysis's `functions=`, a `post_processor`, a `QoI`'s `compute` — receives a `Simulation`, and ModelManager reduces a parameter set's replicates. Every built-in measurement has that shape: PCMM ships `QoI` builders only. The monad-level statistics that took a monad ID and did their own averaging (`endpointPopulationCounts`, `endpointPopulationFractions`, `meanPopulationTimeSeries`) were removed in 0.5.0; `finalPopulationCount(::Monad)` and `MonadPopulationTimeSeries` remain for analysing a finished monad directly.
+- `populationCountQoI(; index, cell_types, include_dead)` → a `QoI` whose value is a `Dict` of cell type → count at the snapshot `index` names (`:final` by default). `compute` returns `missing` when that snapshot is not on disk.
+- `populationFractionQoI(; index, cell_types, include_dead)` → the same measurement as a share of the total population at that snapshot. The denominator is the whole population, summed before any `cell_types` restriction, so filtering to one type reports its share of everything rather than 1.0.
+- `meanPopulationTimeSeriesQoI(; cell_types, include_dead)` → a `QoI` whose value is a `Dict` of cell type → count over time, on the replicate's own grid, averaged elementwise across replicates.
+- Each builder's value is a `Dict` keyed by cell type, so `observed_data` is keyed by cell type. Calibration hands `distance` a `SummaryValues` in which a bare cell-type key resolves while only one QoI reports it, so `observed_data` stays keyed by cell type for `mseDistance`. Each builder's keyword arguments travel in the QoI's `data` slot and its `compute` is a named top-level function, so a `problem.jld2` written from a builder is complete and `resumeABC(Calibration(id))` needs no `problem=`.
 - `cell_types` is optional: omitted, the builder measures every cell type in the output, exactly as the monad-level function does.
-- **Which builder reaches which consumer.** Every builder — `endpointPopulationCountQoI`, `endpointPopulationFractionQoI`, `populationCountQoI` — serves all three consumers: calibration, the post-processing sink (one `<qoi name>.<cell_type>` column per key) and sensitivity analysis (one analysis per key, labelled `<qoi name>.<key>` and retrieved from `results` by that label; `gsaLabels` lists them). The exception is `meanPopulationTimeSeriesQoI`, which serves calibration alone: its `compute` returns a `SimulationPopulationTimeSeries`, which is not a scalar, `NamedTuple` or `AbstractDict` and so cannot be stored by the sink, and each component of its `reduce` is a series rather than the `Real` a sensitivity index is computed from.
-- `populationCountQoI` defines no `reduce`, so wherever it is reduced across replicates ModelManager's default per-key mean applies, and that default refuses a monad whose replicates report different cell types where the endpoint builders zero-fill.
+- **Which builder reaches which consumer.** Every builder — `populationCountQoI`, `populationFractionQoI` — serves all three consumers: calibration, the post-processing sink (one `<qoi name>.<cell_type>` column per key) and sensitivity analysis (one analysis per key, labelled `<qoi name>.<key>` and retrieved from `results` by that label; `gsaLabels` lists them). The exception is `meanPopulationTimeSeriesQoI`, which serves calibration alone, and for one reason at both ends: every component it reports — from `compute` and from `reduce` alike — is a time series rather than the `Real` a sink column or a sensitivity index is computed from.
+- **No builder defines a `reduce`.** All three — `populationCountQoI`, `populationFractionQoI` and `meanPopulationTimeSeriesQoI` — are reduced across a monad's replicates by ModelManager's default per-key mean. That default's one rule is that the replicates report the same keys, which they do by construction: `populationCount` keys every cell type the model declares rather than only the ones with living cells, and replicates of a monad share a config. No builder zero-fills an absent cell type or drops a replicate from one key's average, because no roster can be ragged.
+- **One builder per quantity, each taking an `index`.** `populationCountQoI(; index)` and `populationFractionQoI(; index)` are the only builders for counts and fractions; `index` defaults to `:final`, so the bare call measures the final snapshot and writes `population_count.<cell_type>` / `population_fraction.<cell_type>`. The 0.4 names for the final-snapshot-only forms — `endpointPopulationCountQoI` and `endpointPopulationFractionQoI` — were removed in 0.5.0 rather than aliased: a builder that takes an `index` covers what a second name did, and `:final` is its default.
 - Sensitivity analysis requires every parameter set in a design to reduce to the *same* keys. PCMM's builders satisfy this by construction: the key set is the model's own cell-type roster from the snapshot metadata, not the set of types with living cells, so a type driven extinct by some parameter set still reports zero rather than dropping its key.
-- **`cell_types` is applied by `compute`, not only by `reduce`.** The sink calls `compute` and never `reduce`, so a builder filtering in its reducer alone would write a column per cell type and silently ignore the argument. For fractions the denominator is still every live cell: the total is summed before the restriction, matching `endpointPopulationFractions`.
+- **`cell_types` is applied by `compute`, not only by `reduce`.** The sink calls `compute` and never `reduce`, so a builder filtering in its reducer alone would write a column per cell type and silently ignore the argument. For fractions the denominator is still the whole population at that snapshot: the total is summed before the restriction.
 - Future PhysiCell-specific statistics (spatial metrics, intracellular state distributions, etc.) would be added here.
 
 **Acceptance criteria:**
-- `endpointPopulationCounts(monad_id)` returns a `Dict{String,Float64}` for a monad with completed simulations.
-- `endpointPopulationCounts` returns `missing` gracefully when simulation output files are absent.
-- Fractions sum to 1.0 (within floating-point tolerance) when `include_dead=false`.
+- `populationCountQoI` reduced over a monad returns a `Dict{String,Float64}` equal to the mean of the replicates' own final counts.
+- A builder's `compute` returns `missing` gracefully when a simulation's output files are absent, and the reducer sees only the replicates that produced a value.
+- Fractions sum to 1.0 (within floating-point tolerance) when `include_dead=false`, per replicate and after reduction.
 - `cell_types` filter restricts output to only the requested types.
 
 **Edge cases:**
 - All replicates in a monad have missing output → return `missing`, not an error.
 - `cell_types` filter names a type not present in the simulation → entry is omitted from result.
 - Some replicates missing output → averaged over the survivors, reported once via `@info ... maxlog=1`. `maxlog` is required: calibration evaluates these once per monad across thousands of particles.
-- A builder returns **exactly** what its monad-level counterpart returns (`==`, not `isapprox`); each builder carries its own reducer because the three statistics disagree about whether an absent cell type is zero-filled and about summation order, and a shared reducer would silently change results. The one deliberate difference: where every replicate is missing, `meanPopulationTimeSeriesQoI` returns `missing` while `meanPopulationTimeSeries` raises a `KeyError`.
+- A builder's reduced value agrees with a mean written by hand over the same replicates **up to floating-point summation order** (`≈`, not `==`), since ModelManager's default per-key mean need not sum in the same order. Where every replicate is missing, the builder reduces to `missing` rather than erroring.
 
 ---
 

@@ -71,7 +71,7 @@ erroring.
     rewritten, so a project that spans the change has both families in
     [`postProcessingTable`](@ref), each populated only for the runs that produced it.
 
-The population summary statistics have `QoI`-returning builders too — [`endpointPopulationCountQoI`](@ref) and [`endpointPopulationFractionQoI`](@ref) — which work here as well as in calibration and sensitivity analysis. See [QoI form](@ref qoi_form_ss).
+[`populationFractionQoI`](@ref) is the same builder for each cell type's share of the population, and works here as well as in calibration and sensitivity analysis. See [QoI form](@ref qoi_form_ss).
 
 ## Reading the stored quantities back
 

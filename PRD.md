@@ -407,7 +407,7 @@
 - Without JavaScript, or in print, every tier is visible.
 - `docs/src/dev/*` pages are hidden from the sidebar below the Dev tier; the Journal page below the Journal tier. The page being viewed is never hidden.
 - `test/test-scripts/ManualCoverageTests.jl` fails if any public name of PhysiCellModelManager or ModelManager is absent from every page under `docs/src/man/` and `docs/src/dev/` (the alphabetical index and the generated journal do not count).
-- A public name classed as developer-facing appears on user pages only inside `!!! tierdev` / `!!! tierjournal` blocks or code blocks. The classification is the one recorded on 2026-09-15 (113 user-facing, 187 developer-facing); it is a documentation judgment, not enforced by a test.
+- A public name classed as developer-facing appears on user pages only inside `!!! tierdev` / `!!! tierjournal` blocks or code blocks. The classification is the one recorded on 2026-09-15 (117 user-facing, 183 developer-facing); it is a documentation judgment, not enforced by a test.
 - `docs/journal.jl` regenerates `docs/src/dev/journal.md` from every `!!! tierjournal "YYYY-MM-DD — Title"` block, newest first, and is deterministic. The generated file is committed.
 - `AGENTS.md` at the repo root carries the exact commands (tests, one test, docs build, doctests), invariants, and conventions; `CLAUDE.md` points to it rather than duplicating.
 - `CONTRIBUTING.md` holds process and style; the former `docs/src/man/developer_guide.md` is removed.

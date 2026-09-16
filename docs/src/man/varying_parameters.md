@@ -102,18 +102,23 @@ createTrial(SobolVariation(64), inputs, [dv_apop, dv_cycle])      #! 64 points o
 createTrial(RBDVariation(64), inputs, [dv_apop, dv_cycle])        #! 64 points of a random balance design
 ```
 
-!!! tierdev
-    **Choosing one.** [`LHSVariation`](@ref) spreads `n` samples so that each parameter's range is
-    covered once — the usual choice for broad coverage of a continuous space on a fixed budget. The
-    quasi-random and random-balance designs exist mainly to feed
-    [Sensitivity analysis](@ref sensitivity_analysis_man), which drives them for you.
+[`GridVariation`](@ref) runs every combination of the discrete values, so its cost multiplies with
+each variation added. The other three take a sample count `n` and place that many points in the
+space instead. [`LHSVariation`](@ref) spreads them so each parameter's range is covered once — the
+usual choice for broad coverage of a continuous space on a fixed budget; `add_noise=true` picks a
+random point in each bin rather than its centre. [`SobolVariation`](@ref) uses a low-discrepancy
+sequence, best with `n` a power of two or one off it. [`RBDVariation`](@ref) lays points out for a
+random balance design. The last two exist mainly to feed
+[Sensitivity analysis](@ref sensitivity_analysis_man), which chooses them for you, but nothing stops
+you running one as an ordinary sweep.
 
-    **The method types.** `GridVariation()` takes no arguments;
+!!! tierdev
+    **Keyword arguments.** `GridVariation()` takes none;
     [`LHSVariation`](@ref)`(n; add_noise=false, rng=Random.GLOBAL_RNG, orthogonalize=true)`,
     [`SobolVariation`](@ref)`(n; n_matrices=1, randomization=NoRand(), skip_start=missing,
     include_one=missing)`, and [`RBDVariation`](@ref)`(n; rng=Random.GLOBAL_RNG, use_sobol=true,
-    pow2_diff=missing, num_cycles=missing)` each take the sample count first. All four are subtypes
-    of `AddVariationMethod`; a new sampling scheme is a new subtype plus an `addVariations` method.
+    pow2_diff=missing, num_cycles=missing)`. All four are subtypes of `AddVariationMethod`; a new
+    sampling scheme is a new subtype plus an `addVariations` method.
 
     **The function underneath.** `createTrial` and `run` call
     [`addVariations`](@ref ModelManager.addVariations)`(method, inputs, avs, reference_variation_id)`, which writes the sampled

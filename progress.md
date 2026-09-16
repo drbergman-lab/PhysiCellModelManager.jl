@@ -11,7 +11,7 @@
 
 **Decisions**
 - Adopt the tiered-docs layout (Code / Brief / Full / Dev / Journal sidebar selector; `!!! tiergloss` / `tierwhy` / `tierdev` / `tierjournal` admonitions; `docs/journal.jl` collecting dated entries into `dev/journal.md`). Client-side CSS only, so the Markdown and built HTML carry every tier and an agent reading the repo sees the deepest one.
-- Every public name is classified end-user or developer. The owner reviewed the classification on a checklist artifact: 113 user, 187 dev. Notable calls: `run(method, problem)` is the calibration entry point and `runABC` / `runCalibration` are Dev-tier; result types users never spell (`ABCResult`, `GenerationResult`, `XMLPath`, `ElementaryVariation`, `AbstractTrial`) are Dev-tier; the design-method types (`GridVariation`, `LHSVariation`, `SobolVariation`, `RBDVariation`) are Dev-tier though `createTrial` accepts them; the thirty-one PCMM `*Path` helpers other than `configPath` / `rulePath` / `icCellsPath` / `icECMPath` are Dev-tier; `trialID`, `constituentIDs`, `simulationsFromIDs`, the `*TableFromQuery` functions, `MMOutput`, `wasSuccessful`, `dataDir`, `isInitialized`, `upgradePackage`, `databaseDiagnostics` are Dev-tier.
+- Every public name is classified end-user or developer. The owner reviewed the classification on a checklist artifact: 117 user, 183 dev (the design-method types `GridVariation`, `LHSVariation`, `SobolVariation`, `RBDVariation` were first classed Dev, then promoted on 2026-09-16: passing one to `createTrial` is how a user runs a Latin-hypercube or Sobol' sweep). Notable calls: `run(method, problem)` is the calibration entry point and `runABC` / `runCalibration` are Dev-tier; result types users never spell (`ABCResult`, `GenerationResult`, `XMLPath`, `ElementaryVariation`, `AbstractTrial`) are Dev-tier; the thirty-one PCMM `*Path` helpers other than `configPath` / `rulePath` / `icCellsPath` / `icECMPath` are Dev-tier; `trialID`, `constituentIDs`, `simulationsFromIDs`, the `*TableFromQuery` functions, `MMOutput`, `wasSuccessful`, `dataDir`, `isInitialized`, `upgradePackage`, `databaseDiagnostics` are Dev-tier.
 - Developer-facing names that are *anchored* to a user page (the return type of a call the page shows, the older name of a function) live in a `!!! tierdev` block on that page. Structural developer content — module map, the hooks PCMM implements for ModelManager, the SQL/XML/shell helpers — gets `dev/architecture.md`, `dev/simulator_interface.md`, `dev/utilities.md`.
 - The coverage test checks presence on `man/` or `dev/` pages only. Rejected: enforcing that dev-classified names appear only inside tier blocks — it needs the classification list in the test and user pages legitimately name dev symbols in passing.
 - `progress.md` stays the working journal (the repo workflow depends on it). Only decisions that explain user-visible behaviour are seeded as `tierjournal` blocks. Rejected: migrating `progress.md` wholesale.
@@ -23,7 +23,6 @@
 
 **Open**
 - `checkdocs = :public` instead of `:exports`; deferred until the ModelManager public set is known to be fully documented.
-- Whether `LHSVariation` and friends should be promoted back to user pages once the varying-parameters page explains `createTrial(method, ...)`.
 
 ---
 

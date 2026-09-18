@@ -5,6 +5,12 @@ want, starting over, and moving an old project onto a new release.
 
 ## Open a project
 
+!!! tiergloss
+    [`createProject`](@ref) builds a new project folder — `data/`, `PhysiCell/`, and `scripts/`.
+    [`initializeModelManager`](@ref) attaches the current Julia session to an existing one, either
+    from a project directory holding both `PhysiCell/` and `data/`, or from the two paths
+    separately.
+
 !!! tierwhy
     `using PhysiCellModelManager` tries `initializeModelManager()` on the working directory, so a
     script launched from the project root needs no explicit call. It is not an error when there is
@@ -12,12 +18,6 @@ want, starting over, and moving an old project onto a new release.
     `initializeModelManager` — so the package still loads in a session that is about to create
     one. Call [`initializeModelManager`](@ref) explicitly whenever the project is somewhere other
     than `pwd()`, which includes most job scripts.
-
-!!! tiergloss
-    [`createProject`](@ref) builds a new project folder — `data/`, `PhysiCell/`, and `scripts/`.
-    [`initializeModelManager`](@ref) attaches the current Julia session to an existing one, either
-    from a project directory holding both `PhysiCell/` and `data/`, or from the two paths
-    separately.
 
 ```julia
 using PhysiCellModelManager   # auto-attaches if PhysiCell/ and data/ are in the working directory
@@ -33,7 +33,23 @@ initializeModelManager("path/to/PhysiCell", "path/to/data")
     throws `PCMMMissingProject` when the two directories are not where it looked, and returns
     `false` for the failures ModelManager reports, so `isInitialized()` is the thing to test.
 
+!!! tierjournal "2026-08-03 — Auto-initialization is skipped while Julia generates output"
+    **Decided:** `using PhysiCellModelManager` attaches to a project in `pwd()` only when Julia is
+    not writing a precompile cache or sysimage. Precompiling an unrelated package from inside a
+    project folder therefore neither opens that project's database nor reprints the banner. The
+    simulator is still registered before that check, so `mm_globals()` stays usable in a dependent
+    package's precompilation workload.
+    **Rejected:** guarding on the globals reference already being set — PCMM's own `__init__` is the
+    only thing that sets it, so in a fresh precompile worker it is always empty.
+
 ## Delete runs
+
+!!! tiergloss
+    [`deleteSimulations`](@ref) (alias [`deleteSimulation`](@ref)) removes simulations from the
+    database, from disk, and from the post-processing sink. [`deleteMonad`](@ref),
+    [`deleteSampling`](@ref), and [`deleteTrial`](@ref) work one level at a time.
+    [`deleteAllSimulations`](@ref) empties the lot, and [`deleteSimulationsByStatus`](@ref)
+    filters by how each run ended.
 
 !!! tierwhy
     Two keywords control the cascade in opposite directions. `delete_subs` decides whether the
@@ -42,13 +58,6 @@ initializeModelManager("path/to/PhysiCell", "path/to/data")
     container left empty by the deletion is removed as well, which is what keeps a pruned sweep
     from leaving a shell of empty monads behind. `filters` adds SQL `WHERE` conditions, so a range
     can be narrowed by any column the simulations table carries.
-
-!!! tiergloss
-    [`deleteSimulations`](@ref) (alias [`deleteSimulation`](@ref)) removes simulations from the
-    database, from disk, and from the post-processing sink. [`deleteMonad`](@ref),
-    [`deleteSampling`](@ref), and [`deleteTrial`](@ref) work one level at a time.
-    [`deleteAllSimulations`](@ref) empties the lot, and [`deleteSimulationsByStatus`](@ref)
-    filters by how each run ended.
 
 ```julia
 deleteSimulations(1:3)
@@ -70,17 +79,17 @@ deleteAllSimulations()
 
 ## Start over
 
-!!! tierwhy
-    On a shared filesystem some of what this removes may be staged in `data/.trash/` instead of
-    deleted outright, and that space is not reclaimed until a later session manages to retry it.
-    A reset on a cluster can therefore leave the quota unchanged for a while; that is expected,
-    not a failed reset.
-
 !!! tiergloss
     [`resetDatabase`](@ref) deletes every output folder, removes the post-processing sink
     (`data/outputs/postprocessing.db`), clears the variation files, drops the simulator's build
     artifacts, and rebuilds an empty database. The `data/inputs/` folders are untouched. It asks
     for confirmation before doing any of it.
+
+!!! tierwhy
+    On a shared filesystem some of what this removes may be staged in `data/.trash/` instead of
+    deleted outright, and that space is not reclaimed until a later session manages to retry it.
+    A reset on a cluster can therefore leave the quota unchanged for a while; that is expected,
+    not a failed reset.
 
 ```julia
 resetDatabase()                      # prompts
@@ -130,6 +139,3 @@ databaseDiagnostics()   # or run the checks again by hand at any time
     - `PCMMOutput` → [`MMOutput`](@ref), the result type [`run`](@ref) returns.
     - `SobolPCMM` → [`SobolMM`](@ref), the Sobol' sequence variation method.
     - `getCellDataSequence` → [`cellDataSequence`](@ref).
-
-    Each old name is a plain alias, so nothing breaks; the new names came with the move of the
-    generic machinery into ModelManager, which the `MM` spelling reflects.

@@ -12,7 +12,20 @@ CurrentModule = PhysiCellModelManager
 
 New here? Start with [Installation](@ref installation_man), then [Your first project](@ref getting_started_man).
 
-The **Detail** selector in the sidebar sets how much each page explains — **Code** shows only the calls, **Brief** adds a line per step, **Full** adds the reasoning, **Dev** adds what someone extending PCMM needs and reveals the Developers pages, **Journal** adds dated design notes. The choice is remembered across pages.
+## How much detail do you want?
+
+The **Detail** selector at the top of the sidebar sets how much each page explains. The choice is
+remembered across pages, and `?tier=code` (or any other level) on a URL opens the page that way.
+
+| Level | You see |
+| --- | --- |
+| **Code** | Headings and code blocks only |
+| **Brief** | Plus one or two lines before each block saying what it does |
+| **Full** | Plus the reasoning: why this call, what the arguments mean |
+| **Dev** | Plus what someone extending PhysiCellModelManager.jl needs, and the Developers pages |
+| **Journal** | Plus dated design notes, collected on the [Journal](@ref) page |
+
+The Getting Started pages are written for a first read and show the same text at every level.
 
 ## Where do I look?
 

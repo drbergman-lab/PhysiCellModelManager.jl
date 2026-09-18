@@ -35,7 +35,7 @@ order; a new file must be added there.
 | `src/utilities.jl` | [`quietRun`](@ref ModelManager.quietRun). |
 | `src/globals.jl` | `centralDBFileName(::PhysiCellSimulator)` (the `vct.db` / `pcmm.db` choice) and `physicellDir()`. |
 | `src/pruner.jl` | [`PruneOptions`](@ref) and the deletion of simulation output files after a run. |
-| `src/variations.jl` | PhysiCell variation infrastructure: `inferVariationLocation`, which maps an [`XMLPath`](@ref) to the input location that owns it, the no-location backward-compatible constructors, and [`domainVariations`](@ref). |
+| `src/variations.jl` | PhysiCell variation infrastructure: `inferVariationLocation`, which maps an [`XMLPath`](@ref) to the input location that owns it, the constructors that take no location, and [`domainVariations`](@ref). |
 | `src/compilation.jl` | `loadCustomCode` and everything around it: compiler flags and macros, the executable naming keyed to the PhysiCell version, the build folder, and the temporary-copy compile that lets several samplings compile at once. |
 | `src/configuration.jl` | PhysiCell XML: the path helpers ([`configPath`](@ref), [`rulePath`](@ref), [`icCellsPath`](@ref), [`icECMPath`](@ref)), reading and writing config elements, and PCMM's `prepareBaseFile` and `postVariationXMLProcessing` methods. The largest file in the package. |
 | `src/creation.jl` | [`createProject`](@ref): the `data/` tree, the `inputs.toml` template, and downloading a PhysiCell release. |
@@ -71,7 +71,13 @@ the contract for each.
 
 ```julia
 run(createTrial(inputs, variations; n_replicates=3))
+
+# `run` also takes createTrial's own arguments and does both steps itself:
+run(inputs, variations; n_replicates=3)
 ```
+
+The second form is the one most scripts use; it calls `createTrial` with exactly those arguments and
+then runs what comes back, so everything below applies unchanged to both.
 
 1. **`createTrial`** is entirely ModelManager's. It expands `variations` according to the
    [`AddVariationMethod`](@ref ModelManager.AddVariationMethod) it was given (default `GridVariation()`), writes one row per
@@ -106,6 +112,13 @@ run(createTrial(inputs, variations; n_replicates=3))
    the output folder intact.
 
 5. ModelManager updates each simulation's status in the database and returns an [`MMOutput`](@ref).
+
+!!! tierjournal "2026-07-07 — All of PCMM's per-simulation work is cleanup, after the callback"
+    **Decided:** the whole body moved into [`postSimulationCleanup`](@ref ModelManager.postSimulationCleanup) — pruning *and* the
+    `output.err` handling — leaving [`postSimulationProcessing`](@ref ModelManager.postSimulationProcessing) at ModelManager's no-op
+    default. A user's `post_processor` therefore always sees the intact output folder.
+    **Rejected:** moving only the pruning. The error-file handling reads the same after the callback
+    as before it, and splitting one body across two hooks buys nothing.
 
 ## Type hierarchy
 
@@ -209,6 +222,15 @@ Things that are true of the code as it stands, and break something concrete if t
   It runs in the precompilation subprocess of every dependent package; `_generatingOutput()` gates
   everything past simulator registration, which is why auto-initialization and any shelling out come
   after that check.
+
+!!! tierjournal "2026-08-19 — The executable's name is the build record"
+    **Decided:** the compiled binary is `project_<physicell-version>` in a `pcmm_build/` folder PCMM
+    owns, and its existence is the only record that a build for that version finished. `macros.txt`
+    is written only after `make` succeeds, an abandoned build deletes the executable it was
+    replacing, and old executables are kept so switching PhysiCell versions back and forth costs no
+    rebuild.
+    **Rejected:** a separate marker file written before `make`, which let a failed compile leave a
+    stale binary beside a file claiming the new version.
 
 ## Running the tests and the docs build
 

@@ -21,6 +21,15 @@
 - The audit's "exported" bucket was really exported-or-public: on Julia 1.11+ `names(m)` returns `public` names too. It matters for the pages: a bare `[`x`](@ref)` on a manual page resolves in `Main`, where only exported names exist, so every public-but-unexported name (all of the simulator-interface hooks, `HPCCompletionOptions`, `databaseDiagnostics`, …) must be written `[`x`](@ref ModelManager.x)`. Eighty-two refs on the new pages failed the first build for this reason; the rule is now in AGENTS.md and CONTRIBUTING.md.
 - Attaching the orphaned `simulationRuntime` docstring (a blank line after its closing `"""` had detached it) exposed a `jldoctest` that referenced an undefined variable; it is a `julia` block now.
 
+**Review round (2026-09-18).** The owner reviewed the PR and set these rules, now in CONTRIBUTING.md:
+- `tiergloss` before `tierwhy` — "a descent into detail". The skill's order (why first) is not used here.
+- Code tier is code only, on every page from "Building & Varying Models" onward; Getting Started keeps uniform hand-holding. Round 1 had left `xml_path_helpers`, `covariations`, `latent_variations`, `intracellular_inputs`, `querying_parameters` and the reference pages untiered.
+- Tier markers read "brief" / "full" / "dev" — the tier that reveals the block — rather than "why" / "extending".
+- The Detail selector mounts above the sidebar's table of contents, not beside the version selector at the bottom, until readers know to look for it; the home page describes the levels in a table under its own heading.
+- No history in user prose ("older wrapper names", pre-0.9 layouts, the v0.3.3 column rename); no remarks that the cell-type roster is preserved within a monad — that is a given; no advice to people building other simulators on ModelManager; no British spellings.
+- Copilot's three mechanical findings were right: `sink = CSV.write("f.csv")` evaluated eagerly and without the table (now closures), the print stylesheet lost to the hide rule's specificity, and `journal.jl` accepted a dated header with no title (now an error).
+- Questions for ModelManager raised by the review: `posterior` returns `(df, weights)` rather than one frame with a weight column; the corner plot draws empty axes in the upper triangle.
+
 **Open**
 - `checkdocs = :public` instead of `:exports`; deferred until the ModelManager public set is known to be fully documented.
 

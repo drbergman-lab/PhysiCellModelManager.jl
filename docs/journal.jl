@@ -38,8 +38,9 @@ function journal_entries(path, srcroot)
         while !isempty(body) && isempty(strip(body[end]))
             pop!(body)
         end
-        push!(entries, JournalEntry(String(m[1]), journal_title(m[2]),
-                                    join(body, "\n"), relpath(path, srcroot)))
+        title = journal_title(m[2])
+        isempty(title) && error("journal.jl: `!!! tierjournal` block at $(relpath(path, srcroot)) has a date but no title: $(rstrip(lines[i - length(body) - 1]))")
+        push!(entries, JournalEntry(String(m[1]), title, join(body, "\n"), relpath(path, srcroot)))
     end
     return entries
 end

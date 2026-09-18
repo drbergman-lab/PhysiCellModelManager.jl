@@ -12,16 +12,21 @@ how to get one back, and how to read what it contains.
 | [`Sampling`](@ref) | Monads on one [`InputFolders`](@ref), differing in parameters | monads |
 | [`Trial`](@ref) | Samplings, which may use different [`InputFolders`](@ref) | samplings |
 
-!!! tierwhy
-    You do not choose the class; you describe the runs and the class follows. That is what lets a
-    script grow a `DiscreteVariation` from one value to three without any other edit — the same
-    call that returned a `Simulation` now returns a `Sampling`, and [`run`](@ref) takes either.
-
 !!! tiergloss
     [`createTrial`](@ref) returns the narrowest class that fits what you asked for: no variations
     and one replicate gives a `Simulation`, several replicates of one parameter set a `Monad`, and
     a variation with more than one value a `Sampling`. Pass a vector of already-built trials to
     bundle them into a `Trial`.
+
+!!! tierwhy
+    You do not choose the class; you describe the runs and the class follows. That is what lets a
+    script grow a `DiscreteVariation` from one value to three without any other edit — the same
+    call that returned a `Simulation` now returns a `Sampling`, and [`run`](@ref) takes either.
+
+    A `Simulation` is never on its own, either. The `Monad` for its parameter set is where a
+    simulation is recorded, and [`run`](@ref) is what puts it there, so a single run and a
+    five-replicate monad differ only in how many simulations that monad holds — there is no
+    simulation without a monad above it. [`monadIDs`](@ref) on a simulation names that monad.
 
 ```julia
 inputs = InputFolders("0_template", "0_template")
@@ -73,20 +78,23 @@ pathToOutputFolder(sim)       # where this simulation's output lives
 
 ## Read what a trial contains
 
-!!! tierwhy
-    Columns that are constant across every row are dropped by default, so the table shows only
-    what actually varied. Pass `remove_constants = false` when you want the full parameterization
-    — for instance when the table is going into a paper's supplement rather than onto your screen.
-    Add `tags = true` to group rows by what a run was for — see
-    [Tagging and recovery](@ref tagging_man) — and `post_processing = true` to join in how it
-    turned out.
-
 !!! tiergloss
     [`simulationsTable`](@ref) returns a `DataFrame` with one row per simulation and one column
     per varied parameter; [`monadsTable`](@ref) is the monad-level analogue, one row per parameter
     set. [`printSimulationsTable`](@ref) and [`printMonadsTable`](@ref) send the same table to a
     sink, `println` by default. All four accept trial objects, arrays of them, ID vectors, or
     nothing at all for the whole database.
+
+!!! tierwhy
+    Columns that are constant across every row are dropped by default, so the table shows only
+    what actually varied. Pass `remove_constants = false` to see every parameter the database
+    holds for those rows instead. Add `tags = true` for one `tag:<key>` column per tag key in use —
+    see [Tagging and recovery](@ref tagging_man) — and `post_processing = true` to join in how each
+    run turned out.
+
+    Both of those append their columns as they are: neither is dropped by `remove_constants`, and
+    neither is sorted on. Sorting is `sort_by`'s own job — name the columns to sort by, or leave it
+    empty to sort by every parameter column in table order.
 
 ```julia
 simulationsTable(sampling)
@@ -96,7 +104,7 @@ monadsTable(sampling)
 printMonadsTable([monad, sampling])
 
 using CSV
-printSimulationsTable(sampling; sink = CSV.write("runs.csv"))
+printSimulationsTable(sampling; sink = df -> CSV.write("runs.csv", df))
 ```
 
 !!! tierdev

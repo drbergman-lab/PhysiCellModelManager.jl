@@ -1,6 +1,6 @@
 # [Simulator interface](@id simulator_interface_dev)
 
-The contract PhysiCellModelManager.jl fulfils for ModelManager: every hook, what ModelManager
+The contract PhysiCellModelManager.jl fulfills for ModelManager: every hook, what ModelManager
 expects from it, what PCMM does, and where the method is written.
 
 ModelManager defines each hook as a generic function whose first argument is the active
@@ -39,18 +39,18 @@ ModelManager build queries before a project is open.
 
 | Hook | ModelManager expects | PCMM |
 |---|---|---|
-| [`centralDBFileName`](@ref) | The filename (not path) of the central SQLite database. | `"vct.db"` when that legacy pre-PCMM file exists in the data directory, otherwise `"pcmm.db"` — `src/globals.jl`. |
+| [`centralDBFileName`](@ref) | The filename (not path) of the central SQLite database. | `"vct.db"` when a file of that name is already in the data directory, otherwise `"pcmm.db"` — `src/globals.jl`. |
 | [`dbVersionTableName`](@ref ModelManager.dbVersionTableName) | The table that records the package version. | `"pcmm_version"` — `src/simulator_interface.jl`. |
 | [`simulatorVersionTableName`](@ref ModelManager.simulatorVersionTableName) | The simulator version table. | `"physicell_versions"` — `src/simulator_interface.jl`. |
-| [`simulatorVersionIDName`](@ref ModelManager.simulatorVersionIDName) | The FK column naming that table from `simulations`, `monads` and `samplings`. | `"physicell_version_id"` — `src/simulator_interface.jl`. |
+| [`simulatorVersionIDName`](@ref ModelManager.simulatorVersionIDName) | The foreign-key column that `simulations`, `monads` and `samplings` each carry, pointing at a row of the simulator version table above. | `"physicell_version_id"`, referencing `physicell_versions` — `src/simulator_interface.jl`. |
 | [`simulatorVersionSchema`](@ref ModelManager.simulatorVersionSchema) | The SQL sub-schema for that table, used at database initialization. | `physicellVersionsSchema()` — `repo_owner`, `tag`, a `UNIQUE` `commit_hash`, and `date` — `src/database.jl`, dispatched from `src/simulator_interface.jl`. |
 | [`resolveSimulatorVersionID`](@ref ModelManager.resolveSimulatorVersionID) | Resolve the version on disk against the table, inserting a row if it is new; return the ID. | `resolvePhysiCellVersionID()` in `src/physicell_version.jl`, dispatched from `src/simulator_interface.jl`. Re-run before every compile, because PhysiCell can be pulled or checked out mid-session. |
 | [`currentSimulatorVersionID`](@ref ModelManager.currentSimulatorVersionID) | The row ID of the active version. | `currentPhysiCellVersionID()` — same two files. |
 | [`tableIDName`](@ref) | Not a hook. The ID column for a table (`"configs"` → `"config_id"`). | Not implemented; call it rather than concatenating `_id` by hand. |
 
 The `location*` family is the same idea for input locations, all derived from `inputs.toml` and all
-ModelManager's. A backend does not implement them, but everything PCMM writes about input folders
-goes through them instead of hard-coding a path:
+ModelManager's. PCMM implements none of them, but everything it writes about input folders goes
+through them instead of hard-coding a path:
 [`locationFolder`](@ref) (the folder under `data/inputs/`), [`locationPath`](@ref) (its full path,
 optionally joined with a folder or resolved for a sampling), [`locationTableName`](@ref) and
 [`locationIDName`](@ref) / [`locationIDNames`](@ref) (the database table and its ID columns),
@@ -104,8 +104,8 @@ compilation, varied input files, and one command line.
 | [`setupMonad`](@ref ModelManager.setupMonad) | Required. Once per monad, after `setupSampling`; returns `Bool`. | Loops `projectLocations().varied` calling `prepareVariedInputFolder`; no compilation happens here. Returns `true` unconditionally — `src/simulator_interface.jl`. |
 | [`SimulationSpec`](@ref ModelManager.SimulationSpec) | The unit of work: a `Simulation` plus its `monad_id`, handed to the runner. | Consumed, not produced. PCMM's `simulationCommand` reads `spec.simulation` only. |
 | [`simulationCommand`](@ref ModelManager.simulationCommand) | Required. A bare `Cmd`, or `nothing` to record this simulation as failed and continue. No `pipeline`, no `env`. | `prepareSimulationCommand` builds `executable config_variation.xml` plus `-o` and whichever of `-i -s -e -d -r -n` this simulation's ICs, rules and intracellular inputs call for, with `dir=physicellDir()`. Returns `nothing` when IC cell or IC ECM setup throws, after writing the cause to the simulation's `output.err` — `src/simulator_interface.jl`. |
-| [`simulationThreads`](@ref ModelManager.simulationThreads) | Optional. CPUs to request per SLURM job; default is no request. | `parallel/omp_num_threads` read through the variation record, so a varied thread count is honoured. Falls back to 1 with one warning. PhysiCell calls `omp_set_num_threads` regardless of the allocation, so without this every job time-slices on one core — `src/simulator_interface.jl`. |
-| [`runSimulation`](@ref ModelManager.runSimulation) | Optional. The default creates the output folder, redirects to `output.log` / `output.err`, runs in `simulatorDir` or submits with `sbatch`, and returns a `SimulationProcess`. Override only for a simulator that is not an external process. | Not overridden. PhysiCell is an external process. |
+| [`simulationThreads`](@ref ModelManager.simulationThreads) | Optional. CPUs to request per SLURM job; default is no request. | `parallel/omp_num_threads` read through the variation record, so a varied thread count is honored. Falls back to 1 with one warning. PhysiCell calls `omp_set_num_threads` regardless of the allocation, so without this every job time-slices on one core — `src/simulator_interface.jl`. |
+| [`runSimulation`](@ref ModelManager.runSimulation) | Optional. The default creates the output folder, redirects to `output.log` / `output.err`, runs in `simulatorDir` or submits with `sbatch`, and returns a `SimulationProcess`. | Not overridden — the default already describes how PhysiCell runs. |
 | [`defaultJobOptions`](@ref ModelManager.defaultJobOptions) | Not a hook. Supplies `job-name` (`S<id>`) and `cpus-per-task` from `simulationThreads`; everything else is left to the site. | Not implemented. `simulationThreads` is PCMM's whole contribution to the SLURM script. |
 | [`isRunningOnHPC`](@ref) | Not a hook. Probes for `sbatch` and sets `run_on_hpc`. | Not implemented, but read: PCMM's `initializeModelManager` uses the resulting `mm_globals().run_on_hpc` to choose `march_flag`. |
 | [`postSimulationProcessing`](@ref ModelManager.postSimulationProcessing) | Optional. Non-destructive work after a simulation finishes and **before** the user's `post_processor`; default no-op. | Not implemented. Deliberately: PCMM's work here is destructive and belongs in the next hook. |
@@ -119,6 +119,20 @@ parameters land in the same CDF cell; see [Calibration](@ref calibration_section
 [`methodString`](@ref ModelManager.methodString) returns the lowercase identifier of a GSA method (`"moat"`, `"sobol"`) used to
 name its result columns. Both sit above the simulator interface: a calibration or a sensitivity
 analysis is a `Sampling`, so it reaches PhysiCell by the same path as any other trial.
+
+!!! tierjournal "2026-04-24 — One dispatch axis: the simulator type"
+    **Decided:** `runSimulation(::AbstractSimulator, spec)` does all simulator-specific routing, and
+    [`SimulationSpec`](@ref ModelManager.SimulationSpec) — a `Simulation` plus its `monad_id` — is the concrete unit of work
+    PCMM consumes as-is. Simulator flags such as `force_recompile` reach the hooks as keyword
+    arguments through [`run`](@ref).
+    **Rejected:** a second dispatch on the spec type. With one spec type per simulator it is
+    redundant, and by the time a spec exists the simulator-specific routing is already done.
+
+!!! tierjournal "2026-04-25 — `setupSampling` takes an `AbstractSampling`, `setupMonad` an `AbstractMonad`"
+    **Decided:** the two setup hooks dispatch on the abstract type that states the invariant each
+    needs, so a lone [`Simulation`](@ref) goes through the same path as a thousand-monad
+    [`Sampling`](@ref). `setupSampling` always runs first and covers compilation, so `setupMonad`
+    needs no flag asking whether to do the full setup, and a spec's `monad_id` is always an `Int`.
 
 ## Versioning and upgrades
 
@@ -138,3 +152,12 @@ Adding a milestone means three edits in `src/up.jl` — the version into `pcmm_m
 registered in `upgrade_fns`, and a matching change to the schema in `src/database.jl` so new
 projects are created correctly. A milestone with no migration, or a schema change with no milestone,
 leaves one of the two populations of projects broken.
+
+!!! tierjournal "2026-06-15 — Upgrade CI generates old projects and upgrades them forwards"
+    **Decided:** the upgrade job generates a project with an older *released* PCMM and then opens it
+    with the dev checkout, so CI exercises the `src/up.jl` in the repository rather than a released
+    copy of it. Verification reads the SQLite file directly.
+    **Rejected:** a `target_version` cap on [`initializeModelManager`](@ref), which would let CI stop
+    part-way; `upgradePackage` always migrates to the running version, and capping it is a
+    ModelManager change.
+    **Open:** how far back the generating API can be reused for still older projects.

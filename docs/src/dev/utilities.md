@@ -55,7 +55,8 @@ tableColumns("notes")   # ["note_id", "simulation_id", "body"]
 
 PhysiCell's inputs are XML, so most of PCMM's configuration code is element lookup. Every helper
 takes the path as a vector of tag names, with `tag:attribute:value` to select among siblings by
-attribute and `tag:child_tag:content` to select by a child's content — [`getChildByAttribute`](@ref ModelManager.getChildByAttribute)
+attribute and `tag::child_tag:content` — two colons after the tag — to select by a child's
+content, as PhysiCell's initial parameter distributions require — [`getChildByAttribute`](@ref ModelManager.getChildByAttribute)
 and [`getChildByChildContent`](@ref ModelManager.getChildByChildContent) are what resolve those two forms, and are worth calling directly
 when you already hold the parent element.
 
@@ -82,6 +83,13 @@ D = parseValueFromString(raw)          # 100000.0
 
 # An optional element: nothing rather than an error when it is absent.
 maybe = retrieveElement(xml_doc, ["user_parameters", "random_seed"]; required = false)
+
+# Two colons select a sibling by a child's content instead of by an attribute:
+# the <distribution> whose <behavior> child reads "oxygen uptake".
+dist = retrieveElement(xml_doc, ["cell_definitions",
+                                 "cell_definition:name:default",
+                                 "initial_parameter_distributions",
+                                 "distribution::behavior:oxygen uptake"]; required = false)
 
 # Write it back.
 setSimpleContent(xml_doc, ["overall", "max_time"], 720.0)

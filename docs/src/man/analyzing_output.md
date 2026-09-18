@@ -46,20 +46,35 @@ sequence = PhysiCellSequence(1; include_cells=true) #! every snapshot of simulat
 ### Loading data into a snapshot or sequence
 
 !!! tiergloss
-    A snapshot or sequence built without the `include_*` keywords carries no data. Four functions
-    fill one in place, reading the cell-type names, labels and substrate names from the XML
-    themselves, so you never have to compute those and pass them in.
+    A snapshot or sequence built without the `include_*` keywords carries no data. `loadCells!`,
+    `loadSubstrates!`, `loadMesh!` and `loadGraph!` fill one in place, each storing its result in
+    the matching field. `loadCells!` and `loadSubstrates!` read the cell-type names, the cell data
+    labels, and the substrate names from the simulation's own XML, so what you get back is already
+    labeled and you never compute those and pass them in.
 
 ```julia
 snapshot = PhysiCellSnapshot(1, :final)
-loadCells!(snapshot)                 #! the cell DataFrame
-loadSubstrates!(snapshot)            #! substrate concentrations
-loadMesh!(snapshot)                  #! the mesh
+loadCells!(snapshot)
+loadSubstrates!(snapshot)
+loadMesh!(snapshot)
 loadGraph!(snapshot, :neighbors)     #! one of :neighbors, :attachments, :spring_attachments
 
+snapshot.cells      #! DataFrame, a row per cell; :cell_type holds names, not PhysiCell's integer codes
+snapshot.substrates #! DataFrame, a column per substrate, named as in the XML
+snapshot.mesh       #! Dict of the voxel centers: "x", "y", "z"
+snapshot.neighbors  #! the graph just loaded; likewise .attachments and .spring_attachments
+
 sequence = PhysiCellSequence(1)
-loadCells!(sequence)                 #! the same four work on a whole sequence
+loadCells!(sequence)                 #! all four also take a whole sequence
 ```
+
+!!! tierjournal "2026-07-23 — Loading is PhysiCellOutput.jl, plus a database identity"
+    **Decided.** The path-based loaders and the snapshot/sequence types live in
+    [PhysiCellOutput.jl](https://github.com/drbergman-lab/PhysiCellOutput.jl);
+    PhysiCellModelManager.jl keeps only the layer that turns a simulation ID or a `Simulation` into
+    an output folder, and extends PhysiCellOutput's own constructors.
+    **Rejected.** Wrapping them in a PCMM-owned type, which would have renamed the public
+    constructors that `src/analysis/` is typed against.
 
 ### [`cellDataSequence`](@id cell_data_sequence_section)
 
@@ -68,6 +83,11 @@ loadCells!(sequence)                 #! the same four work on a whole sequence
     (`<:Integer`), a `::Simulation`, or a `::PhysiCellSequence`, together with one label
     (`::String`) or several (`::Vector{String}`), and returns a dictionary keyed by integer cell ID
     whose values are named tuples with the requested labels plus `:time`.
+
+!!! tierwhy
+    Each call to [`cellDataSequence`](@ref) loads *all* the data unless a `PhysiCellSequence` is
+    passed in. Loading simulation data is not fast, so build the sequence once and reuse it if you
+    are going to ask several questions of the same simulation.
 
 ```julia
 data = cellDataSequence(1, "position")
@@ -80,11 +100,6 @@ using Plots
 plot(cell_78_times, cell_78_positions[:,1]) #! the x-coordinate of cell 78 over time
 ```
 
-!!! tierwhy
-    Each call to [`cellDataSequence`](@ref) loads *all* the data unless a `PhysiCellSequence` is
-    passed in. Loading simulation data is not fast, so build the sequence once and reuse it if you
-    are going to ask several questions of the same simulation.
-
 ## Population counts and time series
 
 !!! tiergloss
@@ -92,7 +107,21 @@ plot(cell_78_times, cell_78_positions[:,1]) #! the x-coordinate of cell 78 over 
     name to count; dead cells are excluded unless `include_dead=true`.
     [`finalPopulationCount`](@ref) is the shorthand for a whole simulation's last snapshot — on a
     `Monad` it returns the mean count across replicates. [`populationTimeSeries`](@ref) returns the
-    whole curve rather than one point.
+    whole curve instead: a
+    [`SimulationPopulationTimeSeries`](@ref PhysiCellModelManager.SimulationPopulationTimeSeries)
+    for a `Simulation` and a
+    [`MonadPopulationTimeSeries`](@ref PhysiCellModelManager.MonadPopulationTimeSeries) for a
+    `Monad`, both of which also accept the result of `run`. Both index by cell type name and by
+    `"time"`. A simulation's series stores a plain `Vector` of counts per cell type; a monad's
+    stores a named tuple of `counts`, `mean` and `std` over its replicates.
+
+!!! tierwhy
+    A `SimulationPopulationTimeSeries` built from a `Simulation` or a simulation ID writes itself to
+    `simulations/<id>/summary/` and is read back from there on the next call, so re-running an
+    analysis does not re-walk every snapshot. `include_dead=true` is cached to its own file rather
+    than overwriting the live-only one. A snapshot whose files are gone yields `missing` from
+    [`populationCount`](@ref) and is skipped in the series, so pruned output degrades the curve
+    rather than killing the call.
 
 ```julia
 populationCount(PhysiCellSnapshot(1, :final))        #! Dict("cancer" => 1234, "cd8" => 56, ...)
@@ -106,22 +135,11 @@ mpts = populationTimeSeries(Monad(1))                #! a MonadPopulationTimeSer
 mpts["cancer"].mean                                  #! across replicates; also .std and .counts
 ```
 
-!!! tiergloss
-    [`populationTimeSeries`](@ref) returns a
-    [`SimulationPopulationTimeSeries`](@ref PhysiCellModelManager.SimulationPopulationTimeSeries)
-    for a `Simulation` and a
-    [`MonadPopulationTimeSeries`](@ref PhysiCellModelManager.MonadPopulationTimeSeries) for a
-    `Monad`; both also accept the result of `run`. Both index by cell type name, and by `"time"`.
-    A simulation's series stores a plain `Vector` of counts per cell type; a monad's stores a named
-    tuple of `counts`, `mean` and `std` over its replicates.
-
-!!! tierwhy
-    A `SimulationPopulationTimeSeries` built from a `Simulation` or a simulation ID writes itself to
-    `simulations/<id>/summary/` and is read back from there on the next call, so re-running an
-    analysis does not re-walk every snapshot. `include_dead=true` is cached to its own file rather
-    than overwriting the live-only one. A snapshot whose files are gone yields `missing` from
-    [`populationCount`](@ref) and is skipped in the series, so pruned output degrades the curve
-    rather than killing the call.
+!!! tierjournal "2026-03-29 — `finalPopulationCount` is an analysis utility, not a calibration one"
+    **Decided.** It lives in `src/analysis/population.jl` because it answers a question about a
+    finished run; the summary statistics used by calibration and sensitivity analysis delegate to
+    it rather than defining their own count.
+    **Rejected.** A separate endpoint-count function per consumer.
 
 ## Simulation runtime
 
@@ -146,7 +164,14 @@ Nanosecond(round(mean([r.value for r in runtimes]))) #! mean runtime over four s
 !!! tiergloss
     Call `plot` on a `Simulation`, `Monad`, `Sampling`, or a `run` result (but not a sensitivity
     analysis) to get a figure of panels. Each panel is one `Monad` — replicates with the same
-    parameters — and plots mean ± SD per cell type.
+    parameters — and plots mean ± SD per cell type. A panel's title defaults to the parameter
+    values that distinguish its monad from the others.
+
+!!! tierwhy
+    That default title is the monad's row in [`simulationsTable`](@ref) with the ID columns removed.
+    The table drops whatever is constant across the sampling, so what is printed is exactly what
+    varied — a two-way sweep gives titles like `(1440.0, 0.002)`, and an input folder that differs
+    between monads appears there too. Panels are ordered by that same tuple.
 
 ```julia
 using Plots
@@ -157,8 +182,9 @@ plot(sampling; exclude_cell_type_names="cancer")     #! or drop one
 plot(sampling; time_unit=:h)                         #! x-axis in hours
 ```
 
-One panel per `Monad`, with each cell type a series and the shaded band its standard deviation
-across replicates:
+!!! tiergloss
+    One panel per `Monad`, titled with what varied; each cell type is a series and the shaded band
+    its standard deviation across replicates.
 
 ![Population counts, one panel per monad](../assets/plot_by_monad.png)
 
@@ -187,18 +213,19 @@ plot(Simulation(1); color=colors, include_cell_type_names=["cd8", "cancer"]) #! 
 
 !!! tiergloss
     [`plotbycelltype`](@ref) inverts the grouping: one panel per cell type, with every monad as a
-    series inside it. It works on a `Simulation`, `Monad` or `Sampling`, and on the `MMOutput` that `run`
-    returns; a `Trial` is refused, because its samplings need not share a cell-type roster. It
-    takes everything listed above for `plot`. `plotbycelltype!` is its mutating form, drawing into an existing plot
-    instead of creating one.
+    series inside it. It works on a `Simulation`, `Monad` or `Sampling`, and on the `MMOutput` that
+    `run` returns; a `Trial` is refused, with an error naming what to pass instead. It takes
+    everything listed above for `plot`. `plotbycelltype!` is its mutating form, drawing into an
+    existing plot instead of creating one.
 
 ```julia
 using Plots
 plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"]], color=[:blue :red :purple], labels=["epi" "mes" "both"], legend=true)
 ```
 
-The same simulations as the figure above, regrouped — one panel per cell type, each series a
-`Monad`:
+!!! tiergloss
+    The same simulations as the figure above, regrouped — one panel per cell type, each series a
+    `Monad`.
 
 ![Population counts, one panel per cell type](../assets/plot_by_cell_type.png)
 
@@ -206,10 +233,21 @@ The same simulations as the figure above, regrouped — one panel per cell type,
     Note the inversion when reading a legend: in `plot` a series is a cell type, in
     [`plotbycelltype`](@ref) a series is a monad.
 
-A single `Simulation` has no replicates to summarize, so it plots one line per cell type with no
-band:
+!!! tiergloss
+    A single `Simulation` has no replicates to summarize, so it plots one line per cell type with no
+    band.
 
 ![Population counts for a single simulation](../assets/plot_single_simulation.png)
+
+!!! tierjournal "2026-09-14 — What the cell-type panels are named after, and what a pruned replicate does"
+    **Decided.** The panel list comes from the first simulation in the sampling whose initial XML is
+    still on disk, so a pruned replicate is stepped over rather than ending the plot; a replicate
+    with no output is dropped from the monad's mean and band instead of being counted as zero.
+    **Decided.** A `Trial` now raises an `ArgumentError` naming its samplings, and a trial with no
+    readable output anywhere raises rather than drawing an empty figure — which used to be
+    indistinguishable from a broken recipe.
+    **Rejected.** Taking the panel list from the config file: the curves come from the output XML,
+    and a list read from a second source is one that can disagree with them.
 
 !!! tierdev
     **Regenerating these figures.** They are committed under `docs/src/assets/` rather than rendered
@@ -219,7 +257,9 @@ band:
 
 ## Substrate analysis
 
-PhysiCellModelManager.jl supports two ways to summarize substrate information over time.
+!!! tiergloss
+    Two types summarize substrate concentrations over time: one averaged over the whole domain, one
+    averaged over the space neighboring each cell type.
 
 ### [`AverageSubstrateTimeSeries`](@id average_substrate_time_series_section)
 
@@ -275,28 +315,22 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
 
 ## [Pair correlation function](@id pcf_section)
 
-!!! tierwhy
-    Sometimes referred to as radial distribution functions, the pair correlation function (PCF)
-    computes the density of target cells around center cells. If the two sets of cells are the same
-    (centers = targets), this is called PCF; if they differ, this is sometimes called cross-PCF.
-    Both come from the same call.
-
 !!! tiergloss
     `pcf` accepts a `PhysiCellSnapshot`, a `PhysiCellSequence`, or a `Simulation`. An `Integer`
     first argument is treated as a simulation ID; follow it with an index (an `Integer`, or
     `:initial` / `:final`) to compute at one snapshot rather than over the whole simulation. Next
     comes the center cell type (a `String` or `Vector{String}`), then optionally the target cell
     type; omit the target and the centers are used, giving a non-cross PCF. The center and target
-    sets must be identical or disjoint. Call it as `PhysiCellModelManager.pcf`, or as plain `pcf`
-    once `using PairCorrelationFunction` has been called.
+    sets must be identical or disjoint. `include_dead=false` keeps to living cells — pass `true` for
+    all of them, or a tuple to set centers and targets separately — and `dr=20.0` is the width of
+    the radial bins in micrometers. Call it as `PhysiCellModelManager.pcf`, or as plain `pcf` once
+    `using PairCorrelationFunction` has been called.
 
-### Keyword arguments
-
-!!! tiergloss
-    - `include_dead::Union{Bool, Tuple{Bool,Bool}} = false`: whether to include dead cells.
-      `true` includes all cells, `false` only live ones, and a tuple sets centers and targets
-      separately.
-    - `dr::Float64 = 20.0`: the step size for the radial bins, in micrometers.
+!!! tierwhy
+    Sometimes referred to as radial distribution functions, the pair correlation function (PCF)
+    computes the density of target cells around center cells. If the two sets of cells are the same
+    (centers = targets), this is called PCF; if they differ, this is sometimes called cross-PCF.
+    Both come from the same call.
 
 ### Output
 

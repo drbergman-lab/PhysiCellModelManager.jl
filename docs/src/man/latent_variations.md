@@ -1,36 +1,48 @@
 # [LatentVariations](@id latent_variations_man)
-[`LatentVariation`](@ref) extends [CoVariations](@ref covariations_man) to vary parameters together under a constraint. The motivating case is varying low/high thresholds to create low-medium-high regimes, where the high threshold must always exceed the low one. A `LatentVariation` enforces this by introducing **latent parameters** that map to the **target parameters**.
+A [`LatentVariation`](@ref) varies target parameters through **latent parameters** and mapping functions, so a constraint between the targets holds at every sampled point.
 
-To construct one, provide:
-- **Latent parameters** — each a vector of discrete values or a probability distribution.
-- **Target parameters** — a vector of XML paths, as for other `ElementaryVariation`s.
-- **Mapping functions** — one per target parameter (see below).
-- **(Optional)** human-interpretable latent-parameter names, and a `name=...` for the variation itself.
+!!! tiergloss
+    Construct one from four pieces: the **latent parameters** (each a vector of discrete values or a
+    probability distribution), the **target parameters** (a vector of XML paths, as for any
+    `ElementaryVariation`), one **mapping function** per target, and optionally the latent-parameter
+    names plus a `name` for the variation itself. Each mapping takes the vector of latent values —
+    ordered as the latent parameters were given, even when there is only one — and returns one
+    target value.
 
-## Mappings
-Each target parameter needs a mapping function that takes **a vector of latent parameter values** (even with a single latent parameter) and returns one target value. The input vector is ordered as the latent parameters were given at construction. Mappings can be arbitrarily simple or complex.
+!!! tierwhy
+    This extends [CoVariations](@ref covariations_man) from lockstep to an arbitrary relation. The
+    motivating case is a low/high threshold pair defining low-medium-high regimes: vary the low
+    threshold and the *gap* rather than the two thresholds, and high > low is true by construction
+    instead of being a constraint you have to filter for afterwards. Mappings can be arbitrarily
+    simple or complex, so any relation you can write as a function is available.
 
-## Latent Parameter Names
-Optionally name the latent parameters; the names appear in the `LatentVariation` display, which helps when reading sensitivity-analysis or optimization results. If omitted, names default from the target parameters and their index (the target portion follows PhysiCellModelManager.jl short variation naming).
-
-!!! tierdev
-    [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames)
-    builds those fallback names: `"<target_1> | <target_2> | … | lp#<i>"`, joining every target's
-    column name and appending the latent parameter's index. It is called by the `LatentVariation`
-    constructor whenever `lp_names` is empty, so overriding the naming convention means passing
-    names in, not extending this function.
-
-## Variation Names
-You can optionally name a `LatentVariation` using the `name` keyword argument:
+    **Names.** The latent-parameter names appear in the `LatentVariation` display and in
+    sensitivity-analysis and optimization results, which is the reason to supply them. Omitted, they
+    fall back to
+    [`defaultLatentParameterNames`](@ref PhysiCellModelManager.ModelManager.defaultLatentParameterNames),
+    which builds `"<target_1> | <target_2> | … | lp#<i>"` — every target's column name, in
+    PhysiCellModelManager.jl's short variation naming, then the latent parameter's index. When a
+    `LatentVariation` is built automatically from a [`DiscreteVariation`](@ref),
+    [`DistributedVariation`](@ref), or [`CoVariation`](@ref), those variations' names are used
+    instead, so a name you set once follows through to the sensitivity sampling output.
 
 ```julia
 lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; name="Threshold regime")
 ```
 
-When latent variations are constructed automatically from [`DiscreteVariation`](@ref), [`DistributedVariation`](@ref), or [`CoVariation`](@ref), those variation names are propagated into latent parameter names used by sensitivity sampling outputs.
+!!! tierjournal "2026-03-31 — Latent parameter names come from the variations, not a new convention"
+    **Decided:** sensitivity scheme headers inherit variation names because a `LatentVariation`
+    built from a variation passes [`variationName`](@ref) through as its latent parameter names, so
+    a name set once follows all the way to the sampling output. Overriding the convention therefore
+    means passing `lp_names` in at construction, not extending the function that generates the
+    defaults.
 
 ## [`LatentVariation{Vector{<:Real}}`](@id latent_variation_vector_real_section)
-Latent parameters given as vectors of discrete values produce a `LatentVariation{Vector{<:Real}}`. The vectors need not be the same length; requesting values uses all combinations of the latent values to compute the target values.
+
+!!! tiergloss
+    Latent parameters given as vectors of discrete values produce a `LatentVariation{Vector{<:Real}}`.
+    The vectors need not be the same length; requesting values uses all combinations of the latent
+    values to compute the target values.
 
 ```jldoctest
 using PhysiCellModelManager
@@ -58,7 +70,10 @@ LatentVariation (Discrete), 2 -> 2:
 ```
 
 ## [`LatentVariation{Distribution}`](@id latent_variation_distribution_section)
-Latent parameters given as probability distributions produce a `LatentVariation{Distribution}`. Requesting values draws a sample from each distribution and computes the target values.
+
+!!! tiergloss
+    Latent parameters given as probability distributions produce a `LatentVariation{Distribution}`.
+    Requesting values draws a sample from each distribution and computes the target values.
 
 ```jldoctest
 using PhysiCellModelManager, Distributions

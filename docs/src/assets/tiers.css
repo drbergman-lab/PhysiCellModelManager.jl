@@ -20,6 +20,11 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 .docs-tier-hidden { display: none !important; }
 
 @media print {
+  /* Same specificity as the hide rule above, so source order lets print win. */
+  html[data-docs-tier] .admonition.is-category-tiergloss,
+  html[data-docs-tier] .admonition.is-category-tierwhy,
+  html[data-docs-tier] .admonition.is-category-tierdev,
+  html[data-docs-tier] .admonition.is-category-tierjournal,
   .admonition.is-category-tiergloss,
   .admonition.is-category-tierwhy,
   .admonition.is-category-tierdev,
@@ -74,12 +79,14 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   margin-bottom: 0;
 }
 
-/* Quiet markers, so a reader who went deeper can see what that revealed.
-   Delete these to make the reveal invisible. */
-.admonition.is-category-tierwhy > .admonition-body::before { content: "why"; }
-.admonition.is-category-tierdev > .admonition-body::before { content: "extending"; }
+/* Quiet markers naming the tier that reveals each block, so a reader who went
+   deeper can see what that revealed. Delete these to make the reveal invisible. */
+.admonition.is-category-tiergloss > .admonition-body::before { content: "brief"; }
+.admonition.is-category-tierwhy > .admonition-body::before { content: "full"; }
+.admonition.is-category-tierdev > .admonition-body::before { content: "dev"; }
 .admonition.is-category-tierjournal > .admonition-header::before { content: "journal \00a0"; }
 
+.admonition.is-category-tiergloss > .admonition-body::before,
 .admonition.is-category-tierwhy > .admonition-body::before,
 .admonition.is-category-tierdev > .admonition-body::before {
   display: block;

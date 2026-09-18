@@ -86,7 +86,7 @@ julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; 
 
 ## Sharp edges
 
-- `using PhysiCellModelManager` auto-initialises a project found in the working directory, except
+- `using PhysiCellModelManager` auto-initializes a project found in the working directory, except
   while Julia is writing a precompilation cache or system image. That is deliberate.
 - Some test suites need a downloaded PhysiCell binary and fail locally without it; they pass on
   the GitHub runners.

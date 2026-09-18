@@ -3,16 +3,16 @@
 Attach a few labels to a run when you launch it, then recover it later by what it was *for* rather
 than by remembering a simulation ID.
 
+!!! tiergloss
+    Tagging is provided by ModelManager and works on any trial object — `Simulation`, `Monad`,
+    `Sampling`, or `Trial` — and on a `Calibration`. See the [Tags](@ref tags_lib) API reference for
+    full signatures.
+
 !!! tierwhy
     A PhysiCell campaign accumulates simulations faster than you can name them. Three months later
     you know you ran a dose sweep for figure 3, but not which simulation IDs it produced. Nothing in
     the database records intent, so without tags the only handle on a past run is the number it
     happened to get.
-
-!!! tiergloss
-    Tagging is provided by ModelManager and works on any trial object — `Simulation`, `Monad`,
-    `Sampling`, or `Trial` — and on a `Calibration`. See the [Tags](@ref tags_lib) API reference for
-    full signatures.
 
 ## Tag a run when you launch it
 
@@ -39,13 +39,6 @@ run(sampling)
     Each finder takes `tags` (and the other filters a trial query accepts, such as `status`) and
     returns the matching objects or IDs.
 
-```julia
-findSimulations(tags = ("project" => "immune-escape",))            # Simulation objects
-findSimulationIDs(tags = ("figure" => "3",), status = "Completed") # just the IDs
-findMonads(tags = ("project" => "immune-escape",))                 # one level up
-findTrials(Sampling; tags = ("purpose" => "dose sweep",))          # by trial type
-```
-
 !!! tierwhy
     Filters in `tags` must **all** match. Pass `any_of` for an `OR` instead. A bare key means "has
     this key with any value".
@@ -55,9 +48,16 @@ findTrials(Sampling; tags = ("purpose" => "dose sweep",))          # by trial ty
     simulation never propagate upward — a note about one bad replicate should not relabel the sweep
     that contains it. Pass `inherit=false` to match only direct tags.
 
+```julia
+findSimulations(tags = ("project" => "immune-escape",))            # Simulation objects
+findSimulationIDs(tags = ("figure" => "3",), status = "Completed") # just the IDs
+findMonads(tags = ("project" => "immune-escape",))                 # one level up
+findTrials(Sampling; tags = ("purpose" => "dose sweep",))          # by trial type
+```
+
 !!! tierdev
     [`findSimulations`](@ref) and [`findMonads`](@ref) build objects, which is expensive for a large
-    result set — they throw above `limit` rather than materialising it. Use
+    result set — they throw above `limit` rather than materializing it. Use
     [`findSimulationIDs`](@ref) when you only need the numbers.
 
 ## Inspect what is there
@@ -88,20 +88,24 @@ tagKeys(); tagValues("arm")
     other), and `mm:git` / `mm:git.branch` / `mm:git.dirty`. Pass `include_auto=false` to keep them
     out of a result — [`tagsTable`](@ref) accepts it too.
 
+!!! tierwhy
+    The dirty flag matters: a commit hash on its own is a false promise of reproducibility if the
+    tree had uncommitted changes when the run launched.
+
 ```julia
 tags(sim)                        # includes the mm: keys
 tags(sim; include_auto = false)  # just your own
 ```
-
-!!! tierwhy
-    The dirty flag matters: a commit hash on its own is a false promise of reproducibility if the
-    tree had uncommitted changes when the run launched.
 
 !!! tierdev
     [`gitState`](@ref) is the function behind the git half, and returns empty strings outside a
     repository — so the `mm:git*` keys being blank means "not in a repo", not "clean".
 
 ## Joining tags onto a results table
+
+!!! tiergloss
+    [`simulationsTable`](@ref) takes `tags = true`, which adds one `tag:<key>` column per key in
+    play.
 
 !!! tierwhy
     Ask for the tags when you build the table rather than afterwards, so you can group results by
@@ -118,13 +122,14 @@ simulationsTable(sampling; tags = true)   # adds tag:<key> columns
 
 ## Removing tags and housekeeping
 
+!!! tiergloss
+    [`untag!`](@ref) drops one exact `key => value` pair, or every value under a key. Removing a tag
+    that is not present is a no-op.
+
 ```julia
 untag!(sim, "verdict" => "suspect")   # drop one exact pair
 untag!(sim, "verdict")                # drop every value under that key
 ```
-
-!!! tiergloss
-    Removing a tag that is not present is a no-op.
 
 !!! tierdev
     [`orphanedTagCounts`](@ref) reports, per trial class, how many tag rows point at objects that no
@@ -133,11 +138,11 @@ untag!(sim, "verdict")                # drop every value under that key
 
 ## Silencing the hint
 
-```julia
-setTagHints!(false)   # or set MODELMANAGER_TAG_HINTS in the environment
-```
-
 !!! tiergloss
     If a trial is created with no user tags, PCMM prints a one-time-per-session hint.
     [`setTagHints!`](@ref) turns it off for the session; the `MODELMANAGER_TAG_HINTS` environment
     variable is the better option in a job script, since it needs no code change.
+
+```julia
+setTagHints!(false)   # or set MODELMANAGER_TAG_HINTS in the environment
+```

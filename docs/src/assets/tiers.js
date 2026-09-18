@@ -118,10 +118,12 @@
     var sidebar = document.querySelector("nav.docs-sidebar");
 
     if (sidebar) {
-      var after = sidebar.querySelector(".docs-version-selector") ||
-                  sidebar.querySelector(".docs-package-name");
-      if (after && after.parentNode === sidebar) {
-        sidebar.insertBefore(selector, after.nextSibling);
+      // Above the table of contents, so a first-time reader sees it before the
+      // page list; the version selector at the bottom of the sidebar is the
+      // long-term home once the control is familiar.
+      var menu = sidebar.querySelector("ul.docs-menu");
+      if (menu && menu.parentNode === sidebar) {
+        sidebar.insertBefore(selector, menu);
       } else {
         sidebar.insertBefore(selector, sidebar.firstChild);
       }

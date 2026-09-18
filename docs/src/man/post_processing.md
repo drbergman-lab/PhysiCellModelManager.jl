@@ -3,31 +3,30 @@
 Compute and store a per-simulation number *while* a run is in flight, so it survives whatever the
 run deletes afterwards.
 
+!!! tiergloss
+    `run` accepts a `post_processor` keyword: a callback invoked once per successful simulation,
+    right after it finishes and before PhysiCellModelManager.jl prunes any output. Inside it, `sim`
+    is a `Simulation` — the same argument a [`QoI`](@ref ModelManager.QoI)'s `compute` receives, so
+    one measurement can serve both. Most loader and analysis functions accept it directly;
+    `simulationID(sim)` and `pathToOutputFolder(sim)` are there when you need the ID or the folder
+    itself.
+
 !!! tierwhy
     [Analyzing output](@ref analyzing_output_man) covers analysis *after* a run finishes, which
-    works only as long as the output files are still there. `run` also accepts a `post_processor`
-    keyword: a callback invoked once per successful simulation, right after it finishes and before
-    PhysiCellModelManager.jl prunes any output — so the callback always sees the intact output
-    folder, however aggressive your `prune_options` are. Pruning is the last of the steps that
-    follow a simulation; it has [its own section below](@ref prune_output_pp).
+    works only as long as the output files are still there. The callback always sees the intact
+    output folder, however aggressive your `prune_options` are: pruning is the last of the steps
+    that follow a simulation, and has [its own section below](@ref prune_output_pp).
 
-```julia
-run(sampling; post_processor = QoI("final_count", sim -> finalPopulationCount(sim)["default"]))
-```
-
-!!! tiergloss
-    Inside the callback, `sim` is a `Simulation` — the same argument a
-    [`QoI`](@ref ModelManager.QoI)'s `compute` receives, so one measurement can serve both. Most
-    loader and analysis functions accept it directly; `simulationID(sim)` and
-    `pathToOutputFolder(sim)` are there when you need the ID or the folder itself.
-
-!!! tierwhy
     **A callback that stores something needs a name.** Every sink column is named after the QoI that
     wrote it, and a bare `sim -> ...` has only the name Julia derives for an anonymous function —
     `anon_9`, `anon_14`, whatever that session happens to produce. The number is not stable, so the
     same script would write a second, half-empty set of columns next time; such a callback is
-    refused rather than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI) as above, or pass a
+    refused rather than stored. Wrap it in a [`QoI`](@ref ModelManager.QoI), as below, or pass a
     named function. A callback returning `missing` stores nothing and is unaffected.
+
+```julia
+run(sampling; post_processor = QoI("final_count", sim -> finalPopulationCount(sim)["default"]))
+```
 
 ## Returning quantities of interest
 
@@ -76,21 +75,30 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # onl
 !!! tiergloss
     [`populationFractionQoI`](@ref) is the same builder for each cell type's share of the
     population, and works here as well as in calibration and sensitivity analysis. See
-    [QoI form](@ref qoi_form_ss).
+    [Using the builders in sensitivity analysis](@ref qoi_form_ss).
 
-!!! tierdev
-    **Upgrading from v0.3.3.** This builder wrote `count_<cell_type>` columns in v0.3.3, when the
-    sink was one flat namespace and the prefix was all that kept two measurements apart. It now
-    writes `population_count.<cell_type>`. Runs from before the upgrade keep their old columns and
-    are not rewritten, so a project that spans the change has both families in
-    [`postProcessingTable`](@ref), each populated only for the runs that produced it.
+!!! tierjournal "2026-07-08 — A ready-made builder rather than a recipe to copy"
+    **Decided.** Counting the final population is what almost every campaign wants stored, so it
+    ships as a builder instead of a snippet each user rewrites; it returns a `Dict` rather than a
+    `NamedTuple` because cell type names may contain spaces, which are not valid field names.
+    **Decided.** A snapshot that is missing — pruned by an earlier run — records nothing for that
+    simulation rather than raising.
+
+!!! tierjournal "2026-09-14 — One builder per quantity"
+    **Decided.** `populationCountQoI(; index)` and `populationFractionQoI(; index)` are the single
+    builders for their quantities, `index` defaulting to `:final`; the separate endpoint-only names
+    are gone, and the sink columns they write are `population_count.<cell_type>` and
+    `population_fraction.<cell_type>`.
+    **Rejected.** Keeping both spellings for compatibility: once they reduced identically, the
+    second name bought nothing but a second family of columns in the same database.
 
 ## Reading the stored quantities back
 
 ```julia
 postProcessingTable(sampling)                     # just the stored quantities, one row per simulation
 printPostProcessingTable(sampling)                # the same table, printed
-printPostProcessingTable(sampling; sink=CSV.write) # ...or sent somewhere else
+using CSV
+printPostProcessingTable(sampling; sink = df -> CSV.write("qois.csv", df))  # ...or sent somewhere else
 simulationsTable(sampling; post_processing=true)  # joined with the varied parameter values
 ```
 
@@ -135,3 +143,10 @@ run(sampling; prune_options = PruneOptions(prune_svg = true, prune_mat = true, p
     population time series needs that snapshot's XML and MAT files; a replicate whose files are gone
     is excluded from monad-level aggregates rather than zero-filled; and re-running does not bring
     the files back, since the database still holds the simulation as complete.
+
+!!! tierjournal "2026-07-07 — Pruning runs after your callback, not before it"
+    **Decided.** Pruning moved into the destructive half of the per-simulation hook, which runs
+    after the user `post_processor`. It used to run in the non-destructive half, so a callback would
+    have opened an output folder that had already been gutted.
+    **Decided.** The whole tail — including how a simulation's error file is handled — moved with
+    it, rather than pruning alone.

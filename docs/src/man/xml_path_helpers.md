@@ -2,7 +2,16 @@
 Each varied input type has a helper function that builds its XML path.
 
 ## Varying config parameters
-[`configPath`](@ref) builds the XML path to almost[^1] any configuration parameter from intuitive tokens. See [Config XML paths](@ref) for the full token reference. Some examples:
+
+!!! tiergloss
+    [`configPath`](@ref) builds the XML path to almost any configuration parameter from intuitive
+    tokens. See [Config XML paths](@ref) for the full token reference.
+
+!!! tierwhy
+    Intracellular parameters are not supported (yet), and others may be missing. When
+    [`configPath`](@ref) does not recognize the tokens you pass, it throws an error listing the
+    tokens it does accept for that number of arguments — so a wrong guess tells you the right
+    spelling rather than silently building a path to nothing.
 
 ```julia
 configPath("max_time")
@@ -14,12 +23,21 @@ configPath(<cell_type>, "custom", <tag>)
 configPath("user_parameters", <tag>)
 ```
 
-[^1]: Intracellular parameters are not supported (yet). Others may also be missing. If the [`configPath`](@ref) function does not recognize the tokens you pass it, it will throw an error showing the available tokens (for the given number of tokens you passed).
+!!! tierjournal "2026-09-02 — An unrecognized token is an error, not a path"
+    **Decided:** `configPath("<cell type>", "motility", <tag>)` closes the class, not the instance.
+    A natural guess must either resolve or be rejected by name, so an unrecognized third token under
+    `<motility>` or `<chemotaxis>` — both closed tag sets — raises an `ArgumentError` naming the
+    valid ones.
+
+    **Rejected:** closing every token set the same way. `advanced_chemotaxis` stays open-ended,
+    because its third token is a substrate name and that set is not ours to close.
 
 ### Named path helpers
-[`configPath`](@ref) works by inferring, from the tokens you pass, which of a family of explicit,
-narrower path helpers to call. That inference is the whole point: [`configPath`](@ref) is what you
-should call, and the family below is what it calls for you.
+
+!!! tiergloss
+    [`configPath`](@ref) works by inferring, from the tokens you pass, which of a family of
+    explicit, narrower path helpers to call. That inference is the whole point: [`configPath`](@ref)
+    is what you should call, and the family below is what it calls for you.
 
 !!! tierdev
     **Calling them directly.** None of these are exported, so each needs the package prefix —
@@ -69,42 +87,64 @@ should call, and the family below is what it calls for you.
     with [`userParametersPath`](@ref PhysiCellModelManager.userParametersPath) as a synonym, returns
     `["user_parameters", tag]`.
 
+!!! tierjournal "2026-08-02 — Public, but not exported"
+    **Decided:** reachability defines PhysiCellModelManager.jl's public API — a name is public if we
+    tell users how to use it, or if it is passed to or returned from something non-internal. The
+    narrower `*Path` helpers are documented and callable, so they are `public`; only
+    [`configPath`](@ref), [`rulePath`](@ref), [`icCellsPath`](@ref) and [`icECMPath`](@ref) are
+    exported, because those are the four a user should reach for.
+
+    **Rejected:** treating every non-underscore-prefixed binding as public, which would have
+    promoted nearly every internal in the package.
+
 ## Varying rules parameters
-[`rulePath`](@ref) builds the XML path to rules parameters. Unlike [`configPath`](@ref), it does not infer the path from tokens — you supply the cell type, the behavior, then the remaining XML-path entries directly:
+
+!!! tiergloss
+    [`rulePath`](@ref) builds the XML path to rules parameters. Unlike [`configPath`](@ref), it does
+    not infer the path from tokens — you supply the cell type, the behavior, then the remaining
+    XML-path entries directly.
 
 ```julia
 rulePath(<cell_type>, <behavior>, "increasing_signals", "max_response")
-rulePath(<cell_type>, <behavior>, "decreasing_signals", "max_resposne")
+rulePath(<cell_type>, <behavior>, "decreasing_signals", "max_response")
 rulePath(<cell_type>, <behavior>, "increasing_signals", "signal:name:<signal_name>", <tag>)
 rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_name>", "reference", "value")
 ```
 
 ## Varying initial cell parameters
-PhysiCellModelManager.jl initializes cell locations from XML via [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref best_practices_man), not after dependent simulations exist).
 
-Vary its parameters with [`icCellsPath`](@ref):
+!!! tiergloss
+    PhysiCellModelManager.jl initializes cell locations from XML via
+    [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its
+    docs for the file format). [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) creates a
+    template and registers it in the database; edit it directly afterward.
+    [`icCellsPath`](@ref) then reaches its parameters, including those of the carveouts (a child
+    element of the patch) that exclude cells from a region.
+
+!!! tierwhy
+    Editing the template in place is the intended workflow, but per
+    [Best practices](@ref best_practices_man) only before any simulation depends on it: the database
+    records which folder a simulation used, not the contents that folder had at the time.
 
 ```julia
 icCellsPath(<cell_type>, <patch_type>, <patch_id>, <tag>)
-```
-
-[PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) also supports carveouts (a child element of the patch) that exclude cells from a region. Vary their parameters with:
-
-```julia
 icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id>, <tag>)
 ```
 
 ## Varying initial ECM parameters
-PhysiCellModelManager.jl initializes ECMs from XML via [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs for the file format). Use [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) to create a template and register it in the database; edit it directly afterward (but per [Best practices](@ref best_practices_man), not after dependent simulations exist).
 
-Vary its parameters with [`icECMPath`](@ref):
+!!! tiergloss
+    PhysiCellModelManager.jl initializes ECMs from XML via
+    [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs
+    for the file format). [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) creates a template
+    and registers it in the database, on the same terms as the IC cells template above, and
+    [`icECMPath`](@ref) reaches its parameters.
+
+!!! tierwhy
+    The patch type `"ellipse_with_shell"` carries two (or three) subpatches, so its paths take one
+    extra token: `<subpatch>` is `"interior"`, `"shell"`, or `"exterior"`.
 
 ```julia
 icECMPath(<layer_id>, <patch_type>, <patch_id>, <tag>)
-```
-
-Or in the case of using a patch type `"ellipse_with_shell"` there are additional parameters for the two (or three) subpatches:
-```julia
 icECMPath(<layer_id>, "ellipse_with_shell", <patch_id>, <subpatch>, <tag>)
 ```
-where `<subpatch>` is one of `"interior"`, `"shell"`, or `"exterior"`.

@@ -17,6 +17,9 @@ already run.
 
 ### Morris One-At-A-Time (MOAT)
 
+!!! tiergloss
+    `MOAT(n)` sets the number of base points; the keywords control how those points are placed.
+
 !!! tierwhy
     MOAT trades theoretical rigor for an intuitive sensitivity estimate. It samples parameter space
     at `n` points; from each, it varies one parameter at a time and records the change in output,
@@ -37,6 +40,12 @@ MOAT(8; orthogonalize=false) # do not use an orthogonal LHS (even where one is p
 
 ### Sobol'
 
+!!! tiergloss
+    First-order index methods: `:Sobol1993`, `:Jansen1999`, `:Saltelli2010` (default
+    `:Jansen1999`). Total-order: `:Homma1996`, `:Jansen1999`, `:Sobol2007` (default `:Jansen1999`).
+    The rasp symbol `ʼ` avoids a clash with the `Sobol` module — type `\rasp` then tab in VS Code —
+    and [`SobolMM`](@ref) is the plain-ASCII alias.
+
 !!! tierwhy
     The Sobol' method quantifies sensitivity from the variance of the model output. It uses a
     Sobol' sequence — a deterministic _low-discrepancy_ sequence that fills the unit hypercube very
@@ -50,12 +59,6 @@ MOAT(8; orthogonalize=false) # do not use an orthogonal LHS (even where one is p
     gives `[0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875]`. To include the extremes, use `n=2^k+1`:
     `n=9` gives `[0, 0.5, 0.25, 0.75, 0.125, 0.375, 0.625, 0.875, 1]`.
 
-!!! tiergloss
-    First-order index methods: `:Sobol1993`, `:Jansen1999`, `:Saltelli2010` (default
-    `:Jansen1999`). Total-order: `:Homma1996`, `:Jansen1999`, `:Sobol2007` (default `:Jansen1999`).
-    The rasp symbol `ʼ` avoids a clash with the `Sobol` module — type `\rasp` then tab in VS Code —
-    and [`SobolMM`](@ref) is the plain-ASCII alias.
-
 ```julia
 Sobolʼ(9)
 Sobolʼ(9; skip_start=true) # skip to the odd multiples of 1/32 (smallest one with at least 9)
@@ -63,10 +66,13 @@ SobolMM(9)                 # same constructor, no rasp required
 ```
 
 !!! tierdev
-    `SobolPCMM` is a deprecated alias of [`SobolMM`](@ref), kept because PCMM exported it before
-    the name was generalized. New code should use [`SobolMM`](@ref) or [`Sobolʼ`](@ref).
+    `SobolPCMM` is a deprecated alias of [`SobolMM`](@ref). New code should use [`SobolMM`](@ref) or
+    [`Sobolʼ`](@ref).
 
 ### Random Balance Design (RBD)
+
+!!! tiergloss
+    `RBD(n)` runs `n` monads, one per design point, and returns first-order indices only.
 
 !!! tierwhy
     RBD uses a random design matrix (like Sobol') and a Fourier transform (as in the FAST method).
@@ -97,22 +103,22 @@ RBD(32; num_harmonics=4)  # will look up to the 4th harmonic, instead of the def
 
 ### Simulation inputs
 
-!!! tierwhy
-    A sensitivity analysis takes the same inputs as a sampling: an `inputs::InputFolders` naming the
-    `data/inputs/` folders that define your model, and an `evs::Vector{<:ElementaryVariation}` of
-    the parameters to analyze with their ranges or distributions. Unlike most trials these are
-    usually [`DistributedVariation`](@ref)s, so a continuum of values can be tested.
-
-    [`CoVariation`](@ref)s draw all member parameters from the same CDF value; pass `flip` to
-    negatively correlate some of them. For more complex relationships, use
-    [LatentVariations](@ref latent_variations_man) to transform latent variables into the
-    parameters of interest.
-
 !!! tiergloss
     Use the convenience constructors [`UniformDistributedVariation`](@ref) and
     [`NormalDistributedVariation`](@ref), or any `d::Distribution` directly. All variation types
     accept `name=...`, used in the scheme DataFrame/CSV headers; inspect the effective name with
     [`variationName`](@ref).
+
+!!! tierwhy
+    A sensitivity analysis takes the same inputs as a sampling: an `inputs::InputFolders` naming the
+    `data/inputs/` folders that define your model, and an `evs::Vector{<:ElementaryVariation}` of
+    the parameters to analyze with their ranges or distributions. These are usually
+    [`DistributedVariation`](@ref)s, so a continuum of values can be tested.
+
+    [`CoVariation`](@ref)s draw all member parameters from the same CDF value; pass `flip` to
+    negatively correlate some of them. For more complex relationships, use
+    [LatentVariations](@ref latent_variations_man) to transform latent variables into the
+    parameters of interest.
 
 ```julia
 dv = DistributedVariation(xml_path, d)                          # any d::Distribution
@@ -123,62 +129,28 @@ NormalDistributedVariation(xml_path, 1e-3, 1e-4; lb=0)          # (mean, std), t
 
 ### Sensitivity functions
 
-!!! tierwhy
-    A sensitivity function takes a single argument, a `Simulation`. Declare it `::Simulation`:
-    an unannotated function cannot be told apart from one written to take a simulation ID (`Int`).
-    A bare function's per-replicate values must average to a `Real`; passed as a
-    [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a `Dict`/`NamedTuple` of `Real`s,
-    which spreads — see below.
-
 !!! tiergloss
     Any number of them may be given at the start of the analysis. `finalPopulationCount` returns a
     dictionary of each cell type's final count from a `Simulation`, so one cell type's count is one
     lookup away.
 
+!!! tierwhy
+    A sensitivity function must accept a `Simulation`. A bare function's per-replicate values must
+    average to a `Real`; passed as a [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a
+    `Dict` or `NamedTuple` of `Real`s, and each key becomes its own analysis. The
+    [`QoI`](@ref ModelManager.QoI) docstring is the full account of what each consumer accepts.
+
 ```julia
 f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 ```
 
-### [One measurement, one analysis per cell type](@id gsa_keyed_qoi)
-
-!!! tierwhy
-    Naming a cell type up front means one function per cell type. Pass a
-    [`QoI`](@ref ModelManager.QoI) whose `reduce` returns a `Dict` instead, and each key becomes its
-    own sensitivity analysis labelled `"<qoi name>.<key>"`. The ready-made builders do this
-    already, and [`populationFractionQoI`](@ref) works the same way as
-    [`populationCountQoI`](@ref).
-
-!!! tierwhy
-    **Two shapes that are not spread.** Two separate rules. A bare `Vector` return is **not** spread
-    by index — components are keyed, for now, so that two parameter sets can be checked for the same
-    components by name. Separately, every spread component must itself be a `Real`. It is the second
-    that rules out [`meanPopulationTimeSeriesQoI`](@ref): its `Dict` *is* spread, and each value is
-    then rejected for being a time series rather than a number. Reduce a series to a scalar to ask a
-    sensitivity question about it. No builder defines a `reduce` of its own, so ModelManager's
-    default per-key mean averages the replicates of all of them.
-
-    **Every parameter set in the design must reduce to the *same* keys.** A mismatch is refused
-    rather than filled in, because a sensitivity index computed over a missing value is wrong rather
-    than approximate. PCMM's builders satisfy this by construction: the key set is the model's own
-    cell-type roster, taken from the snapshot's metadata rather than from which types happen to have
-    living cells, so a type driven extinct by some parameter set still reports a count of zero
-    instead of dropping its key.
-
-!!! tiergloss
-    The code below yields `population_count.cancer`, `population_count.immune`, and one more for
-    every other cell type — without naming any of them in advance, since they are read from the
-    simulation's own output.
-
-```julia
-run(method, inputs, evs; n_replicates=n_replicates, functions=[populationCountQoI()])
-```
-
-## Running the analysis
+## [Running the analysis](@id gsa_keyed_qoi)
 
 !!! tiergloss
     `run(method, inputs, evs; functions=...)` launches the design and returns the sampling object
     the post-processing step works on. A `reference::AbstractMonad` or a `StudySpec` may stand in
-    for `inputs`.
+    for `inputs`. A `Dict`-valued [`QoI`](@ref ModelManager.QoI) gives one analysis per key, labeled
+    `"<qoi name>.<key>"`.
 
 ```julia
 config_folder = "default"
@@ -190,6 +162,9 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 method = MOAT(15)
 f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates, functions=[f])
+
+# A Dict-valued QoI: one analysis per cell type, labeled population_count.<cell_type>
+run(method, inputs, evs; n_replicates=n_replicates, functions=[populationCountQoI()])
 
 # Named parameters, so the scheme CSV and the plots read as something other than XML paths
 evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-3, 1e-4; lb=0, name="Apoptosis rate"),
@@ -209,13 +184,19 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 
 ## Post-processing
 
+!!! tiergloss
+    [`PhysiCellModelManager.calculateGSA!`](@ref) computes sensitivity indices for further
+    measurements on a sampling you already ran, and files them in `sensitivity_sampling.results`
+    under the label of the measurement that produced them — its name, or `"<name>.<key>"` per key
+    for a `Dict`-valued one.
+
 !!! tierwhy
-    Results accumulate, and a measurement whose name is already present is **skipped** — so reusing
-    the name `f` from the run above would do nothing at all, silently. Pass `recompute=true` to
-    force re-evaluation; it has to be explicit, because redefining a function's body leaves it
-    indistinguishable from the one already evaluated. Results are stored in a `Dict` keyed by the
-    label of the measurement that produced them — a measurement's own name, or `"<name>.<key>"` for
-    each key of a `Dict`-valued one.
+    Results accumulate on the sampling, and a measurement whose label is already present is
+    **skipped**: reusing the name `f` from the run above would do nothing at all, silently. Those
+    stored results are what makes adding one more quantity cheap — see
+    [Post-processing](@ref post_processing_man) for where computed quantities are kept. Pass
+    `recompute=true` to evaluate again rather than reuse them; it has to be explicit, because
+    redefining a function's body leaves it indistinguishable from the one already evaluated.
 
     The method also determines how the sensitivity scheme is saved. After running the simulations,
     PhysiCellModelManager.jl writes a CSV in `data/outputs/samplings/$(sampling.id)` named after the
@@ -224,10 +205,6 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
     variation names when provided. The simplest way to reload the sampling in a new Julia session is
     to re-run the code that generated it: so long as `use_previous` is `true`, the previous results
     are reused.
-
-!!! tiergloss
-    [`PhysiCellModelManager.calculateGSA!`](@ref) computes sensitivity indices for further
-    measurements on a sampling you already ran, and files them in `sensitivity_sampling.results`.
 
 ```julia
 g(sim::Simulation) = finalPopulationCount(sim)["default"] # a *new* measurement, under a new name
@@ -249,27 +226,43 @@ println(sensitivity_sampling.results["f"])
     Requires a Plots.jl backend (`using Plots`). Every sampling has a plot recipe; a positional
     symbol picks the style where there is more than one, and `parameters=` restricts the x-axis to
     some parameters, drawn in the order given — anything `select` accepts on a `DataFrame` works.
+    The figures below come from the template project, varying a cycle phase duration and the
+    apoptosis rate with the final cell count as the measurement.
 
 ```julia
 plot(moat_sampling)                       # µ* per parameter (the default, :bar)
 plot(moat_sampling; show_sigma=true)      # σ as whiskers on the µ* bars
-plot(moat_sampling, :scatter)             # the µ*–σ screening scatter
-plot(moat_sampling, :violin)              # elementary-effect distributions; needs StatsPlots
-plot(sobol_sampling)                      # first-order S1 bars with total-order ST behind them
-plot(sobol_sampling; show_ST=false)       # S1 only
-plot(rbd_sampling)                        # first-order bars
 plot(moat_sampling; parameters=["Apoptosis rate"])   # a subset, in this order
 ```
 
-!!! tiergloss
-    The figures below come from the template project, varying a cycle phase duration and the
-    apoptosis rate with the final cell count as the measurement. The Sobol' bars are illustrative
-    values rather than a measured design.
-
 ![MOAT: µ* per parameter, σ as whiskers](../assets/gsa_moat_bar.png)
+
+```julia
+plot(moat_sampling, :scatter)             # the µ*–σ screening scatter
+plot(moat_sampling, :violin)              # elementary-effect distributions; needs StatsPlots
+```
 
 ![MOAT: µ*–σ screening scatter](../assets/gsa_moat_scatter.png)
 
+```julia
+plot(sobol_sampling)                      # first-order S1 bars with total-order ST behind them
+plot(sobol_sampling; show_ST=false)       # S1 only
+```
+
 ![Sobol': first-order bars in front of total-order bars (illustrative values)](../assets/gsa_sobol.png)
 
+```julia
+plot(rbd_sampling)                        # first-order bars
+```
+
 ![RBD: first-order indices](../assets/gsa_rbd.png)
+
+!!! tierjournal "2026-09-14 — The figures on this page, and why the Sobolʼ bars are illustrative"
+    **Decided:** generate the figures from the template project, whose config parameters govern the
+    cell count directly and whose simulations take seconds, rather than from `immune_sample`, where
+    the rates are set by custom code so varying them in the XML would draw indices of nothing. The
+    PNGs are committed and regenerated by hand, because the docs CI has no PhysiCell.
+
+    **Open:** the Sobolʼ bars are illustrative numbers pushed through the real recipe. `Sobolʼ(16)`
+    — 40 simulations — estimated `ST < S1`, which no total-order index is, and the design that
+    respects it, `Sobolʼ(64)`, is 238 simulations for a picture that only shows the plot.

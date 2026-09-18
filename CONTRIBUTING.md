@@ -29,7 +29,16 @@ are in [AGENTS.md](AGENTS.md).
 - Prose that only a developer needs goes in a `!!! tierdev` block next to the code it concerns;
   a dated decision goes in a `!!! tierjournal "YYYY-MM-DD — Title"` block. `docs/journal.jl`
   collects the latter into `docs/src/dev/journal.md` at build time; commit the regenerated file.
+- Within a section the order is `tiergloss`, `tierwhy`, the code block, `tierdev`, `tierjournal`:
+  what it does, why, the call, then commentary. (The `julia-tiered-docs` skill puts `tierwhy`
+  first; this repo does not.)
+- From "Building & Varying Models" onward, the Code tier of every page is its lead sentence,
+  headings, code blocks, tables and figures only. Any other paragraph belongs in a tier block.
+  The Getting Started pages are exempt: they read the same at every tier.
 - Never put a code block inside a tier block.
+- Write for the reader of today's release: no "used to", "before 0.9", or renamed-name history in
+  user prose. A decision worth dating goes in a `tierjournal` block.
+- American spelling throughout (analyze, center, labeled, fulfill).
 - A `public` but unexported name is linked as `[`x`](@ref ModelManager.x)` (or
   `PhysiCellModelManager.x`); a bare `[`x`](@ref)` on a page only resolves exported names.
 

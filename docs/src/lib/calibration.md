@@ -79,7 +79,7 @@ populationFractionQoI
 meanPopulationTimeSeriesQoI
 ```
 
-To analyse a finished monad directly, without a `QoI`, use [`finalPopulationCount`](@ref) on a
+To analyze a finished monad directly, without a `QoI`, use [`finalPopulationCount`](@ref) on a
 `Monad` or `MonadPopulationTimeSeries`.
 
 ## Built-in distance functions

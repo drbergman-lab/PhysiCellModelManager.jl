@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-09-15 — Tiered docs and full public-API coverage
+
+**Problem.** An audit of every name reachable through `using PhysiCellModelManager` — exported or `public`, PCMM's own or re-exported from ModelManager — found 300 names, of which 191 had no mention on any manual page (41 PCMM, 150 ModelManager). `samplePosterior` was the reported example. The manual's PCMM/ModelManager split is invisible to a reader who only ever types `using PhysiCellModelManager`.
+
+**Decisions**
+- Adopt the tiered-docs layout (Code / Brief / Full / Dev / Journal sidebar selector; `!!! tiergloss` / `tierwhy` / `tierdev` / `tierjournal` admonitions; `docs/journal.jl` collecting dated entries into `dev/journal.md`). Client-side CSS only, so the Markdown and built HTML carry every tier and an agent reading the repo sees the deepest one.
+- Every public name is classified end-user or developer. The owner reviewed the classification on a checklist artifact: 117 user, 183 dev (the design-method types `GridVariation`, `LHSVariation`, `SobolVariation`, `RBDVariation` were first classed Dev, then promoted on 2026-09-16: passing one to `createTrial` is how a user runs a Latin-hypercube or Sobol' sweep). Notable calls: `run(method, problem)` is the calibration entry point and `runABC` / `runCalibration` are Dev-tier; result types users never spell (`ABCResult`, `GenerationResult`, `XMLPath`, `ElementaryVariation`, `AbstractTrial`) are Dev-tier; the thirty-one PCMM `*Path` helpers other than `configPath` / `rulePath` / `icCellsPath` / `icECMPath` are Dev-tier; `trialID`, `constituentIDs`, `simulationsFromIDs`, the `*TableFromQuery` functions, `MMOutput`, `wasSuccessful`, `dataDir`, `isInitialized`, `upgradePackage`, `databaseDiagnostics` are Dev-tier.
+- Developer-facing names that are *anchored* to a user page (the return type of a call the page shows, the older name of a function) live in a `!!! tierdev` block on that page. Structural developer content — module map, the hooks PCMM implements for ModelManager, the SQL/XML/shell helpers — gets `dev/architecture.md`, `dev/simulator_interface.md`, `dev/utilities.md`.
+- The coverage test checks presence on `man/` or `dev/` pages only. Rejected: enforcing that dev-classified names appear only inside tier blocks — it needs the classification list in the test and user pages legitimately name dev symbols in passing.
+- `progress.md` stays the working journal (the repo workflow depends on it). Only decisions that explain user-visible behaviour are seeded as `tierjournal` blocks. Rejected: migrating `progress.md` wholesale.
+- One pull request, not three: `push_preview` gives the reviewer the finished site once; three PRs would mean three partial reviews.
+- New user pages: running simulations (parallelism, HPC), the trial hierarchy, managing a project (deletion, reset, renamed names). `developer_guide.md` (five lines of style guide) becomes `CONTRIBUTING.md`.
+- Baseline: the docs build on `main` was green before any change.
+- The audit's "exported" bucket was really exported-or-public: on Julia 1.11+ `names(m)` returns `public` names too. It matters for the pages: a bare `[`x`](@ref)` on a manual page resolves in `Main`, where only exported names exist, so every public-but-unexported name (all of the simulator-interface hooks, `HPCCompletionOptions`, `databaseDiagnostics`, …) must be written `[`x`](@ref ModelManager.x)`. Eighty-two refs on the new pages failed the first build for this reason; the rule is now in AGENTS.md and CONTRIBUTING.md.
+- Attaching the orphaned `simulationRuntime` docstring (a blank line after its closing `"""` had detached it) exposed a `jldoctest` that referenced an undefined variable; it is a `julia` block now.
+
+**Review round (2026-09-18).** The owner reviewed the PR and set these rules, now in CONTRIBUTING.md:
+- `tiergloss` before `tierwhy` — "a descent into detail". The skill's order (why first) is not used here.
+- Code tier is code only, on every page from "Building & Varying Models" onward; Getting Started keeps uniform hand-holding. Round 1 had left `xml_path_helpers`, `covariations`, `latent_variations`, `intracellular_inputs`, `querying_parameters` and the reference pages untiered.
+- Tier markers read "brief" / "full" / "dev" — the tier that reveals the block — rather than "why" / "extending".
+- The Detail selector mounts above the sidebar's table of contents, not beside the version selector at the bottom, until readers know to look for it; the home page describes the levels in a table under its own heading.
+- No history in user prose ("older wrapper names", pre-0.9 layouts, the v0.3.3 column rename); no remarks that the cell-type roster is preserved within a monad — that is a given; no advice to people building other simulators on ModelManager; no British spellings.
+- Copilot's three mechanical findings were right: `sink = CSV.write("f.csv")` evaluated eagerly and without the table (now closures), the print stylesheet lost to the hide rule's specificity, and `journal.jl` accepted a dated header with no title (now an error).
+- Questions for ModelManager raised by the review: `posterior` returns `(df, weights)` rather than one frame with a weight column; the corner plot draws empty axes in the upper triangle.
+
+**Open**
+- `checkdocs = :public` instead of `:exports`; deferred until the ModelManager public set is known to be fully documented.
+
+---
+
 ## 2026-09-15 — `_excludedReplicates` deleted in #237, restored in 0.5.1
 
 A user's ABC run on 0.5.0 printed `UndefVarError: _excludedReplicates` from

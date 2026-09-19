@@ -212,6 +212,18 @@ function finalPopulationCount(monad::Monad; include_dead::Bool=false)
 end
 
 """
+    _excludedReplicates(monad_id, n_total, n_kept)
+
+Message for replicates dropped from a monad-level aggregate because their output is gone.
+
+Only the text is shared. The `@info` stays at each aggregation site, because `maxlog` is counted per
+call site — one shared logging call would report once for all of them and hide which computation
+lost data.
+"""
+_excludedReplicates(monad_id, n_total::Int, n_kept::Int) =
+    "Excluding $(n_total - n_kept)/$(n_total) replicates of monad $(monad_id) with no output on disk (deleted or pruned)."
+
+"""
     MonadPopulationTimeSeries <: AbstractPopulationTimeSeries
 
 Holds the data for a monad's population time series.

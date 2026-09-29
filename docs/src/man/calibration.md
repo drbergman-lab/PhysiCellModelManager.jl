@@ -435,7 +435,10 @@ sampling = createTrial(result, draws)                  # one monad per distinct 
 revised  = Sampling(sampling; custom_code="revised_code", n_replicates=3)
 run(revised)
 
-Monad(Monad(first(draws.monad_id)); config="with_extra_substrate")   # one draw, restructured config
+# One draw under a restructured config. A copy onto new inputs shares no simulations with its
+# source, so ask for replicates.
+one = Monad(Monad(first(draws.monad_id)); config="with_extra_substrate", n_replicates=3)
+run(one)
 ```
 
 Swapping `custom_code` leaves the variation as it is. Swapping a varied folder such as `config` or

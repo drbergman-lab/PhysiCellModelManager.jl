@@ -5,6 +5,32 @@
 
 ---
 
+## 2026-09-15 — Tiered docs and full public-API coverage
+
+**Problem.** An audit of every name reachable through `using PhysiCellModelManager` — exported or `public`, PCMM's own or re-exported from ModelManager — found 300 names, of which 191 had no mention on any manual page (41 PCMM, 150 ModelManager). `samplePosterior` was the reported example. The manual's PCMM/ModelManager split is invisible to a reader who only ever types `using PhysiCellModelManager`.
+
+**Decisions** (PR #238, reviewed 2026-09-18 and 2026-09-29; the rules are in CONTRIBUTING.md)
+- Tiered docs: a Detail selector (Code / Brief / Full / Dev / Journal) above the sidebar's table of contents; `!!! tierbrief` / `tierfull` / `tierdev` / `tierjournal` admonitions named for the tier that reveals them; `docs/journal.jl` collects the dated entries into `dev/journal.md`. Client-side CSS only, so the Markdown and built HTML carry every tier. The `julia-tiered-docs` skill's category names (`tiergloss`, `tierwhy`) and its order (why before gloss) are not used here.
+- Block order within a section is brief, full, code, dev, journal. From "Building & Varying Models" onward the Code tier of every page is its lead sentence, headings, code, tables and figures; Getting Started reads the same at every tier. Reference pages without code show only their headings at Code tier.
+- Every public name is classified end-user (118) or developer (182); the owner reviewed the list on a checklist artifact. User names get prose on task pages; developer names live in a `tierdev` block beside the code they concern or on `dev/architecture.md`, `dev/simulator_interface.md`, `dev/utilities.md`. Notable calls: `run(method, problem)` is the calibration entry point and `run(calibration)` the resume call, with `runABC` / `runCalibration` / `resumeCalibration` Dev-tier equivalents; the design-method types (`GridVariation`, `LHSVariation`, `SobolVariation`, `RBDVariation`) and `getParameterValue` are user-facing; result types users never spell (`ABCResult`, `GenerationResult`, `XMLPath`, `ElementaryVariation`, `AbstractTrial`, `MMOutput`), the `*Path` helpers other than `configPath` / `rulePath` / `icCellsPath` / `icECMPath`, `trialID`, `constituentIDs`, `simulationsFromIDs`, the `*TableFromQuery` functions, `dataDir`, `isInitialized`, `upgradePackage`, `databaseDiagnostics`, the exceptions and the deprecated aliases are Dev-tier.
+- `ManualCoverageTests.jl` checks presence on `man/` or `dev/` pages only. Rejected: enforcing that dev-classified names appear only inside tier blocks — it needs the classification list in the test, and user pages legitimately name dev symbols in passing.
+- User prose has no history ("older wrapper names", pre-0.9 layouts, the v0.3.3 column rename), no remarks that a monad's cell-type roster is preserved (a given in PCMM), no advice to people building other simulators on ModelManager, and American spelling. Journal entries stand on their own.
+- On a manual page a `public` but unexported name must be `[`x`](@ref ModelManager.x)`: a bare `@ref` resolves in `Main`, where only exported names exist. On Julia 1.11+ `names(m)` includes public names, so an "exported" list from `names()` overstates what a bare ref can reach.
+- CSV sinks are shown as `sink = CSV.write("file.csv")` (CSV.jl returns a closure from the one-argument call) with `using CSV` visible.
+- `progress.md` stays the working journal; only decisions that explain user-visible behavior become `tierjournal` blocks (24 at merge). Rejected: migrating `progress.md` wholesale.
+- One pull request, not three, so the reviewer reads the push-preview site once.
+- New user pages: running simulations, the trial hierarchy, managing a project. `developer_guide.md` becomes `CONTRIBUTING.md`; `AGENTS.md` carries commands, invariants and conventions; `CLAUDE.md` points to both. `docs/generate_figures.jl` creates its own project when given no path (`createProject` + `importProject` of the immune sample, as ImportTests.jl does) — wired and parse-checked, not run end to end (needs a PhysiCell clone, a compile and an hour of simulations).
+- Source fixes riding along: the `simulationRuntime` docstring was detached by a blank line and its doctest referenced an undefined variable (now a `julia` block); the intracellular example read `component.id` after assembly, which stays `-1` because `PhysiCellComponent` is immutable and the single-component form updates only a temporary — it now reads the ID from the vector-valued dictionary.
+
+**For ModelManager**
+- `posterior` returns `(df, weights)` rather than one frame with a weight column.
+- The corner plot draws empty axes in the upper triangle.
+
+**Open**
+- `checkdocs = :public` instead of `:exports`; deferred until the ModelManager public set is known to be fully documented.
+
+---
+
 ## 2026-09-15 — `_excludedReplicates` deleted in #237, restored in 0.5.1
 
 A user's ABC run on 0.5.0 printed `UndefVarError: _excludedReplicates` from

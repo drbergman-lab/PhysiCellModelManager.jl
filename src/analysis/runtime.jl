@@ -2,20 +2,19 @@ using Dates
 
 export simulationRuntime
 
-""" 
+"""
     simulationRuntime(snapshot::PhysiCellSnapshot)
     simulationRuntime(simulation::Simulation)
-    simulationRuntime(pcmm_output::PCMMOutput{Simulation})
+    simulationRuntime(output::MMOutput{Simulation})
     simulationRuntime(simulation_id::Integer)
 
 Get the runtime (in nanoseconds) to reach a given snapshot or the final snapshot of a simulation or PCMM output.
 
 # Examples
-```jldoctest
+```julia
+snapshot = PhysiCellSnapshot(1, :final)
 runtime = simulationRuntime(snapshot)
-typeof(runtime)
-# output
-Nanosecond
+typeof(runtime) # Nanosecond
 ```
 ```julia
 using Statistics
@@ -26,7 +25,6 @@ mean_runtime = Nanosecond(round(exact_mean_runtime)) # rounded to nearest nanose
 println(canonicalize(mean_runtime)) # e.g. 2 minutes, 53 seconds, 748 milliseconds, 31 microseconds
 ```
 """
-
 simulationRuntime(snapshot::PhysiCellSnapshot) = snapshot.runtime
 simulationRuntime(simulation::Simulation) = PhysiCellSnapshot(simulation, :final) |> simulationRuntime
 function simulationRuntime(simulation_id::Integer)

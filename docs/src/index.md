@@ -12,6 +12,21 @@ CurrentModule = PhysiCellModelManager
 
 New here? Start with [Installation](@ref installation_man), then [Your first project](@ref getting_started_man).
 
+## How much detail do you want?
+
+The **Detail** selector at the top of the sidebar sets how much each page explains. The choice is
+remembered across pages, and `?tier=code` (or any other level) on a URL opens the page that way.
+
+| Level | You see |
+| --- | --- |
+| **Code** | Headings and code blocks only |
+| **Brief** | Plus one or two lines before each block saying what it does |
+| **Full** | Plus the reasoning: why this call, what the arguments mean |
+| **Dev** | Plus what someone extending PhysiCellModelManager.jl needs, and the Developers pages |
+| **Journal** | Plus dated design notes, collected on the [Journal](@ref) page |
+
+The Getting Started pages are written for a first read and show the same text at every level.
+
 ## Where do I look?
 
 ### Getting set up
@@ -29,6 +44,13 @@ New here? Start with [Installation](@ref installation_man), then [Your first pro
 | Change parameter values across runs | [Varying parameters](@ref varying_parameters_man), [XML path helpers](@ref xml_path_helpers_man) |
 | Vary parameters together or under constraints | [CoVariations](@ref covariations_man), [LatentVariations](@ref latent_variations_man) |
 | Add an intracellular (ODE) model | [Intracellular inputs](@ref intracellular_inputs_man) |
+
+### Running
+
+| I want to… | Go to |
+| --- | --- |
+| Run a trial locally, in parallel, or on a SLURM cluster | [Running simulations](@ref running_simulations_man) |
+| Understand simulations, monads, samplings, and trials | [Trials, samplings, monads, simulations](@ref trials_man) |
 
 ### Getting results out
 
@@ -56,7 +78,9 @@ New here? Start with [Installation](@ref installation_man), then [Your first pro
 | Look up a function's signature | the [Index](@ref index_man) (all exported symbols) |
 | Understand where PCMM puts things on disk | [Data directory structure](@ref data_directory_man), [Project configuration](@ref project_configuration_man) |
 | Open a project in the PhysiCell GUI | [Using PhysiCell Studio](@ref physicell_studio_man) |
+| Delete runs, reset a project, or find a renamed function | [Managing a project](@ref managing_a_project_man) |
 | Upgrade an older project's database | [Database upgrades](@ref database_upgrades_misc) |
+| Extend PCMM, or find where a change goes | [Architecture](@ref architecture_dev), [Simulator interface](@ref simulator_interface_dev) (Dev tier) |
 | Troubleshoot something | [Known limitations](@ref known_limitations_man), [Best practices](@ref best_practices_man) |
 
 ## Issues

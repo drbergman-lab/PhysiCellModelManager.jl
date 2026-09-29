@@ -1,5 +1,7 @@
 # CLAUDE.md — PCMM (PhysiCell Model Manager)
 
+> Exact commands, invariants, and conventions live in [AGENTS.md](AGENTS.md); process and style in [CONTRIBUTING.md](CONTRIBUTING.md). This file holds what is specific to Claude Code sessions: the design workflow, the PRD, and the session journal.
+
 ## About the User
 Assistant professor working on computational modeling of cancer-immune interactions, mechanistic modeling, and agent-based modeling frameworks.
 

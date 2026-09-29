@@ -1,5 +1,8 @@
 using CSV, DataFrames
 
+#! CSV 1.0 replaced `silencewarnings=true` with `on_error=:collect`; 0.10 only knows the former.
+_quietCSVKwargs() = pkgversion(CSV) >= v"1" ? (; on_error=:collect) : (; silencewarnings=true)
+
 export runStudio
 
 """
@@ -91,7 +94,7 @@ function setUpStudioInputs(simulation_id::Int)
     save_folder_element = makeXMLPath(xml_doc, ["save", "folder"])
     set_content(save_folder_element, path_to_output)
     if isfile(joinpath(path_to_output, output_rules_file))
-        rules_df = CSV.read(joinpath(path_to_output, output_rules_file), DataFrame; header=rules_header, silencewarnings=true)
+        rules_df = CSV.read(joinpath(path_to_output, output_rules_file), DataFrame; header=rules_header, _quietCSVKwargs()...)
         if "base_response" in rules_header
             select!(rules_df, Not(:base_response))
         end

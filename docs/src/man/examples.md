@@ -6,7 +6,7 @@ defined `inputs::InputFolders`.
 
 ## Vary one parameter over a few values
 
-!!! tiergloss
+!!! tierbrief
     [`DiscreteVariation`](@ref) sweeps a finite set of values. →
     [Varying parameters](@ref varying_parameters_man)
 
@@ -17,7 +17,7 @@ run(inputs, dv)
 
 ## Sweep a grid of parameters
 
-!!! tiergloss
+!!! tierbrief
     Pass multiple variations; by default they combine on a grid (all combinations). →
     [Varying parameters](@ref varying_parameters_man)
 
@@ -29,7 +29,7 @@ sampling = createTrial(inputs, dv_g1, dv_s; n_replicates=4) # 2×3 monads, 4 rep
 
 ## Vary a parameter over a continuous range
 
-!!! tiergloss
+!!! tierbrief
     [`DistributedVariation`](@ref) takes a distribution from `Distributions.jl`. →
     [Varying parameters](@ref varying_parameters_man)
 
@@ -40,7 +40,7 @@ dv = DistributedVariation(configPath("cd8", "apoptosis", "rate"), Uniform(0, 0.0
 
 ## Co-vary linked parameters
 
-!!! tiergloss
+!!! tierbrief
     [`CoVariation`](@ref) is for parameters that must move together, such as a rule's base value and
     its max response. → [CoVariations](@ref covariations_man)
 
@@ -53,7 +53,7 @@ covariation = CoVariation(
 
 ## Impose a constraint between parameters
 
-!!! tiergloss
+!!! tierbrief
     [`LatentVariation`](@ref) derives target parameters from latent ones through a mapping, which is
     how a constraint like high > low is enforced. → [LatentVariations](@ref latent_variations_man)
 
@@ -67,7 +67,7 @@ lv = LatentVariation(
 
 ## Add an intracellular (ODE) model
 
-!!! tiergloss
+!!! tierbrief
     Reference an SBML file in `data/components/roadrunner` and assemble the intracellular XML. →
     [Intracellular inputs](@ref intracellular_inputs_man)
 
@@ -79,7 +79,7 @@ intracellular_folder = assembleIntracellular!(cell_type_to_component; name="toy_
 
 ## Batch pre-built trials into one run
 
-!!! tiergloss
+!!! tierbrief
     Trials built separately — across a loop over input folders or parameter sets — can be passed to
     `run` (or `createTrial`) as a vector, launching them in one batch. Elements can be any mix of
     `Simulation`, `Monad`, `Sampling`, or `Trial`. → [Your first project](@ref getting_started_man)
@@ -89,13 +89,13 @@ trials = [createTrial(inputs, dv1), createTrial(inputs, dv2)]
 run(trials)   # one parallel pool across every simulation in both trials
 ```
 
-!!! tierwhy
+!!! tierfull
     The parallel-sims limit (`PCMM_NUM_PARALLEL_SIMS`) applies across the whole batch, so one
     `run` over a vector keeps the pool full where a `run` per trial drains and refills it.
 
 ## Run a sensitivity analysis
 
-!!! tiergloss
+!!! tierbrief
     Pick a method — [`MOAT`](@ref), [`SobolMM`](@ref), or RBD — and pass continuous variations. →
     [Sensitivity analysis](@ref sensitivity_analysis_man)
 
@@ -106,7 +106,7 @@ sensitivity_sampling = run(method, inputs, evs; n_replicates=n_replicates, funct
 
 ## Calibrate to data
 
-!!! tiergloss
+!!! tierbrief
     Define a [`CalibrationProblem`](@ref) and run it with a method, as for a sensitivity analysis. →
     [Calibration](@ref calibration_section_man)
 
@@ -117,7 +117,7 @@ result  = run(ABCSMC(population_size = 200), problem)
 
 ## Record quantities of interest as simulations run
 
-!!! tiergloss
+!!! tierbrief
     A `post_processor` computes and stores per-simulation quantities while the output is still
     intact, instead of loading everything again afterward. →
     [Post-processing and quantities of interest](@ref post_processing_man)
@@ -129,7 +129,7 @@ postProcessingTable(sampling)                          # read the stored quantit
 
 ## Query the parameters of past runs
 
-!!! tiergloss
+!!! tierbrief
     [`simulationsTable`](@ref) gives a readable table; [`getAllParameterValues`](@ref) gives
     programmatic access. → [Querying parameters](@ref querying_parameters_man)
 
@@ -140,7 +140,7 @@ df = getAllParameterValues(sampling)     # every terminal XML value, columns = X
 
 ## Plot population over time
 
-!!! tiergloss
+!!! tierbrief
     Call `plot` directly on a `Simulation`, `Monad`, `Sampling`, or a `run` result for a population
     panel (mean ± SD per cell type). → [Analyzing output](@ref analyzing_output_man)
 
@@ -151,7 +151,7 @@ plot(Simulation(1); include_cell_type_names=["cd8", "cancer"])
 
 ## Make a movie from a simulation's snapshots
 
-!!! tiergloss
+!!! tierbrief
     `makeMovie` renders a simulation's SVG snapshots into `out.mp4` via the PhysiCell Makefile.
     Override `framerate`, `magick_density`, `magick_resize_x`, or `magick_resize_y` to change the
     frame rate or the JPEG resolution and density; omit any to keep the Makefile's default. →
@@ -163,7 +163,7 @@ makeMovie(1; framerate=10, magick_resize_x=512, magick_resize_y=512)
 
 ## Extract per-cell time series
 
-!!! tiergloss
+!!! tierbrief
     `cellDataSequence` pulls a labeled quantity for every cell across time. →
     [Analyzing output](@ref analyzing_output_man)
 

@@ -5,13 +5,13 @@ want, starting over, and moving an old project onto a new release.
 
 ## Open a project
 
-!!! tiergloss
+!!! tierbrief
     [`createProject`](@ref) builds a new project folder — `data/`, `PhysiCell/`, and `scripts/`.
     [`initializeModelManager`](@ref) attaches the current Julia session to an existing one, either
     from a project directory holding both `PhysiCell/` and `data/`, or from the two paths
     separately.
 
-!!! tierwhy
+!!! tierfull
     `using PhysiCellModelManager` tries `initializeModelManager()` on the working directory, so a
     script launched from the project root needs no explicit call. It is not an error when there is
     no project there — you get an informational message pointing at `createProject` and
@@ -44,14 +44,14 @@ initializeModelManager("path/to/PhysiCell", "path/to/data")
 
 ## Delete runs
 
-!!! tiergloss
+!!! tierbrief
     [`deleteSimulations`](@ref) (alias [`deleteSimulation`](@ref)) removes simulations from the
     database, from disk, and from the post-processing sink. [`deleteMonad`](@ref),
     [`deleteSampling`](@ref), and [`deleteTrial`](@ref) work one level at a time.
     [`deleteAllSimulations`](@ref) empties the lot, and [`deleteSimulationsByStatus`](@ref)
     filters by how each run ended.
 
-!!! tierwhy
+!!! tierfull
     Two keywords control the cascade in opposite directions. `delete_subs` decides whether the
     contents go too — deleting a monad without it leaves its simulations on disk, now belonging to
     nothing. `delete_supers` (true by default for [`deleteSimulations`](@ref)) decides whether a
@@ -79,13 +79,13 @@ deleteAllSimulations()
 
 ## Start over
 
-!!! tiergloss
+!!! tierbrief
     [`resetDatabase`](@ref) deletes every output folder, removes the post-processing sink
     (`data/outputs/postprocessing.db`), clears the variation files, drops the simulator's build
     artifacts, and rebuilds an empty database. The `data/inputs/` folders are untouched. It asks
     for confirmation before doing any of it.
 
-!!! tierwhy
+!!! tierfull
     On a shared filesystem some of what this removes may be staged in `data/.trash/` instead of
     deleted outright, and that space is not reclaimed until a later session manages to retry it.
     A reset on a cluster can therefore leave the quota unchanged for a while; that is expected,
@@ -98,7 +98,7 @@ resetDatabase(; force_reset = true)  # no prompt; for scripts that mean it
 
 ## Move an old project onto a new release
 
-!!! tiergloss
+!!! tierbrief
     When a release changes the database schema, opening an old project warns, links to
     [Database upgrades](@ref database_upgrades_misc), and waits for you to approve the migration.
     Pass `auto_upgrade = true` to approve it up front, which is what a batch job needs.

@@ -5,13 +5,13 @@ to a SLURM cluster instead.
 
 ## Run a trial
 
-!!! tiergloss
+!!! tierbrief
     [`createTrial`](@ref) builds the trial and records it in the database; [`run`](@ref) launches
     every simulation in it that has not already completed. `n_replicates` and `use_previous` are
     `createTrial` keyword arguments, not `run` ones — they decide how many replicates each
     parameter set gets and whether existing matching simulations count toward that number.
 
-!!! tierwhy
+!!! tierfull
     `use_previous = true` (the default) is why re-running a script is cheap: a parameter set that
     already has enough completed simulations contributes none, so nothing is recomputed. Set it to
     `false` when you want fresh replicates regardless of what is on disk.
@@ -39,7 +39,7 @@ run(inputs, dv; n_replicates = 3)   # create and run in one call
 
 ## Where the output lands
 
-!!! tiergloss
+!!! tierbrief
     Each simulation writes into `data/outputs/simulations/<simulation_id>/` — see
     [Data directory structure](@ref data_directory_man). [`pathToOutputFolder`](@ref) builds that
     path from a raw ID, a [`Simulation`](@ref), or the [`SimulationProcess`](@ref ModelManager.SimulationProcess) a
@@ -52,11 +52,11 @@ pathToOutputFolder(Simulation(5))
 
 ## Run several at once locally
 
-!!! tiergloss
+!!! tierbrief
     [`setNumberOfParallelSims`](@ref) caps how many simulations run concurrently on this machine.
     It starts from the `PCMM_NUM_PARALLEL_SIMS` environment variable, or 1 if that is unset.
 
-!!! tierwhy
+!!! tierfull
     Each PhysiCell simulation is itself multithreaded (`omp_num_threads` in its config), so the
     useful cap is roughly your core count divided by that thread count. Setting the environment
     variable instead keeps the number out of the script, which matters when the same script runs
@@ -69,7 +69,7 @@ run(sampling)
 
 ## Run on an HPC
 
-!!! tiergloss
+!!! tierbrief
     In HPC mode, `run` submits each simulation to SLURM with `sbatch` instead of starting it on this
     machine. HPC mode is detected: [`initializeModelManager`](@ref) calls
     [`isRunningOnHPC`](@ref), which probes for the `sbatch` command, and turns HPC mode on if it
@@ -87,7 +87,7 @@ run(sampling)
     given fewer CPUs than the config asks for time-slices its threads on one core, running several
     times slower with nothing in any log to say so.
 
-!!! tierwhy
+!!! tierfull
     `useHPC` pins the choice across later calls to `initializeModelManager` because each call
     probes for `sbatch` again; without the pin, a re-initialization would undo a deliberate
     `useHPC(false)` on a machine that happens to have SLURM installed. The keys PCMM renders
@@ -129,7 +129,7 @@ run(sampling)
     mixed-architecture cluster — x86 login node, non-x86 compute nodes — is unsupported: run Julia
     on a node of the same architecture as your compute partition.
 
-!!! tiergloss
+!!! tierbrief
     A submitted job reports its exit code by writing a sentinel file that the submitting worker
     polls for; [`setHPCCompletionOptions`](@ref) adjusts the timings of that protocol.
 
@@ -141,7 +141,7 @@ run(sampling)
     project as soon as it is loaded, so the shell that starts Julia is the safest place. A
     directory that cannot be created or written makes initialization throw an `ArgumentError`.
 
-!!! tierwhy
+!!! tierfull
     The timings are the fields of [`HPCCompletionOptions`](@ref ModelManager.HPCCompletionOptions):
     `submit_retry_period` (how long a transiently refused submission is retried), `poll_interval`
     (how often a worker checks for its own sentinel), `reap_interval` (how long one `squeue` answer

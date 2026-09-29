@@ -2,7 +2,7 @@
 
 Turn a simulation's SVG snapshots into `output/out.mp4`.
 
-!!! tiergloss
+!!! tierbrief
     [`makeMovie`](@ref) drives the PhysiCell Makefile to do the rendering, deleting the intermediate
     JPEGs afterward. It accepts a simulation ID, a trial object, a `run` result, or a vector or
     range of either, and makes one movie per simulation. ImageMagick and FFmpeg must be discoverable
@@ -17,7 +17,7 @@ makeMovie(4:7)              # a range/vector of simulation IDs
 makeMovie(Simulation.(4:7)) # a vector of trials
 ```
 
-!!! tiergloss
+!!! tierbrief
     The Makefile's own animation variables are exposed as keyword arguments. Omit any of them to
     keep that Makefile's default.
 
@@ -32,7 +32,7 @@ makeMovie(Simulation.(4:7)) # a vector of trials
 makeMovie(1; framerate=10, magick_density=48, magick_resize_x=512, magick_resize_y=512)
 ```
 
-!!! tierwhy
+!!! tierfull
     An omitted keyword is not passed to the Makefile at all, rather than being sent as a value
     PhysiCellModelManager.jl picked. A project that customized `FRAMERATE` or the `MAGICK_*`
     variables in its own Makefile therefore keeps those settings.

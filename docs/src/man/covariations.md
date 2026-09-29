@@ -1,13 +1,13 @@
 # [CoVariations](@id covariations_man)
 A [`CoVariation`](@ref) varies several parameters in lockstep instead of crossing them on a grid.
 
-!!! tiergloss
+!!! tierbrief
     A `CoVariation` wraps a vector of `ElementaryVariation`s that must all be the same type, giving
     two forms: `CoVariation{DiscreteVariation}` and `CoVariation{DistributedVariation}`. Build one
     from variations you already have, or from `(xml_path, values)` / `(xml_path, distribution)`
     tuples. The optional `name` keyword names the combination.
 
-!!! tierwhy
+!!! tierfull
     The motivating case is a pair PhysiCell requires to stay ordered — a rule's base value and its
     max response, where an increasing signal needs base ≤ max and a decreasing one base ≥ max. On a
     grid, half the combinations would violate that; co-varying the two keeps every point legal.
@@ -16,12 +16,12 @@ A [`CoVariation`](@ref) varies several parameters in lockstep instead of crossin
 
 ## [`CoVariation{DiscreteVariation}`](@id co_variation_discrete_variation_section)
 
-!!! tiergloss
+!!! tierbrief
     Every member `DiscreteVariation` must supply the same number of values; the constructor rejects
     mismatched lengths outright, whichever design method you use later. Values sharing an index are
     used together.
 
-!!! tierwhy
+!!! tierfull
     How you line the values up is otherwise unrestricted, which is what makes the second example
     below work: the two cycle phase durations compensate for each other, so every point keeps the
     mean time through both phases at 500 min. A grid over the same two vectors would have produced
@@ -45,12 +45,12 @@ covariation = CoVariation((phase_0_xml_path, [300.0, 400.0]),
 
 ## [`CoVariation{DistributedVariation}`](@id co_variation_distributed_variation_section)
 
-!!! tiergloss
+!!! tierbrief
     Members given as distributions share one CDF value $x \in [0, 1]$, which each distribution
     converts independently. Pass `flip=true` to a [`DistributedVariation`](@ref) to have it return
     the value at CDF $1 - x$ instead, so that parameter moves opposite to the others.
 
-!!! tierwhy
+!!! tierfull
     Sharing the CDF restricts sampling, in the joint probability space, to the line connecting
     $\mathbf{0}$ to $\mathbf{1}$ — which is the point: one sample index moves every member together.
     `flip` is the only way to co-vary parameters inversely, and it is a field of the member

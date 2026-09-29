@@ -2,7 +2,7 @@
 
 What each folder under a project's `data/` holds, so you can add or edit inputs by hand.
 
-!!! tiergloss
+!!! tierbrief
     [`createProject`](@ref) builds this structure for you under `project-dir`. Each terminal
     subdirectory under `data/inputs/` holds input folders whose names you choose; the examples below
     use `"baseline"`, but any name works, and that name is what you pass to
@@ -26,13 +26,13 @@ project-dir/
 
 ## Configs
 
-!!! tiergloss
+!!! tierbrief
     Place your base configuration file at
     `data/inputs/configs/baseline/PhysiCell_settings.xml`.
 
 ## Custom codes
 
-!!! tiergloss
+!!! tierbrief
     Place `main.cpp`, `Makefile`, and `custom_modules/` in `data/inputs/custom_codes/baseline/`,
     exactly as they are used in a PhysiCell project.
 
@@ -44,13 +44,13 @@ project-dir/
 
 ## Rulesets collections
 
-!!! tiergloss
+!!! tierbrief
     Place your base ruleset collection at
     `data/inputs/rulesets_collections/baseline/base_rulesets.csv`, or skip this if your project has
     no rules. You may instead place an XML file here, created from a CSV with
     [PhysiCellXMLRules.jl](https://github.com/drbergman-lab/PhysiCellXMLRules.jl).
 
-!!! tierwhy
+!!! tierfull
     **Variations must target the XML version.** After
     [`initializeModelManager`](@ref PhysiCellModelManager.initializeModelManager), any folder
     holding a `base_rulesets.csv` is populated with a `base_rulesets.xml`, and that is the file
@@ -58,7 +58,7 @@ project-dir/
 
 ## Intracellulars
 
-!!! tiergloss
+!!! tierbrief
     Place a single `intracellular.xml` at `data/inputs/intracellulars/baseline/`, with root children
     `cell_definitions` and `intracellulars`. Only libRoadRunner (ODEs) is currently supported; see
     `sample_projects_intracellular/combined/template-combined` for an example, and
@@ -66,7 +66,7 @@ project-dir/
 
 ## ICs
 
-!!! tiergloss
+!!! tierbrief
     These folders are optional. Add a subfolder per initial condition, and rename the file inside it
     to the name the location expects — below, two initial cell-position conditions both become
     `cells.csv`. Proceed the same way for `dcs/`, `ecms/`, and `substrates/`, renaming the files to
@@ -82,14 +82,14 @@ cells/
 
 ### IC cells
 
-!!! tiergloss
+!!! tierbrief
     To generate `cells.csv` from geometries instead, place a `cells.xml` (see
     [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl)) in place of
     the `cells.csv`. You can vary it just as you vary a config or a rulesets collection.
 
 ### IC ecm
 
-!!! tiergloss
+!!! tierbrief
     To generate `ecm.csv` from a defined structure instead, place an `ecm.xml` (see
     [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl)) in place of
     the `ecm.csv`. You can vary it just as you vary a config or a rulesets collection.

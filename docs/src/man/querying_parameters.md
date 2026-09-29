@@ -9,7 +9,7 @@ Read back the parameters that past simulations actually ran with.
 
 ## [`simulationsTable`](@id simulations_table_section)
 
-!!! tiergloss
+!!! tierbrief
     [`simulationsTable`](@ref) returns a table of simulation data. By default it shows only varied
     values, renames columns to be human-readable, and sorts by every parameter column; keywords
     change each of these and can append tag and post-processing columns.
@@ -33,7 +33,7 @@ printSimulationsTable(sampling; sink = CSV.write("runs.csv"))
 
 ### [Monad-level: `monadsTable`](@id monads_table_section)
 
-!!! tiergloss
+!!! tierbrief
     [`monadsTable`](@ref) is the monad-level analogue of [`simulationsTable`](@ref): one row per
     monad (a group of replicate simulations sharing the same parameters) rather than one row per
     simulation. It takes any `AbstractTrial` (e.g. a `Sampling`), a vector of monad IDs, or nothing
@@ -47,7 +47,7 @@ monadsTable([1, 2, 3]; remove_constants=false)  # by monad ID, keeping constant 
 
 ## [Accessing any parameter value](@id get_all_parameter_values_section)
 
-!!! tiergloss
+!!! tierbrief
     [`getAllParameterValues`](@ref) returns every terminal element in the XML input files for a set
     of simulations, which must all belong to the same `Sampling` (i.e. use the same input files).
     Column names are the XML paths. `getParameterValue(monad_or_simulation, xml_path)` reads one
@@ -55,7 +55,7 @@ monadsTable([1, 2, 3]; remove_constants=false)  # by monad ID, keeping constant 
     `:rulesets_collection`, …) is inferred from the path; on a `Monad` or `Simulation` you may also
     pass it explicitly as a middle argument.
 
-!!! tierwhy
+!!! tierfull
     Because the column names of [`getAllParameterValues`](@ref) *are* the paths, splitting one on
     `/` gives a vector ready to hand to [`DiscreteVariation`](@ref) — it turns "what could I vary
     here?" into a table you can filter, rather than a document you have to read. Everything
@@ -86,14 +86,14 @@ getParameterValue(monad, :config, configPath("max_time"))  # with the location g
 
 ### [Telling identical siblings apart: PCMM's `temp_id` attribute](@id temp_id_columns)
 
-!!! tiergloss
+!!! tierbrief
     When several sibling elements share a tag, a column name includes one of their attributes to
     say which sibling it means, as `<tag>:<attribute>:<value>`. When no attribute tells them apart,
     PCMM inserts a positional `temp_id` attribute, `<tag>:temp_id:<index>`, in the *column name
     only* — not in your XML — so the columns stay unique. Find those columns by searching for
     `":temp_id:"`.
 
-!!! tierwhy
+!!! tierfull
     [`getAllParameterValues`](@ref) looks for an attribute whose value differs across the siblings,
     preferring `name`, `ID`, and `id`, and falls back to `temp_id` only when none does. Because
     `temp_id` exists in the column name and nowhere in the input file, such a column is readable

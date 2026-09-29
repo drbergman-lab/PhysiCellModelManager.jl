@@ -5,13 +5,13 @@ summary.
 
 ## [Do NOT manually edit files inside `inputs`](@id no_manual_input_edits)
 
-!!! tiergloss
+!!! tierbrief
     To change a parameter value, use a variation — see [Varying parameters](@ref
     varying_parameters_man) and `scripts/GenerateData.jl`. To change the *structure* of an input
     file, such as adding a rule or editing custom code, create a new subdirectory within the
     relevant `inputs` subdirectory rather than editing the one in use.
 
-!!! tierwhy
+!!! tierfull
     PhysiCellModelManager.jl owns the databases that map input folders and variation IDs to the
     simulations that ran with them. An edit in place makes every past simulation's recorded
     parameterization a lie, with nothing to detect it. If you expect to do a lot of structural
@@ -23,7 +23,7 @@ summary.
 
 ### [Use `createProject` to create a new PCMM project](@id use_create_project)
 
-!!! tiergloss
+!!! tierbrief
     [`createProject`](@ref) creates a new PCMM project directory with the structure and files PCMM
     expects — a distinct thing from a PhysiCell sample project or user project. Pass
     `template_as_default=false` to skip copying the template PhysiCell project.
@@ -34,24 +34,24 @@ createProject("MyNewProject"; template_as_default=false)
 
 ### Be slow to delete simulations and scripts
 
-!!! tiergloss
+!!! tierbrief
     Delete simulations with [`deleteSimulations`](@ref) rather than by hand, so the database stays
     consistent — for instance after an error has left a stale record.
 
-!!! tierwhy
+!!! tierfull
     PhysiCellModelManager.jl tracks simulations in a database and skips re-running ones that already
     exist, so adding simulations to a script and re-running it — including on an HPC — runs only the
     new ones. A script is therefore also a record you can use to reproduce results later.
 
 ### On a cluster, set the job's resources and keep the driver alive
 
-!!! tiergloss
+!!! tierbrief
     Set `time` and `mem` with [`setJobOptions`](@ref) before the first `run`. The CPU count is not
     yours to set: ModelManager asks SLURM for as many CPUs per job as the simulation's
     `omp_num_threads` (PCMM reports it through `simulationThreads`), so it already matches the
     config file. Run long campaigns from `tmux`, `nohup`, or a batch job that outlives them.
 
-!!! tierwhy
+!!! tierfull
     A job the scheduler kills for exceeding an unset default is only noticed minutes later. And the
     Julia session that called `run` is what records each job's outcome, so if it dies the runs
     finish with nothing written down. The
@@ -60,19 +60,19 @@ createProject("MyNewProject"; template_as_default=false)
 
 ### Use a dedicated Julia environment
 
-!!! tiergloss
+!!! tierbrief
     Keep each project's dependencies in its own environment and commit `Project.toml` and
     `Manifest.toml`. See [Julia environments](@ref julia_environments_man).
 
 ### [Use version control on `inputs` and `scripts` directories](@id version_control_inputs)
 
-!!! tiergloss
+!!! tierbrief
     Those two directories plus the PhysiCell version are enough to reproduce a project.
     [`createProject`](@ref) adds a `.gitignore` in the data directory so the right files are tracked.
 
 ### Update PhysiCell between campaigns, not during one
 
-!!! tiergloss
+!!! tierbrief
     PhysiCell lives at `PhysiCell/` inside the project, so updating it is a git operation. If you
     added PhysiCell as a submodule, run `git submodule update --remote PhysiCell` from the project
     root instead.
@@ -82,7 +82,7 @@ git -C PhysiCell fetch --tags
 git -C PhysiCell checkout <tag-or-commit>
 ```
 
-!!! tierwhy
+!!! tierfull
     PhysiCellModelManager.jl re-reads the PhysiCell version before every compilation, so you do not
     need to restart Julia: the next `run` recompiles, and since the executable is named for the new
     version, switching back to a version you have already built does not rebuild. That check happens
@@ -91,10 +91,10 @@ git -C PhysiCell checkout <tag-or-commit>
 
 ### Keep the PhysiCell working tree clean
 
-!!! tiergloss
+!!! tierbrief
     Commit changes under `PhysiCell/` (or stash them) before running.
 
-!!! tierwhy
+!!! tierfull
     Uncommitted changes cannot be pinned to a commit, so the version is recorded with a `-dirty`
     suffix and the custom code is recompiled on every run. A real commit hash is reproducible, and
     its build is cached like every other version.

@@ -29,8 +29,8 @@ are in [AGENTS.md](AGENTS.md).
 - Prose that only a developer needs goes in a `!!! tierdev` block next to the code it concerns;
   a dated decision goes in a `!!! tierjournal "YYYY-MM-DD — Title"` block. `docs/journal.jl`
   collects the latter into `docs/src/dev/journal.md` at build time; commit the regenerated file.
-- Within a section the order is `tiergloss`, `tierwhy`, the code block, `tierdev`, `tierjournal`:
-  what it does, why, the call, then commentary. (The `julia-tiered-docs` skill puts `tierwhy`
+- Within a section the order is `tierbrief`, `tierfull`, the code block, `tierdev`, `tierjournal`:
+  what it does, why, the call, then commentary. (The `julia-tiered-docs` skill puts `tierfull`
   first; this repo does not.)
 - From "Building & Varying Models" onward, the Code tier of every page is its lead sentence,
   headings, code blocks, tables and figures only. Any other paragraph belongs in a tier block.

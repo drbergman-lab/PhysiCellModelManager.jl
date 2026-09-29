@@ -3,14 +3,14 @@ PhysiCellModelManager.jl stores all varied inputs in XML files and uses a standa
 
 ## XML paths
 
-!!! tiergloss
+!!! tierbrief
     An XML path is a vector of strings, one per tag. Two suffixed forms pick one of several
     identically tagged children: `"<tag>:<attribute>:<value>"` selects by attribute, and
     `"<tag>::<child_tag>:<value>"` selects by the content of a child element.
     [XML path helpers](@ref xml_path_helpers_man) builds these paths for you for every varied input
     type, so you rarely write one out by hand.
 
-!!! tierwhy
+!!! tierfull
     The `::` form exists because some PhysiCell elements are told apart not by an attribute but by
     the text of a child. `initial_parameter_distributions` is the case that forces it: every
     `<distribution>` sibling looks alike until you read its `<behavior>` child, so the last line
@@ -26,11 +26,11 @@ PhysiCellModelManager.jl stores all varied inputs in XML files and uses a standa
 
 ## Discrete variations
 
-!!! tiergloss
+!!! tierbrief
     [`DiscreteVariation`](@ref) pairs an XML path with a finite set of values. The optional `name`
     keyword sets the string the variation reports under; [`variationName`](@ref) reads it back.
 
-!!! tierwhy
+!!! tierfull
     Without a `name`, a variation reports under a default built from its target,
     `shortVariationName(location, columnName(target))`.
     [`shortVariationName`](@ref PhysiCellModelManager.shortVariationName) returns the display name
@@ -70,7 +70,7 @@ variationName(dv)
     **Rejected:** letting a name change how a variation is stored. The keys in the variations
     database stay XML-path-based; a name is metadata that reaches reports and nothing else.
 
-!!! tiergloss
+!!! tierbrief
     Pass variations to [`createTrial`](@ref) or [`run`](@ref) to create (or run) simulations with
     those parameters, recorded in the database. Several variations are combined on a grid by
     default: every combination of their values.
@@ -87,13 +87,13 @@ sampling = createTrial(inputs, dv_g1, dv_s; n_replicates=4) #! 2x3=6 monads, 4 r
 
 ## Distributed variations
 
-!!! tiergloss
+!!! tierbrief
     [`DistributedVariation`](@ref) varies a parameter over a continuous range given by a
     `Distributions.jl` distribution. [`UniformDistributedVariation`](@ref) and
     [`NormalDistributedVariation`](@ref) are shorthands for the two common cases, and take the same
     optional `name` keyword as [`DiscreteVariation`](@ref).
 
-!!! tierwhy
+!!! tierfull
     A distributed variation names a range, not a list of points; which points get run is decided
     later by the design method, below. That is what makes it the input
     [Sensitivity analysis](@ref sensitivity_analysis_man) expects — a Sobol' or RBD scheme needs a
@@ -112,7 +112,7 @@ dv_n = NormalDistributedVariation(configPath("cd8", "necrosis", "death_rate"), 1
 
 ## Sampling the variation space
 
-!!! tiergloss
+!!! tierbrief
     A *design method* decides which points of the space the variations define actually get run. Pass
     one as the first argument to [`createTrial`](@ref) or [`run`](@ref); omit it for the full
     factorial grid. [`GridVariation`](@ref) runs every combination of the discrete values. The other
@@ -120,7 +120,7 @@ dv_n = NormalDistributedVariation(configPath("cd8", "necrosis", "death_rate"), 1
     [`LHSVariation`](@ref) by Latin hypercube, [`SobolVariation`](@ref) along a Sobol' quasi-random
     sequence, [`RBDVariation`](@ref) in the layout a random balance design needs.
 
-!!! tierwhy
+!!! tierfull
     **[`GridVariation`](@ref)`()`** enumerates all combinations of the discrete values, so its cost
     multiplies with each variation added; it takes no arguments.
 

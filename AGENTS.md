@@ -66,7 +66,7 @@ julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; 
   only exported names exist, and fails the build.
 - Every public name appears on a page under `docs/src/man/` or `docs/src/dev/`;
   `test/test-scripts/ManualCoverageTests.jl` enforces it.
-- Never put a code block inside a `!!! tiergloss` / `tierwhy` / `tierdev` / `tierjournal` block.
+- Never put a code block inside a `!!! tierbrief` / `tierfull` / `tierdev` / `tierjournal` block.
 - Test artifacts are cleaned at the **start** of `test/runtests.jl`, not the end. A test that
   writes a new path adds it to `test/.gitignore` and to that cleanup list.
 - Do not edit `Manifest.toml` or add dependencies without approval. Heavy optional dependencies go

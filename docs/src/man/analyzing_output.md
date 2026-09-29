@@ -5,7 +5,7 @@ plot them.
 
 ## Install dependencies
 
-!!! tiergloss
+!!! tierbrief
     The examples use `Plots.jl`.
 
 ```julia-repl
@@ -16,7 +16,7 @@ pkg> add Plots
 
 ### [`PhysiCellSnapshot`](@id physi_cell_snapshot_section)
 
-!!! tiergloss
+!!! tierbrief
     The base unit of PhysiCell output is the [`PhysiCellSnapshot`](@ref). Each records the
     output-folder path, its index in the output sequence, the simulation time, and optionally the
     cell, substrate, and mesh data at that snapshot. Index it by integer, or by `:initial` /
@@ -35,7 +35,7 @@ snapshot = PhysiCellSnapshot(Simulation(1), 3)              #! the 4th save, no 
 
 ### [`PhysiCellSequence`](@id physi_cell_sequence_section)
 
-!!! tiergloss
+!!! tierbrief
     A [`PhysiCellSequence`](@ref) is the full sequence of snapshots for a single simulation, plus
     the output-folder path and simulation metadata.
 
@@ -45,7 +45,7 @@ sequence = PhysiCellSequence(1; include_cells=true) #! every snapshot of simulat
 
 ### Loading data into a snapshot or sequence
 
-!!! tiergloss
+!!! tierbrief
     A snapshot or sequence built without the `include_*` keywords carries no data. `loadCells!`,
     `loadSubstrates!`, `loadMesh!` and `loadGraph!` fill one in place, each storing its result in
     the matching field. `loadCells!` and `loadSubstrates!` read the cell-type names, the cell data
@@ -78,13 +78,13 @@ loadCells!(sequence)                 #! all four also take a whole sequence
 
 ### [`cellDataSequence`](@id cell_data_sequence_section)
 
-!!! tiergloss
+!!! tierbrief
     [`cellDataSequence`](@ref) follows individual cells through time. It accepts a simulation ID
     (`<:Integer`), a `::Simulation`, or a `::PhysiCellSequence`, together with one label
     (`::String`) or several (`::Vector{String}`), and returns a dictionary keyed by integer cell ID
     whose values are named tuples with the requested labels plus `:time`.
 
-!!! tierwhy
+!!! tierfull
     Each call to [`cellDataSequence`](@ref) loads *all* the data unless a `PhysiCellSequence` is
     passed in. Loading simulation data is not fast, so build the sequence once and reuse it if you
     are going to ask several questions of the same simulation.
@@ -102,7 +102,7 @@ plot(cell_78_times, cell_78_positions[:,1]) #! the x-coordinate of cell 78 over 
 
 ## Population counts and time series
 
-!!! tiergloss
+!!! tierbrief
     [`populationCount`](@ref) counts the cells in one snapshot and returns a `Dict` from cell type
     name to count; dead cells are excluded unless `include_dead=true`.
     [`finalPopulationCount`](@ref) is the shorthand for a whole simulation's last snapshot — on a
@@ -115,7 +115,7 @@ plot(cell_78_times, cell_78_positions[:,1]) #! the x-coordinate of cell 78 over 
     `"time"`. A simulation's series stores a plain `Vector` of counts per cell type; a monad's
     stores a named tuple of `counts`, `mean` and `std` over its replicates.
 
-!!! tierwhy
+!!! tierfull
     A `SimulationPopulationTimeSeries` built from a `Simulation` or a simulation ID writes itself to
     `simulations/<id>/summary/` and is read back from there on the next call, so re-running an
     analysis does not re-walk every snapshot. `include_dead=true` is cached to its own file rather
@@ -143,7 +143,7 @@ mpts["cancer"].mean                                  #! across replicates; also 
 
 ## Simulation runtime
 
-!!! tiergloss
+!!! tierbrief
     `simulationRuntime` returns how long PhysiCell took to reach a snapshot, as a
     `Dates.Nanosecond`. Given a `Simulation`, a simulation ID, or a `run` result it reports the
     final snapshot — i.e. the whole simulation.
@@ -161,7 +161,7 @@ Nanosecond(round(mean([r.value for r in runtimes]))) #! mean runtime over four s
 
 ### Group by Monad
 
-!!! tiergloss
+!!! tierbrief
     Call `plot` on a `Simulation`, `Monad`, `Sampling`, or a `run` result to get a figure of
     panels. Each panel is one `Monad` — replicates with the same parameters — and plots mean ± SD
     per cell type. A panel's title defaults to the parameter values that distinguish its monad from
@@ -171,7 +171,7 @@ Nanosecond(round(mean([r.value for r in runtimes]))) #! mean runtime over four s
     [Sensitivity analysis](@ref sensitivity_analysis_man) and
     [Calibration](@ref calibration_section_man).
 
-!!! tierwhy
+!!! tierfull
     That default title is the monad's row in [`simulationsTable`](@ref) with the ID columns removed.
     The table drops whatever is constant across the sampling, so what is printed is exactly what
     varied — a two-way sweep gives titles like `(1440.0, 0.002)`, and an input folder that differs
@@ -187,13 +187,13 @@ plot(sampling; time_unit=:h)                         #! x-axis in hours
 plot(sampling; title = ["low dose" "high dose"])     #! one title per panel, in panel order
 ```
 
-!!! tiergloss
+!!! tierbrief
     One panel per `Monad`, titled with what varied; each cell type is a series and the shaded band
     its standard deviation across replicates.
 
 ![Population counts, one panel per monad](../assets/plot_by_monad.png)
 
-!!! tiergloss
+!!! tierbrief
     `include_cell_type_names` and `exclude_cell_type_names` also accept a `Vector{String}`. If an
     entry of `include_cell_type_names` is itself a `Vector{String}`, those cell types are summed
     into one series — the way to add a total alongside its components.
@@ -204,7 +204,7 @@ using Plots
 plot(Monad(1); include_cell_type_names=["epi", "mes", ["epi", "mes"]])
 ```
 
-!!! tiergloss
+!!! tierbrief
     These are Julia plot recipes (see [RecipesBase.jl](https://docs.juliaplots.org/stable/RecipesBase/)),
     so any standard plotting keyword can be passed through.
 
@@ -216,7 +216,7 @@ plot(Simulation(1); color=colors, include_cell_type_names=["cd8", "cancer"]) #! 
 
 ### Group by cell type
 
-!!! tiergloss
+!!! tierbrief
     [`plotbycelltype`](@ref) inverts the grouping: one panel per cell type, with every monad as a
     series inside it. It works on a `Simulation`, `Monad` or `Sampling`, and on the `MMOutput` that
     `run` returns; a `Trial` is refused, with an error naming what to pass instead. It takes
@@ -228,13 +228,13 @@ using Plots
 plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"]], color=[:blue :red :purple], labels=["epi" "mes" "both"], legend=true)
 ```
 
-!!! tiergloss
+!!! tierbrief
     The same simulations as the figure above, regrouped — one panel per cell type, each series a
     `Monad`.
 
 ![Population counts, one panel per cell type](../assets/plot_by_cell_type.png)
 
-!!! tiergloss
+!!! tierbrief
     A single `Simulation` has no replicates to summarize, so it plots one line per cell type with no
     band.
 
@@ -261,13 +261,13 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 
 ## Substrate analysis
 
-!!! tiergloss
+!!! tierbrief
     Two types summarize substrate concentrations over time: one averaged over the whole domain, one
     averaged over the space neighboring each cell type.
 
 ### [`AverageSubstrateTimeSeries`](@id average_substrate_time_series_section)
 
-!!! tiergloss
+!!! tierbrief
     An `AverageSubstrateTimeSeries` gives the time series for the average substrate across the
     entire domain. Index it by substrate name.
 
@@ -280,7 +280,7 @@ plot(asts.time, asts["oxygen"])
 
 ### [`ExtracellularSubstrateTimeSeries`](@id extracellular_substrate_time_series_section)
 
-!!! tiergloss
+!!! tierbrief
     An `ExtracellularSubstrateTimeSeries` gives the time series for the average substrate
     concentration in the extracellular space neighboring all cells of a given cell type. Index it by
     cell type, then by substrate — below, the average IFNg concentration experienced by CD8+ T cells.
@@ -294,12 +294,12 @@ plot(ests.time, ests["cd8"]["IFNg"])
 
 ## Motility analysis
 
-!!! tiergloss
+!!! tierbrief
     [`motilityStatistics`](@ref) returns the time alive, distance traveled, and mean speed for each
     cell in the simulation, split among the cell types that cell assumed over the run (or at least
     at the save times). Pass `direction` to consider only one coordinate axis.
 
-!!! tierwhy
+!!! tierfull
     The cell type at the *start* of each save interval is the one credited with that interval, and
     speed comes from net displacement over the interval rather than path length — so a cell that
     doubles back inside one save interval reads as slower than it was.
@@ -319,7 +319,7 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
 
 ## [Pair correlation function](@id pcf_section)
 
-!!! tiergloss
+!!! tierbrief
     `pcf` accepts a `PhysiCellSnapshot`, a `PhysiCellSequence`, or a `Simulation`. An `Integer`
     first argument is treated as a simulation ID; follow it with an index (an `Integer`, or
     `:initial` / `:final`) to compute at one snapshot rather than over the whole simulation. Next
@@ -330,7 +330,7 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
     the radial bins in micrometers. Call it as `PhysiCellModelManager.pcf`, or as plain `pcf` once
     `using PairCorrelationFunction` has been called.
 
-!!! tierwhy
+!!! tierfull
     Sometimes referred to as radial distribution functions, the pair correlation function (PCF)
     computes the density of target cells around center cells. If the two sets of cells are the same
     (centers = targets), this is called PCF; if they differ, this is sometimes called cross-PCF.
@@ -338,7 +338,7 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
 
 ### Output
 
-!!! tiergloss
+!!! tierbrief
     `pcf` returns a `PCMMPCFResult`, which has exactly two fields:
 
 | Field        | Holds                                                                                                                                                              |
@@ -348,7 +348,7 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
 
 ### Plotting
 
-!!! tiergloss
+!!! tierbrief
     Pass a `PCMMPCFResult` straight to `plot` to reach PairCorrelationFunction.jl's plotting
     interface. Pass several, or a `Vector{PCMMPCFResult}`, and they are treated as stochastic
     realizations of the same PCF and summarized. See the
@@ -359,7 +359,7 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
     `:h`, `:d`, `:w`, `:mo`, `:y`; only relevant when the result has more than one time point) and
     `distance_unit::Symbol = :um` (also `:mm`, `:cm`).
 
-!!! tierwhy
+!!! tierfull
     PairCorrelationFunction.jl's own `colorscheme` keyword also works. PhysiCellModelManager.jl
     overrides that package's default of `:tofino` with `:cork`, so that white represents values near
     one — the value at which the targets are neither clustered near nor excluded from the centers.
@@ -389,7 +389,7 @@ plot(results)
 
 ## [Graph analysis](@id graph_analysis_section)
 
-!!! tiergloss
+!!! tierbrief
     Every PhysiCell simulation produces three directed graphs at each save time point. The vertices
     are the cell agents; the edges are `:neighbors` (the cells overlap, based on their positions and
     adhesion radii), `:attachments` (manually-defined attachments between cells), and
@@ -405,7 +405,7 @@ plot(results)
 
 ### Examples
 
-!!! tiergloss
+!!! tierbrief
     All the examples that follow assume a [`PhysiCellSnapshot`](@ref) called `snapshot`.
 
 ```julia
@@ -417,12 +417,12 @@ snapshot = PhysiCellSnapshot(simulation_id, index)
 connected_components = connectedComponents(snapshot)
 ```
 
-!!! tiergloss
+!!! tierbrief
     The result is a `Dict` whose only key is a single vector of all the cell type names, and whose
     value is a vector of vectors: each inner vector holds the cell IDs of one connected component,
     wrapped in the `AgentID` type.
 
-!!! tiergloss
+!!! tierbrief
     To compute components within subsets of cells, pass `include_cell_type_names` a vector whose
     entries are the subsets, each a vector of cell type names. Each subset is computed on its own:
     only edges between two of its cells count, and the result has one key per subset — the subset
@@ -438,7 +438,7 @@ connected_components[subset_1] #! components among the cd8 cells; keyed by the v
 connected_components[subset_2] #! components among the cancer cells
 ```
 
-!!! tierwhy
+!!! tierfull
     Including dead cells is possible but not recommended: dead cells automatically clear their
     neighbors and both kinds of attachments, so they arrive as isolated vertices and inflate the
     component count.
@@ -447,7 +447,7 @@ connected_components[subset_2] #! components among the cancer cells
 connected_components = connectedComponents(snapshot; include_dead=true)
 ```
 
-!!! tiergloss
+!!! tierbrief
     To combine one connected component with the cell data, join on the agent IDs.
 
 ```julia

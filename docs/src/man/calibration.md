@@ -3,7 +3,7 @@
 Fit a PhysiCell model's parameters to observed data with ABC-SMC, then inspect, sample, and re-run
 the posterior.
 
-!!! tierwhy
+!!! tierfull
     **Why ABC-SMC.** Approximate Bayesian Computation — Sequential Monte Carlo is a likelihood-free
     inference method. It refines a population of parameter samples (particles) over successive
     generations, keeping only those whose simulated output falls within a shrinking tolerance
@@ -25,7 +25,7 @@ the posterior.
 
 ## Quick start
 
-!!! tiergloss
+!!! tierbrief
     Fix everything you are not calibrating in a reference monad, list the parameters you are with
     their priors, state the observed data, and hand the pieces to [`CalibrationProblem`](@ref).
     `run` takes a method and the problem, and returns the result that [`posterior`](@ref) reads.
@@ -81,7 +81,7 @@ df3, w3     = posterior(result; generation = 3)   # specific earlier generation
 
 ## Defining the calibration problem
 
-!!! tierwhy
+!!! tierfull
     [`CalibrationProblem`](@ref) bundles everything the calibration loop needs: which model to run,
     which parameters vary and under what priors, what was observed, how one simulation is measured,
     and how that measurement is scored against the observation. Only the first of those has more
@@ -90,7 +90,7 @@ df3, w3     = posterior(result; generation = 3)   # specific earlier generation
 
 ### Simple form — `InputFolders` as first argument
 
-!!! tiergloss
+!!! tierbrief
     Every non-calibrated parameter keeps its XML-file default.
 
 ```julia
@@ -106,11 +106,11 @@ problem = CalibrationProblem(
 
 ### Reference monad form — fixing non-calibrated parameters
 
-!!! tiergloss
+!!! tierbrief
     `n_replicates = 0` creates the monad entry without running any simulations; it only reserves
     the variation ID.
 
-!!! tierwhy
+!!! tierfull
     A `Monad` as the first argument supplies the `inputs` **and** locks every non-calibrated
     parameter to that monad's variation, exactly as it would with `run` or `createTrial`. The
     reference has to fix each such parameter to a single value, so build it from single-valued
@@ -134,12 +134,12 @@ problem = CalibrationProblem(
 
 ### [`StudySpec` form — one model-and-parameters half, two questions](@id studyspec_problem_form)
 
-!!! tiergloss
+!!! tierbrief
     `CalibrationProblem(spec, observed_data, summary_statistic, distance; kwargs...)` takes the
     spec's inputs, parameters, reference variation and replicate count; `n_replicates` and
     `reference_variation_id` may still be overridden.
 
-!!! tierwhy
+!!! tierfull
     A [`StudySpec`](@ref) holds the half of a study that a sensitivity sweep and a calibration have
     in common: the input folders, the parameters, the baseline to vary from, and the replicate
     count. Build it once when you intend to ask both questions of the same model over the same
@@ -156,11 +156,11 @@ result  = run(ABCSMC(population_size = 200), problem)
 
 ### Parameters
 
-!!! tiergloss
+!!! tierbrief
     All three forms take `name =` (the posterior's column name); `LatentVariation` also takes
     `target_names` and `inverse_maps`.
 
-!!! tierwhy
+!!! tierfull
     Any `DistributedVariation`, `CoVariation{DistributedVariation}`, or `LatentVariation` can be a
     calibration parameter, and priors come from `Distributions.jl`. A `CoVariation` draws all its
     members from one CDF value; a `LatentVariation` sends its latent parameters — one or several —
@@ -198,11 +198,11 @@ lv = LatentVariation(
 
 ### Summary statistics
 
-!!! tiergloss
+!!! tierbrief
     Pass a [`QoI`](@ref ModelManager.QoI), a vector of them, or a plain function of a `Simulation`.
     The ready-made ones are in [Built-in summary statistics](@ref builtin_ss).
 
-!!! tierwhy
+!!! tierfull
     A summary statistic measures **one simulation**; ModelManager combines a parameter set's
     replicates for you. A plain function is averaged across replicates with `mean`; pass a
     [`QoI`](@ref ModelManager.QoI) when you need a different reduction, or when the quantity must
@@ -219,13 +219,13 @@ problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
 
 ### Distance functions
 
-!!! tiergloss
+!!! tierbrief
     A distance is any `(simulated, observed) → Float64`.
     [`mseDistance`](@ref mse_distance_section) is the built-in one. In a custom function,
     `simulated` is always a [`SummaryValues`](@ref); `observed` is whatever you set
     `observed_data` to, so it may be any type your distance understands.
 
-!!! tierwhy
+!!! tierfull
     `simulated` is a [`SummaryValues`](@ref): the object that carries each QoI's reduced value from
     `compute` through `reduce` into `distance`, so one problem can measure several quantities at
     once and score them together. It is keyed by `(qoi name, key)` and indexable three ways — by the
@@ -255,12 +255,12 @@ end
 
 ## Running calibration
 
-!!! tiergloss
+!!! tierbrief
     `run(method, problem)` returns the calibration result. Settings live on the [`ABCSMC`](@ref)
     object; `description`, `tags`, `run_kwargs`, `progress` and `on_monad_failure` are keywords of
     the call.
 
-!!! tierwhy
+!!! tierfull
     `run` dispatches on the method, so the verb is the same one that launches a trial or a
     sensitivity analysis, and the algorithm's settings all belong to the method object. Keeping an
     [`ABCSMC`](@ref) object in a variable is worth doing when you want to put the same settings to
@@ -329,7 +329,7 @@ result = run(
 
 ## [ABCSMC settings](@id abcsmc_settings)
 
-!!! tiergloss
+!!! tierbrief
     All fields have defaults and are given as keyword arguments to [`ABCSMC`](@ref).
 
 | Field | Default | Description |
@@ -350,10 +350,10 @@ result = run(
 
 ### Manual epsilon schedule
 
-!!! tiergloss
+!!! tierbrief
     A strictly decreasing vector drives ε by hand instead of letting the algorithm adapt it.
 
-!!! tierwhy
+!!! tierfull
     Generation `t` uses `epsilon_schedule[t-1]`, and the schedule takes precedence over
     `epsilon_quantile`. A hand-written schedule can be far more aggressive than the data supports,
     so `min_acceptance_rate` is worth setting alongside it as a safety stop.
@@ -368,12 +368,12 @@ method = ABCSMC(
 
 ### [Simulation bank and CDF-grid snapping (`cdf_grid_k`)](@id simulation_bank_calibration)
 
-!!! tiergloss
+!!! tierbrief
     Setting `cdf_grid_k = k` lets a calibration reuse monads that already exist in the project —
     from earlier calibrations, prior sweeps, sensitivity designs — instead of simulating every
     proposal afresh.
 
-!!! tierwhy
+!!! tierfull
     With `cdf_grid_k = k`, ModelManager builds a registry — the *simulation bank* — of all existing
     monads whose calibrated parameters fall inside the prior support. For each proposal it first
     checks whether any bank entry falls within the grid cell around that proposal; if so, that
@@ -395,11 +395,11 @@ method = ABCSMC(population_size = 200, max_nr_populations = 10, cdf_grid_k = 3)
 
 ### Evaluation budget (`max_evaluations`)
 
-!!! tiergloss
+!!! tierbrief
     A hard cap on the total particle evaluations across the whole run, regardless of generation
     count.
 
-!!! tierwhy
+!!! tierfull
     The cap is applied before each batch of proposals is dispatched: a batch that would exceed the
     budget is trimmed to exactly the remaining allowance, so the run never evaluates more than
     `max_evaluations` particles. The final generation may therefore hold fewer than
@@ -422,11 +422,11 @@ method = ABCSMC(population_size = 100, max_nr_populations = 20, max_evaluations 
 
 ## [Perturbation kernels](@id perturbation_kernels_calibration)
 
-!!! tiergloss
+!!! tierbrief
     The kernel controls how generation-t+1 proposals are drawn from generation-t particles. Pass it
     as `perturbation_kernel` to [`ABCSMC`](@ref).
 
-!!! tierwhy
+!!! tierfull
     The default `scale` is `2.0`, following Beaumont et al. (2009): a proposal kernel is
     deliberately over-dispersed relative to the posterior it was fitted to, because a kernel that
     matched the posterior exactly would never propose anything outside it and the population would
@@ -461,12 +461,12 @@ GaussianKernel([1.0, 2.0])   # generation t uses scale[min(t, end)]: 1.0, then 2
 
 ## Resuming a calibration
 
-!!! tiergloss
+!!! tierbrief
     `run(calibration)` continues a [`Calibration`](@ref) from the next generation. The original
     [`CalibrationProblem`](@ref) is read from `problem.jld2` in the calibration folder and the
     settings from `method.toml`, so a calibration ID is normally all you need.
 
-!!! tierwhy
+!!! tierfull
     An interrupted run — crash, user stop, HPC timeout — has already saved its completed
     generations to disk, so resuming appends rather than repeats.
 
@@ -496,11 +496,11 @@ result = resumeABC(calibration)
 
 ### Resumability and anonymous functions
 
-!!! tiergloss
+!!! tierbrief
     A function the calibration cannot restore by name has to be handed back on resume, as
     `run(calibration; problem = problem)`.
 
-!!! tierwhy
+!!! tierfull
     ModelManager saves the `CalibrationProblem` to `problem.jld2` at the start of each run, and can
     restore a function from it only when JLD2 can name it: a function defined at the top level of a
     file or module. A lambda or closure — including a named function defined *inside* another
@@ -545,7 +545,7 @@ result = run(Calibration(42); problem = problem)
 
 ### Posterior samples
 
-!!! tiergloss
+!!! tierbrief
     [`posterior`](@ref) returns the tuple `(df, weights)`: a `DataFrame` with one column per
     calibrated parameter (display names) and one row per particle, and a `Vector{Float64}` of
     importance weights summing to 1. It reads a live result or a [`Calibration`](@ref) on disk. To
@@ -573,12 +573,12 @@ df, weights = posterior(Calibration(42); generation = 3)
 
 ### Convergence diagnostics
 
-!!! tiergloss
+!!! tierbrief
     [`ConvergenceSummary`](@ref) collects the per-generation statistics into one table, from a
     result or from a calibration ID. It behaves like a `DataFrame` for property access
     (`cs.max_epsilon_accepted`).
 
-!!! tierwhy
+!!! tierfull
     It is the run's own history in one place, and it is how you tell a run that converged from one
     that merely stopped: how far epsilon actually fell, how hard each generation had to work to fill
     itself, and how much of the population its weights genuinely represent. Its docstring names
@@ -592,7 +592,7 @@ cs = ConvergenceSummary(Calibration(42))
 
 ### Visualization
 
-!!! tiergloss
+!!! tierbrief
     Requires a Plots.jl backend (`using Plots`). Every recipe accepts a [`Calibration`](@ref) in
     place of the result, loading the data from disk. The figures below come from a two-parameter
     example: a cycle phase duration and an apoptosis rate, calibrated to one simulation's final cell
@@ -630,12 +630,12 @@ plot(result, :transition; generation = 2)  # a specific transition t → t+1
 
 ## [Sampling the posterior](@id posterior_sampling_calibration)
 
-!!! tiergloss
+!!! tierbrief
     `samplePosterior(result_or_calibration, n; generation = :final, smooth = false, rng)` returns
     the draws; `createTrial(result, draws)` turns them into a runnable `Sampling`, one monad per
     distinct parameter set, ready for `run`.
 
-!!! tierwhy
+!!! tierfull
     A posterior is worth more than its summary statistics: drawing parameter sets from it and
     running them is a posterior predictive check. [`samplePosterior`](@ref) draws `n` parameter
     sets as a `DataFrame` of display columns. By default each draw is one of the accepted
@@ -674,12 +674,12 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
 
 ## Managing calibration runs
 
-!!! tiergloss
+!!! tierbrief
     [`calibrationsTable`](@ref) is one row per run — `CalibrationID`, `DateTime`, `Method`,
     `Description` — and [`printCalibrationsTable`](@ref) prints it, or sends it to any `sink`.
     [`deleteCalibration`](@ref) removes a run's database row, its tags, and its output folder.
 
-!!! tierwhy
+!!! tierfull
     `delete_subs` defaults to `false`, unlike the trial-level deleters, because a calibration's
     monads are shared — through the simulation bank and `use_previous` they may predate the run and
     outlive it. Passing `true` deletes only the monads these runs alone used. Deleting a run
@@ -701,7 +701,7 @@ deleteCalibration(3; delete_subs = true)  # and the monads no other run uses
 
 ## Output layout
 
-!!! tiergloss
+!!! tierbrief
     Each run creates `data/outputs/calibrations/{id}/`: three files describing the run, then one
     folder per generation, named by generation number zero-padded to fit `max_nr_populations`.
 
@@ -729,12 +729,12 @@ data/outputs/calibrations/1/
 
 ## [Built-in summary statistics](@id builtin_ss)
 
-!!! tiergloss
+!!! tierbrief
     Three builders, each returning a [`QoI`](@ref ModelManager.QoI) that measures a single
     [`Simulation`](@ref) — the shape [`CalibrationProblem`](@ref) asks for — whose value is a
     `Dict` keyed by cell type. Pass the builder's result where the summary statistic goes.
 
-!!! tierwhy
+!!! tierfull
     A builder measures a simulation inside a study. To analyze a finished monad directly instead,
     use [`finalPopulationCount`](@ref) on a `Monad` or `MonadPopulationTimeSeries`: they take a
     monad and do their own averaging.
@@ -747,7 +747,7 @@ populationCountQoI(; cell_types=["cancer", "immune"])   # or restrict the measur
 
 ### [`populationCountQoI`](@id population_count_qoi_section)
 
-!!! tiergloss
+!!! tierbrief
     Each cell type's population count at the snapshot `index` names — `:final` by default.
     `compute` returns `missing` when that snapshot is not on disk.
 
@@ -757,7 +757,7 @@ populationCountQoI(; index=:final, cell_types=nothing, include_dead=false)
 
 ### [`populationFractionQoI`](@id population_fraction_qoi_section)
 
-!!! tiergloss
+!!! tierbrief
     Each cell type's **fraction** of the total population at that same snapshot. The denominator is
     the whole population, so restricting to one cell type reports its share of everything rather
     than 1.0.
@@ -768,7 +768,7 @@ populationFractionQoI(; index=:final, cell_types=nothing, include_dead=false)
 
 ### [`meanPopulationTimeSeriesQoI`](@id mean_population_time_series_qoi_section)
 
-!!! tiergloss
+!!! tierbrief
     Each cell type's count over time, on the replicate's own grid, averaged elementwise across
     replicates. Use it when `observed_data` is a time series rather than a single endpoint value.
 
@@ -778,13 +778,13 @@ meanPopulationTimeSeriesQoI(; cell_types=nothing, include_dead=false)
 
 ### [Using the builders in sensitivity analysis](@id qoi_form_ss)
 
-!!! tiergloss
+!!! tierbrief
     The same builders are a `functions=` entry for a
     [Sensitivity analysis](@ref sensitivity_analysis_man). Omit `cell_types` and every cell type
     present in the output is measured, since a QoI discovers them from the simulation rather than
     naming them at construction.
 
-!!! tierwhy
+!!! tierfull
     [`populationCountQoI`](@ref) and [`populationFractionQoI`](@ref) spread a `Dict`-valued
     measurement into one sensitivity analysis per key — the same reading the post-processing sink
     gives it — so `populationCountQoI()` yields one analysis per cell type without naming them in
@@ -803,12 +803,12 @@ run(MOAT(), inputs, evs; functions = [populationCountQoI()])   # one analysis pe
 
 ### [`mseDistance`](@id mse_distance_section)
 
-!!! tiergloss
+!!! tierbrief
     Pass it as the `distance` argument of a [`CalibrationProblem`](@ref). Outside calibration it
     also compares two keyed values, two scalars, or any pair that broadcasts, including two arrays;
     its docstring lists all five forms.
 
-!!! tierwhy
+!!! tierfull
     The keys of `observed_data` are the comparison. [`mseDistance`](@ref) resolves each one in the
     simulated [`SummaryValues`](@ref) — an observed key the summary statistic did not produce is an
     error rather than a silent zero, and an extra simulated component is ignored, since a simulation

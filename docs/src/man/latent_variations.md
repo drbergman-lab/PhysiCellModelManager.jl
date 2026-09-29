@@ -1,7 +1,7 @@
 # [LatentVariations](@id latent_variations_man)
 A [`LatentVariation`](@ref) varies target parameters through **latent parameters** and mapping functions, so a constraint between the targets holds at every sampled point.
 
-!!! tiergloss
+!!! tierbrief
     Construct one from four pieces: the **latent parameters** (each a vector of discrete values or a
     probability distribution), the **target parameters** (a vector of XML paths, as for any
     `ElementaryVariation`), one **mapping function** per target, and optionally the latent-parameter
@@ -9,7 +9,7 @@ A [`LatentVariation`](@ref) varies target parameters through **latent parameters
     ordered as the latent parameters were given, even when there is only one — and returns one
     target value.
 
-!!! tierwhy
+!!! tierfull
     This extends [CoVariations](@ref covariations_man) from lockstep to an arbitrary relation. The
     motivating case is a low/high threshold pair defining low-medium-high regimes: vary the low
     threshold and the *gap* rather than the two thresholds, and high > low is true by construction
@@ -39,7 +39,7 @@ lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; n
 
 ## [`LatentVariation{Vector{<:Real}}`](@id latent_variation_vector_real_section)
 
-!!! tiergloss
+!!! tierbrief
     Latent parameters given as vectors of discrete values produce a `LatentVariation{Vector{<:Real}}`.
     The vectors need not be the same length; requesting values uses all combinations of the latent
     values to compute the target values.
@@ -71,7 +71,7 @@ LatentVariation (Discrete), 2 -> 2:
 
 ## [`LatentVariation{Distribution}`](@id latent_variation_distribution_section)
 
-!!! tiergloss
+!!! tierbrief
     Latent parameters given as probability distributions produce a `LatentVariation{Distribution}`.
     Requesting values draws a sample from each distribution and computes the target values.
 

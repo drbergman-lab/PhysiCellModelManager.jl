@@ -5,7 +5,7 @@ already run.
 
 ## Supported sensitivity analysis methods
 
-!!! tiergloss
+!!! tierbrief
     Three methods are available. Each is a constructor you pass to `run` along with the model and
     the parameters to vary.
 
@@ -17,10 +17,10 @@ already run.
 
 ### Morris One-At-A-Time (MOAT)
 
-!!! tiergloss
+!!! tierbrief
     `MOAT(n)` sets the number of base points; the keywords control how those points are placed.
 
-!!! tierwhy
+!!! tierfull
     MOAT trades theoretical rigor for an intuitive sensitivity estimate. It samples parameter space
     at `n` points; from each, it varies one parameter at a time and records the change in output,
     then aggregates those changes into a sensitivity for each parameter.
@@ -40,13 +40,13 @@ MOAT(8; orthogonalize=false) # do not use an orthogonal LHS (even where one is p
 
 ### Sobol'
 
-!!! tiergloss
+!!! tierbrief
     First-order index methods: `:Sobol1993`, `:Jansen1999`, `:Saltelli2010` (default
     `:Jansen1999`). Total-order: `:Homma1996`, `:Jansen1999`, `:Sobol2007` (default `:Jansen1999`).
     The rasp symbol `ʼ` avoids a clash with the `Sobol` module — type `\rasp` then tab in VS Code —
     and [`SobolMM`](@ref) is the plain-ASCII alias.
 
-!!! tierwhy
+!!! tierfull
     The Sobol' method quantifies sensitivity from the variance of the model output. It uses a
     Sobol' sequence — a deterministic _low-discrepancy_ sequence that fills the unit hypercube very
     evenly, approximating quantities like integrals with far fewer points than random sampling. The
@@ -71,10 +71,10 @@ SobolMM(9)                 # same constructor, no rasp required
 
 ### Random Balance Design (RBD)
 
-!!! tiergloss
+!!! tierbrief
     `RBD(n)` runs `n` monads, one per design point, and returns first-order indices only.
 
-!!! tierwhy
+!!! tierfull
     RBD uses a random design matrix (like Sobol') and a Fourier transform (as in the FAST method).
     For `n` design points it runs `n` monads, then rearranges the outputs so each parameter in turn
     varies along a sinusoid, and estimates first-order indices via Fourier transforms. It looks up
@@ -103,13 +103,13 @@ RBD(32; num_harmonics=4)  # will look up to the 4th harmonic, instead of the def
 
 ### Simulation inputs
 
-!!! tiergloss
+!!! tierbrief
     Use the convenience constructors [`UniformDistributedVariation`](@ref) and
     [`NormalDistributedVariation`](@ref), or any `d::Distribution` directly. All variation types
     accept `name=...`, used in the scheme DataFrame/CSV headers; inspect the effective name with
     [`variationName`](@ref).
 
-!!! tierwhy
+!!! tierfull
     A sensitivity analysis takes the same inputs as a sampling: an `inputs::InputFolders` naming the
     `data/inputs/` folders that define your model, and an `evs::Vector{<:ElementaryVariation}` of
     the parameters to analyze with their ranges or distributions. These are usually
@@ -129,12 +129,12 @@ NormalDistributedVariation(xml_path, 1e-3, 1e-4; lb=0)          # (mean, std), t
 
 ### Sensitivity functions
 
-!!! tiergloss
+!!! tierbrief
     Any number of them may be given at the start of the analysis. `finalPopulationCount` returns a
     dictionary of each cell type's final count from a `Simulation`, so one cell type's count is one
     lookup away.
 
-!!! tierwhy
+!!! tierfull
     A sensitivity function must accept a `Simulation`. A bare function's per-replicate values must
     average to a `Real`; passed as a [`QoI`](@ref ModelManager.QoI), `reduce` may instead return a
     `Dict` or `NamedTuple` of `Real`s, and each key becomes its own analysis. The
@@ -146,7 +146,7 @@ f(sim::Simulation) = finalPopulationCount(sim)["cancer"]
 
 ## [Running the analysis](@id gsa_keyed_qoi)
 
-!!! tiergloss
+!!! tierbrief
     `run(method, inputs, evs; functions=...)` launches the design and returns the sampling object
     the post-processing step works on. A `reference::AbstractMonad` or a `StudySpec` may stand in
     for `inputs`. A `Dict`-valued [`QoI`](@ref ModelManager.QoI) gives one analysis per key, labeled
@@ -184,13 +184,13 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
 
 ## Post-processing
 
-!!! tiergloss
+!!! tierbrief
     [`PhysiCellModelManager.calculateGSA!`](@ref) computes sensitivity indices for further
     measurements on a sampling you already ran, and files them in `sensitivity_sampling.results`
     under the label of the measurement that produced them — its name, or `"<name>.<key>"` per key
     for a `Dict`-valued one.
 
-!!! tierwhy
+!!! tierfull
     Results accumulate on the sampling, and a measurement whose label is already present is
     **skipped**: reusing the name `f` from the run above would do nothing at all, silently. Those
     stored results are what makes adding one more quantity cheap — see
@@ -222,7 +222,7 @@ println(sensitivity_sampling.results["f"])
 
 ## Plotting
 
-!!! tiergloss
+!!! tierbrief
     Requires a Plots.jl backend (`using Plots`). Every sampling has a plot recipe; a positional
     symbol picks the style where there is more than one, and `parameters=` restricts the x-axis to
     some parameters, drawn in the order given — anything `select` accepts on a `DataFrame` works.

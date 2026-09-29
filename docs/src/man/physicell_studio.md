@@ -10,7 +10,7 @@ to view its output (the `Plot` tab) and inspect its parameters (the other tabs).
 
 ### Environment variables
 
-!!! tiergloss
+!!! tierbrief
     Tell PhysiCellModelManager.jl where your `python` executable and your PhysiCell Studio folder
     are. On macOS/Linux, add both to your shell environment file (e.g. `~/.bashrc` or `~/.zshenv`);
     on Windows, use the GUI for setting environment variables. `PCMM_PYTHON_PATH` can be a bare
@@ -23,7 +23,7 @@ export PCMM_STUDIO_PATH=/home/user/PhysiCell-Studio
 source ~/.bashrc   # apply the changes, or just open a new terminal window
 ```
 
-!!! tierwhy
+!!! tierfull
     If Studio will not launch, check these three things: `PCMM_PYTHON_PATH` must point to a valid
     python executable; `PCMM_STUDIO_PATH` must point to the PhysiCell Studio folder, **not to the
     `studio.py` file**; and `~` is not expanded inside quotes, so
@@ -31,13 +31,13 @@ source ~/.bashrc   # apply the changes, or just open a new terminal window
 
 ### Using keyword arguments
 
-!!! tiergloss
+!!! tierbrief
     Alternatively, pass the two paths to [`runStudio`](@ref) as keyword arguments. It remembers them
     for the session, so you pass them only once.
 
 ## Launching PhysiCell Studio
 
-!!! tiergloss
+!!! tierbrief
     Launch Julia in a new shell session and load the package, which initializes the project — call
     [`initializeModelManager`](@ref PhysiCellModelManager.initializeModelManager) instead if the
     package is already loaded. Then call [`runStudio`](@ref) with a simulation ID. Studio can be
@@ -53,7 +53,7 @@ runStudio(sim_id; python_path=path_to_python, studio_path=path_to_studio) #! wit
 
 ## Editing in PhysiCell Studio
 
-!!! tiergloss
+!!! tierbrief
     [`runStudio`](@ref) opens Studio on temporary configuration and rules files, so edits are lost
     when Studio closes — remember, this is the output of a simulation that __already__ ran. Save the
     configuration with `File > Save as` and the rules from the `Rules` tab. The PhysiCell 1.14.1

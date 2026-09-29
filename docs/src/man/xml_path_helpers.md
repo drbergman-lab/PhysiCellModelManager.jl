@@ -3,11 +3,11 @@ Each varied input type has a helper function that builds its XML path.
 
 ## Varying config parameters
 
-!!! tiergloss
+!!! tierbrief
     [`configPath`](@ref) builds the XML path to almost any configuration parameter from intuitive
     tokens. See [Config XML paths](@ref) for the full token reference.
 
-!!! tierwhy
+!!! tierfull
     Intracellular parameters are not supported (yet), and others may be missing. When
     [`configPath`](@ref) does not recognize the tokens you pass, it throws an error listing the
     tokens it does accept for that number of arguments — so a wrong guess tells you the right
@@ -34,7 +34,7 @@ configPath("user_parameters", <tag>)
 
 ### Named path helpers
 
-!!! tiergloss
+!!! tierbrief
     [`configPath`](@ref) works by inferring, from the tokens you pass, which of a family of
     explicit, narrower path helpers to call. That inference is the whole point: [`configPath`](@ref)
     is what you should call, and the family below is what it calls for you.
@@ -99,7 +99,7 @@ configPath("user_parameters", <tag>)
 
 ## Varying rules parameters
 
-!!! tiergloss
+!!! tierbrief
     [`rulePath`](@ref) builds the XML path to rules parameters. Unlike [`configPath`](@ref), it does
     not infer the path from tokens — you supply the cell type, the behavior, then the remaining
     XML-path entries directly.
@@ -113,7 +113,7 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
 
 ## Varying initial cell parameters
 
-!!! tiergloss
+!!! tierbrief
     PhysiCellModelManager.jl initializes cell locations from XML via
     [PhysiCellCellCreator.jl](https://github.com/drbergman-lab/PhysiCellCellCreator.jl) (see its
     docs for the file format). [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) creates a
@@ -121,7 +121,7 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
     [`icCellsPath`](@ref) then reaches its parameters, including those of the carveouts (a child
     element of the patch) that exclude cells from a region.
 
-!!! tierwhy
+!!! tierfull
     Editing the template in place is the intended workflow, but per
     [Best practices](@ref best_practices_man) only before any simulation depends on it: the database
     records which folder a simulation used, not the contents that folder had at the time.
@@ -133,14 +133,14 @@ icCellsPath(<cell_type>, <patch_type>, <patch_id>, <carveout_type>, <carveout_id
 
 ## Varying initial ECM parameters
 
-!!! tiergloss
+!!! tierbrief
     PhysiCellModelManager.jl initializes ECMs from XML via
     [PhysiCellECMCreator.jl](https://github.com/drbergman-lab/PhysiCellECMCreator.jl) (see its docs
     for the file format). [`PhysiCellModelManager.createICECMXMLTemplate`](@ref) creates a template
     and registers it in the database, on the same terms as the IC cells template above, and
     [`icECMPath`](@ref) reaches its parameters.
 
-!!! tierwhy
+!!! tierfull
     The patch type `"ellipse_with_shell"` carries two (or three) subpatches, so its paths take one
     extra token: `<subpatch>` is `"interior"`, `"shell"`, or `"exterior"`.
 

@@ -12,13 +12,13 @@ how to get one back, and how to read what it contains.
 | [`Sampling`](@ref) | Monads on one [`InputFolders`](@ref), differing in parameters | monads |
 | [`Trial`](@ref) | Samplings, which may use different [`InputFolders`](@ref) | samplings |
 
-!!! tiergloss
+!!! tierbrief
     [`createTrial`](@ref) returns the narrowest class that fits what you asked for: no variations
     and one replicate gives a `Simulation`, several replicates of one parameter set a `Monad`, and
     a variation with more than one value a `Sampling`. Pass a vector of already-built trials to
     bundle them into a `Trial`.
 
-!!! tierwhy
+!!! tierfull
     You do not choose the class; you describe the runs and the class follows. That is what lets a
     script grow a `DiscreteVariation` from one value to three without any other edit — the same
     call that returned a `Simulation` now returns a `Sampling`, and [`run`](@ref) takes either.
@@ -40,7 +40,7 @@ createTrial([sampling_a, sampling_b])                                 # Trial
 
 ## Recover one by ID
 
-!!! tiergloss
+!!! tierbrief
     Each class has a constructor taking its database ID, which retrieves the existing object
     rather than creating one. [`simulationID`](@ref) reports a single simulation's ID, and
     [`simulationIDs`](@ref) descends the whole hierarchy: a `Sampling` reports the simulations of
@@ -78,14 +78,14 @@ pathToOutputFolder(sim)       # where this simulation's output lives
 
 ## Read what a trial contains
 
-!!! tiergloss
+!!! tierbrief
     [`simulationsTable`](@ref) returns a `DataFrame` with one row per simulation and one column
     per varied parameter; [`monadsTable`](@ref) is the monad-level analogue, one row per parameter
     set. [`printSimulationsTable`](@ref) and [`printMonadsTable`](@ref) send the same table to a
     sink, `println` by default. All four accept trial objects, arrays of them, ID vectors, or
     nothing at all for the whole database.
 
-!!! tierwhy
+!!! tierfull
     Columns that are constant across every row are dropped by default, so the table shows only
     what actually varied. Pass `remove_constants = false` to see every parameter the database
     holds for those rows instead. Add `tags = true` for one `tag:<key>` column per tag key in use —

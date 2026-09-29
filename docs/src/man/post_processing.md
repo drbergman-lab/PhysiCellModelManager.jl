@@ -4,7 +4,7 @@ Run your own code on each simulation while its output folder is still intact: co
 once and store it, so it survives pruning and never has to be recomputed, or do anything else the
 intact folder allows — custom clean-up, exporting files, whatever your campaign needs.
 
-!!! tiergloss
+!!! tierbrief
     `run` accepts a `post_processor` keyword: a callback invoked once per successful simulation,
     right after it finishes and before PhysiCellModelManager.jl prunes any output. Inside it, `sim`
     is a `Simulation` — the same argument a [`QoI`](@ref ModelManager.QoI)'s `compute` receives, so
@@ -13,7 +13,7 @@ intact folder allows — custom clean-up, exporting files, whatever your campaig
     (`PhysiCellSnapshot(sim, :final)`, `finalPopulationCount(sim)`) or its ID, `simulationID(sim)`;
     `pathToOutputFolder(sim)` gives the folder itself.
 
-!!! tierwhy
+!!! tierfull
     [Analyzing output](@ref analyzing_output_man) covers analysis *after* a run finishes, which
     works only as long as the output files are still there. The callback always sees the intact
     output folder, however aggressive your `prune_options` are: pruning is the last of the steps
@@ -32,14 +32,14 @@ run(sampling; post_processor = QoI("final_count", sim -> finalPopulationCount(si
 
 ## Returning quantities of interest
 
-!!! tiergloss
+!!! tierbrief
     What the callback returns determines what gets stored. A single scalar (`Real`, `Bool`, or
     `String`) goes into one column named after the QoI — `QoI("final_count", …)` writes
     `final_count`. A `NamedTuple` or `Dict` of `name => scalar` is stored one column per key, named
     `<qoi name>.<key>`, so `QoI("counts", …)` returning `(; final_count = …)` writes
     `counts.final_count`. `missing` stores nothing and marks the callback as side-effects-only.
 
-!!! tierwhy
+!!! tierfull
     Namespacing the columns with the QoI's name is what lets two QoIs report the same key without
     landing in one column: if `QoI("counts", …)` and `QoI("fractions", …)` both return a key named,
     say, `tumor`, they write `counts.tumor` and `fractions.tumor`. A time series or other
@@ -63,7 +63,7 @@ run(sampling; post_processor = QoI("counts", sim -> (; final_count = finalPopula
 
 ## [Ready-made QoI builders](@id population_count_qoi_builder)
 
-!!! tiergloss
+!!! tierbrief
     [`populationCountQoI`](@ref) and [`populationFractionQoI`](@ref) build the measurement for you
     as a [`QoI`](@ref ModelManager.QoI): one `population_count.<cell_type>` column per cell type
     holding its count, or one `population_fraction.<cell_type>` column holding its share of the
@@ -99,7 +99,7 @@ run(sampling; post_processor = populationFractionQoI())                    # eac
 
 ## Reading the stored quantities back
 
-!!! tiergloss
+!!! tierbrief
     [`postProcessingTable`](@ref) returns a `DataFrame` keyed by `:SimID`;
     [`printPostProcessingTable`](@ref) prints it, and its `sink` keyword takes any function that
     accepts a `DataFrame` (default `println`). See
@@ -115,11 +115,11 @@ simulationsTable(sampling; post_processing=true)  # joined with the varied param
 
 ### Checking stored values against a fresh computation
 
-!!! tiergloss
+!!! tierbrief
     [`verifyStoredValues`](@ref)`(q, T)` recomputes the `QoI` `q` for the simulations of `T` and
     compares each result with the value stored for it.
 
-!!! tierwhy
+!!! tierfull
     A stored value does not record which `compute` produced it, so this is the check to run before
     relying on a `QoI` built with `stored=:prefer` or `stored=:require`, which read stored values
     instead of recomputing them. It returns a `NamedTuple` whose counts partition the simulations it
@@ -145,14 +145,14 @@ report.n_agreed > 0 && report.n_mismatched == 0   # something was compared, and 
 
 ## [Pruning output after the callback](@id prune_output_pp)
 
-!!! tiergloss
+!!! tierbrief
     Name the file types to drop in `prune_options`, and [`PruneOptions`](@ref) deletes them from
     each simulation's folder as the last step after it finishes — after your `post_processor` has
     run. `prune_svg`, `prune_mat`, `prune_txt` and `prune_xml` pick the types; the `initial*` and
     `final*` files of each type survive unless `prune_initial` and `prune_final` say otherwise, so a
     pruned simulation can still be loaded at its first and last snapshot.
 
-!!! tierwhy
+!!! tierfull
     Every save interval PhysiCell writes an XML/MAT snapshot pair and an SVG, so a campaign can
     easily grow to many gigabytes that most analyses never open. Because pruning waits for your
     `post_processor`, the callback is the place to compute what you need from the files — and it

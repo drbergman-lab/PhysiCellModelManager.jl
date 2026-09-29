@@ -415,7 +415,7 @@
 
 **Edge Cases:**
 - No code block may sit inside a tier block; the Code-tier reader is the one who came for it.
-- `tiergloss`, `tierwhy`, `tierdev` take no title (the header is hidden); `tierjournal` must carry an ISO date and title.
+- `tierbrief`, `tierfull`, `tierdev` take no title (the header is hidden); `tierjournal` must carry an ISO date and title.
 - A search hit or shared `#anchor` inside a hidden block reveals it for that page view without changing the saved depth.
 - `progress.md` remains the working session journal required by the repo workflow; `tierjournal` blocks hold only decisions that explain user-visible behaviour.
 

@@ -3,15 +3,15 @@
    !important at equal specificity, so the reveal wins on source order. To add
    a tier: one row in TIERS in tiers.js, one line in each list below. */
 
-html[data-docs-tier] .admonition.is-category-tiergloss,
-html[data-docs-tier] .admonition.is-category-tierwhy,
+html[data-docs-tier] .admonition.is-category-tierbrief,
+html[data-docs-tier] .admonition.is-category-tierfull,
 html[data-docs-tier] .admonition.is-category-tierdev,
 html[data-docs-tier] .admonition.is-category-tierjournal {
   display: none !important;
 }
 
-html[data-tier-show~="gloss"] .admonition.is-category-tiergloss,
-html[data-tier-show~="why"] .admonition.is-category-tierwhy,
+html[data-tier-show~="brief"] .admonition.is-category-tierbrief,
+html[data-tier-show~="full"] .admonition.is-category-tierfull,
 html[data-tier-show~="dev"] .admonition.is-category-tierdev,
 html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   display: block !important;
@@ -21,12 +21,12 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 
 @media print {
   /* Same specificity as the hide rule above, so source order lets print win. */
-  html[data-docs-tier] .admonition.is-category-tiergloss,
-  html[data-docs-tier] .admonition.is-category-tierwhy,
+  html[data-docs-tier] .admonition.is-category-tierbrief,
+  html[data-docs-tier] .admonition.is-category-tierfull,
   html[data-docs-tier] .admonition.is-category-tierdev,
   html[data-docs-tier] .admonition.is-category-tierjournal,
-  .admonition.is-category-tiergloss,
-  .admonition.is-category-tierwhy,
+  .admonition.is-category-tierbrief,
+  .admonition.is-category-tierfull,
   .admonition.is-category-tierdev,
   .admonition.is-category-tierjournal { display: block !important; }
   .docs-tier-selector { display: none !important; }
@@ -34,8 +34,8 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 }
 
 /* Tier blocks read as prose, not as admonition boxes. */
-.admonition.is-category-tiergloss,
-.admonition.is-category-tierwhy,
+.admonition.is-category-tierbrief,
+.admonition.is-category-tierfull,
 .admonition.is-category-tierdev,
 .admonition.is-category-tierjournal {
   background: none;
@@ -49,8 +49,8 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   font-size: inherit;
 }
 
-.admonition.is-category-tiergloss > .admonition-header,
-.admonition.is-category-tierwhy > .admonition-header,
+.admonition.is-category-tierbrief > .admonition-header,
+.admonition.is-category-tierfull > .admonition-header,
 .admonition.is-category-tierdev > .admonition-header { display: none; }
 
 .admonition.is-category-tierjournal > .admonition-header {
@@ -64,16 +64,16 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   opacity: 0.85;
 }
 
-.admonition.is-category-tiergloss > .admonition-body,
-.admonition.is-category-tierwhy > .admonition-body,
+.admonition.is-category-tierbrief > .admonition-body,
+.admonition.is-category-tierfull > .admonition-body,
 .admonition.is-category-tierdev > .admonition-body,
 .admonition.is-category-tierjournal > .admonition-body {
   background: none;
   padding: 0;
 }
 
-.admonition.is-category-tiergloss > .admonition-body > :last-child,
-.admonition.is-category-tierwhy > .admonition-body > :last-child,
+.admonition.is-category-tierbrief > .admonition-body > :last-child,
+.admonition.is-category-tierfull > .admonition-body > :last-child,
 .admonition.is-category-tierdev > .admonition-body > :last-child,
 .admonition.is-category-tierjournal > .admonition-body > :last-child {
   margin-bottom: 0;
@@ -81,13 +81,13 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 
 /* Quiet markers naming the tier that reveals each block, so a reader who went
    deeper can see what that revealed. Delete these to make the reveal invisible. */
-.admonition.is-category-tiergloss > .admonition-body::before { content: "brief"; }
-.admonition.is-category-tierwhy > .admonition-body::before { content: "full"; }
+.admonition.is-category-tierbrief > .admonition-body::before { content: "brief"; }
+.admonition.is-category-tierfull > .admonition-body::before { content: "full"; }
 .admonition.is-category-tierdev > .admonition-body::before { content: "dev"; }
 .admonition.is-category-tierjournal > .admonition-header::before { content: "journal \00a0"; }
 
-.admonition.is-category-tiergloss > .admonition-body::before,
-.admonition.is-category-tierwhy > .admonition-body::before,
+.admonition.is-category-tierbrief > .admonition-body::before,
+.admonition.is-category-tierfull > .admonition-body::before,
 .admonition.is-category-tierdev > .admonition-body::before {
   display: block;
   font-size: 0.7em;

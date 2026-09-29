@@ -17,8 +17,8 @@
   // layer the tiers before it reveal.
   var TIERS = [
     { id: "code", label: "Code", adds: null, hint: "Code only" },
-    { id: "brief", label: "Brief", adds: "gloss", hint: "One line, then the code" },
-    { id: "full", label: "Full", adds: "why", hint: "The reasoning, then the code" },
+    { id: "brief", label: "Brief", adds: "brief", hint: "One line, then the code" },
+    { id: "full", label: "Full", adds: "full", hint: "The reasoning, then the code" },
     { id: "dev", label: "Dev", adds: "dev", hint: "Plus what someone extending it needs" },
     { id: "journal", label: "Journal", adds: "journal", hint: "Plus the author's dated notes" }
   ];
@@ -166,7 +166,7 @@
     } catch (e) { return; }
     if (!target || !target.closest) return;
     var box = target.closest(
-      ".is-category-tiergloss, .is-category-tierwhy, " +
+      ".is-category-tierbrief, .is-category-tierfull, " +
       ".is-category-tierdev, .is-category-tierjournal"
     );
     if (!box || box.offsetParent !== null) return;

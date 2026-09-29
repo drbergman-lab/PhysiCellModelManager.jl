@@ -5,6 +5,19 @@
 
 ---
 
+## 2026-09-29 — Track ModelManager 0.11: a posterior draw under a changed model
+
+ModelManager #78 and #79 (0.11.0) let a `Simulation`, `Monad` or `Sampling` be copied onto
+different input folders with its parameter values kept — `Monad(draw; custom_code="revised")` —
+and, for a varied folder, carry the values onto the new file as one variation row (`carry=:all`
+by default, so a config with a cell type added or a rule removed changes the structure and nothing
+else). The request came from a PhysiCell user wanting to re-run a posterior draw under new custom
+code, so the calibration page gains the recipe: `samplePosterior` → `createTrial` →
+`Sampling(sampling; custom_code=...)`, plus the single-draw form. Nothing in PCMM's source
+changes; the API is ModelManager's, re-exported, and `Monad`'s docstring carries the rules.
+Compat moves to `0.11` and PCMM to 0.5.2. Opened ahead of the 0.11.0 tag, so CI stays red until
+that release is registered.
+
 ## 2026-09-15 — `_excludedReplicates` deleted in #237, restored in 0.5.1
 
 A user's ABC run on 0.5.0 printed `UndefVarError: _excludedReplicates` from

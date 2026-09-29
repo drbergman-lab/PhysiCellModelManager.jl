@@ -421,6 +421,29 @@ df, weights = posterior(Calibration(42); generation = 3)
 `df` is a `DataFrame` with one column per calibrated parameter (display names), one row per particle.
 `weights` is a `Vector{Float64}` summing to 1.
 
+### Re-running a posterior draw under a changed model
+
+A calibrated parameter set is often worth re-running under a revised model — new custom code, a
+config with a cell type or a rule added or removed — with the values it was calibrated to.
+[`samplePosterior`](@ref) draws particles that were actually simulated, each carrying its
+`monad_id`; [`createTrial`](@ref) turns those draws into a [`Sampling`](@ref); and the copy
+constructors take the location keywords [`InputFolders`](@ref) does, keeping the parameter values:
+
+```julia
+draws    = samplePosterior(result, 50)                 # particles that ran, with their monad_id
+sampling = createTrial(result, draws)                  # one monad per distinct parameter set
+revised  = Sampling(sampling; custom_code="revised_code", n_replicates=3)
+run(revised)
+
+Monad(Monad(first(draws.monad_id)); config="with_extra_substrate")   # one draw, restructured config
+```
+
+Swapping `custom_code` leaves the variation as it is. Swapping a varied folder such as `config` or
+`rulesets_collection` carries the draw's values onto the new file: every parameter present in both
+keeps its calibrated value, so the change of structure is the only change, and anything that could
+not be carried is listed in a warning. [`Monad`](@ref) documents the `carry` and `warn_uncarried`
+keywords.
+
 ### Convergence diagnostics
 
 [`ConvergenceSummary`](@ref) collects per-generation statistics into a table:

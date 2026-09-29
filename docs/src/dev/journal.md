@@ -21,37 +21,29 @@ warning is a cost paid by every existing user for a tidiness they did not ask fo
 
 ## 2026-09-14 — What the cell-type panels are named after, and what a pruned replicate does
 
-**Decided.** The panel list comes from the first simulation in the sampling whose initial XML is
-still on disk, so a pruned replicate is stepped over rather than ending the plot; a replicate
-with no output is dropped from the monad's mean and band instead of being counted as zero.
-**Decided.** A `Trial` now raises an `ArgumentError` naming its samplings, and a trial with no
-readable output anywhere raises rather than drawing an empty figure — which used to be
-indistinguishable from a broken recipe.
+**Decided.** `plotbycelltype` takes its list of cell-type panels from the first simulation in the
+sampling whose initial XML is still on disk, so a pruned replicate is stepped over rather than
+ending the plot; a replicate with no output is dropped from the monad's mean and band instead of
+being counted as zero.
+**Decided.** `plotbycelltype` refuses a `Trial` with an `ArgumentError` telling the caller to plot
+its samplings one at a time, because a trial's samplings need not share a config and so need not
+share a cell-type roster. A sampling with no readable output anywhere raises an `ArgumentError`
+rather than drawing an empty figure, which could not be told apart from a broken recipe.
 **Rejected.** Taking the panel list from the config file: the curves come from the output XML,
 and a list read from a second source is one that can disagree with them.
 
 *From [`man/analyzing_output.md`](../man/analyzing_output.md)*
 
-## 2026-09-14 — One builder per quantity, one reducer for all of them
-
-**Decided:** each quantity gets exactly one builder — `populationCountQoI(; index)` and
-`populationFractionQoI(; index)` read the snapshot at `index`, `:final` by default — and none of
-them defines a `reduce`, so all are averaged by ModelManager's default per-key mean. Sink
-columns and labels are `population_count.<cell_type>` and `population_fraction.<cell_type>`.
-
-**Rejected:** a separate endpoint builder beside each. Once the two reduced identically it was
-the same measurement under a second name and a second family of sink columns.
-
-*From [`man/calibration.md`](../man/calibration.md)*
-
 ## 2026-09-14 — One builder per quantity
 
-**Decided.** `populationCountQoI(; index)` and `populationFractionQoI(; index)` are the single
-builders for their quantities, `index` defaulting to `:final`; the separate endpoint-only names
-are gone, and the sink columns they write are `population_count.<cell_type>` and
-`population_fraction.<cell_type>`.
-**Rejected.** Keeping both spellings for compatibility: once they reduced identically, the
-second name bought nothing but a second family of columns in the same database.
+**Decided.** One builder per quantity — `populationCountQoI` and `populationFractionQoI` — each
+measuring one simulation at the snapshot `index` (`:final` by default) and reduced across a
+monad's replicates by ModelManager's default per-key mean, so the sink, sensitivity analysis and
+calibration use it identically. They write `population_count.<cell_type>` and
+`population_fraction.<cell_type>` columns.
+**Rejected.** A second, endpoint-only builder beside each. Once no builder had a reducer of its
+own, it was the same measurement under another name, and it only added a second family of sink
+columns.
 
 *From [`man/post_processing.md`](../man/post_processing.md)*
 
@@ -75,8 +67,6 @@ respects it, `Sobolʼ(64)`, is 238 simulations for a picture that only shows the
 count is honored and every job is allocated the CPUs PhysiCell will actually use. A config
 whose element cannot be read falls back to 1 with one warning rather than failing the
 submission, and a `cpus-per-task` you set yourself still wins.
-**Rejected:** installing the default from PCMM as a `Function` job option, which is the same
-mechanism with a wrapper and does not let other backends fill the default the same way.
 
 *From [`man/running_simulations.md`](../man/running_simulations.md)*
 
@@ -109,9 +99,10 @@ stale binary beside a file claiming the new version.
 **Decided:** [`initializeModelManager`](@ref) sets the compile flag to `-march=x86-64` when the
 session is in HPC mode and `-march=native` otherwise. The question a compile has to answer is
 whether this binary will later be executed by a machine that did not build it, and a batch
-scheduler is exactly the thing that does that; the binary is cached across sessions, so the
-choice cannot be revisited at run time.
-**Rejected:** `x86-64-v3`, which is the Haswell feature level and so reintroduces the crash on
+scheduler is exactly the thing that does that: a `-march=native` binary built on a newer login
+node dies with an illegal-instruction (SIGILL) crash on an older compute node. The binary is
+cached across sessions, so the choice cannot be revisited at run time.
+**Rejected:** `x86-64-v3`, which is the Haswell feature level and so reintroduces that crash on
 older nodes; and parsing `scontrol show nodes` to detect a heterogeneous partition.
 **Open:** a non-Slurm scheduler (PBS, LSF, SGE) is not probed for and still gets `native`, and a
 mixed-architecture cluster — x86 login node, non-x86 compute nodes — is unsupported: run Julia
@@ -195,11 +186,12 @@ as before it, and splitting one body across two hooks buys nothing.
 
 ## 2026-07-07 — Pruning runs after your callback, not before it
 
-**Decided.** Pruning moved into the destructive half of the per-simulation hook, which runs
-after the user `post_processor`. It used to run in the non-destructive half, so a callback would
-have opened an output folder that had already been gutted.
-**Decided.** The whole tail — including how a simulation's error file is handled — moved with
-it, rather than pruning alone.
+**Decided.** A simulation's post-run steps are split in two: non-destructive steps before the
+user `post_processor`, destructive ones after it. Pruning is destructive, so it runs after the
+callback; run before it, as it first was, it would have left the callback an output folder that
+had already been gutted.
+**Decided.** The rest of PCMM's post-simulation work — including how a simulation's error file
+is handled — moved after the callback too, rather than pruning alone.
 
 *From [`man/post_processing.md`](../man/post_processing.md)*
 
@@ -241,9 +233,11 @@ redundant, and by the time a spec exists the simulator-specific routing is alrea
 monad/runner infrastructure, adding no dependencies, with the algorithm kept free of any
 PhysiCell wiring so it could move to ModelManager — which it since has.
 
-**Rejected:** the pyabc backend this replaced. It worked, but it managed a conda environment and
-was stuck on a single-core sampler, because Julia closures cannot be pickled. ApproxBayes.jl,
-KissABC.jl and SimulationBasedInference.jl were each rejected on their own grounds.
+**Rejected:** keeping the earlier pyabc (Python) backend. It worked, but it managed a conda
+environment and was stuck on a single-core sampler, because Julia closures cannot be pickled.
+Also rejected: ApproxBayes.jl, whose `Distributed.jl` parallelism conflicts with the
+Channel-based runner; KissABC.jl, which is archived; and SimulationBasedInference.jl, whose
+ABC-SMC is incomplete.
 
 **Open:** Gaussian-process emulation as a second calibration method.
 

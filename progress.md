@@ -30,6 +30,8 @@
 - Copilot's three mechanical findings were right: `sink = CSV.write("f.csv")` evaluated eagerly and without the table (now closures), the print stylesheet lost to the hide rule's specificity, and `journal.jl` accepted a dated header with no title (now an error).
 - Questions for ModelManager raised by the review: `posterior` returns `(df, weights)` rather than one frame with a weight column; the corner plot draws empty axes in the upper triangle.
 
+**Second review (2026-09-29).** Twenty-nine comments on six pages. Rules that came out of it: `sink = CSV.write("file.csv")` is the form to show (CSV.jl returns a closure from the one-argument call; the explicit `df -> …` closure was just longer), with `using CSV` visible; `getParameterValue` is user-facing after all, so the querying page describes it beside `getAllParameterValues`; journal entries must be self-contained (one referred to constructors a reader cannot see); the HPC detection story (the `sbatch` probe, the init banner, `useHPC`) is Brief-tier, not Full; `MODELMANAGER_HPC_DONE_DIR` is named plainly. `docs/generate_figures.jl` now creates its own project when given no path (`createProject` + `importProject` of the immune sample, mirroring ImportTests.jl) — wired, not run end to end in this session, since it needs a PhysiCell clone, a compile and an hour of simulations.
+
 **Open**
 - `checkdocs = :public` instead of `:exports`; deferred until the ModelManager public set is known to be fully documented.
 

@@ -162,10 +162,14 @@ Nanosecond(round(mean([r.value for r in runtimes]))) #! mean runtime over four s
 ### Group by Monad
 
 !!! tiergloss
-    Call `plot` on a `Simulation`, `Monad`, `Sampling`, or a `run` result (but not a sensitivity
-    analysis) to get a figure of panels. Each panel is one `Monad` — replicates with the same
-    parameters — and plots mean ± SD per cell type. A panel's title defaults to the parameter
-    values that distinguish its monad from the others.
+    Call `plot` on a `Simulation`, `Monad`, `Sampling`, or a `run` result to get a figure of
+    panels. Each panel is one `Monad` — replicates with the same parameters — and plots mean ± SD
+    per cell type. A panel's title defaults to the parameter values that distinguish its monad from
+    the others; to set your own, pass `title` a row vector with one entry per panel, in panel
+    order, or a single string to title every panel the same. Sensitivity-analysis and calibration
+    results have recipes of their own, which draw something else: see
+    [Sensitivity analysis](@ref sensitivity_analysis_man) and
+    [Calibration](@ref calibration_section_man).
 
 !!! tierwhy
     That default title is the monad's row in [`simulationsTable`](@ref) with the ID columns removed.
@@ -180,6 +184,7 @@ plot(sampling; include_dead=true)                    #! count dead cells too
 plot(sampling; include_cell_type_names="cancer")     #! restrict to one cell type
 plot(sampling; exclude_cell_type_names="cancer")     #! or drop one
 plot(sampling; time_unit=:h)                         #! x-axis in hours
+plot(sampling; title = ["low dose" "high dose"])     #! one title per panel, in panel order
 ```
 
 !!! tiergloss
@@ -229,10 +234,6 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 
 ![Population counts, one panel per cell type](../assets/plot_by_cell_type.png)
 
-!!! tierwhy
-    Note the inversion when reading a legend: in `plot` a series is a cell type, in
-    [`plotbycelltype`](@ref) a series is a monad.
-
 !!! tiergloss
     A single `Simulation` has no replicates to summarize, so it plots one line per cell type with no
     band.
@@ -240,20 +241,23 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
 ![Population counts for a single simulation](../assets/plot_single_simulation.png)
 
 !!! tierjournal "2026-09-14 — What the cell-type panels are named after, and what a pruned replicate does"
-    **Decided.** The panel list comes from the first simulation in the sampling whose initial XML is
-    still on disk, so a pruned replicate is stepped over rather than ending the plot; a replicate
-    with no output is dropped from the monad's mean and band instead of being counted as zero.
-    **Decided.** A `Trial` now raises an `ArgumentError` naming its samplings, and a trial with no
-    readable output anywhere raises rather than drawing an empty figure — which used to be
-    indistinguishable from a broken recipe.
+    **Decided.** `plotbycelltype` takes its list of cell-type panels from the first simulation in the
+    sampling whose initial XML is still on disk, so a pruned replicate is stepped over rather than
+    ending the plot; a replicate with no output is dropped from the monad's mean and band instead of
+    being counted as zero.
+    **Decided.** `plotbycelltype` refuses a `Trial` with an `ArgumentError` telling the caller to plot
+    its samplings one at a time, because a trial's samplings need not share a config and so need not
+    share a cell-type roster. A sampling with no readable output anywhere raises an `ArgumentError`
+    rather than drawing an empty figure, which could not be told apart from a broken recipe.
     **Rejected.** Taking the panel list from the config file: the curves come from the output XML,
     and a list read from a second source is one that can disagree with them.
 
 !!! tierdev
     **Regenerating these figures.** They are committed under `docs/src/assets/` rather than rendered
-    during the docs build, which has no compiled PhysiCell. Run
-    `julia --project=docs docs/generate_figures.jl <path/to/project>` to remake them after changing
-    a plot recipe.
+    during the docs build, which has no compiled PhysiCell. `docs/generate_figures.jl` regenerates
+    them: `julia --project=docs docs/generate_figures.jl` creates its own project under
+    `docs/figures-project/` (PhysiCell clone, template inputs, the immune sample imported), runs the
+    campaigns and writes the PNGs; pass a project path to reuse one that already has those inputs.
 
 ## Substrate analysis
 
@@ -335,10 +339,12 @@ mss = motilityStatistics(simulation_id; direction=:x) #! only movement in the x 
 ### Output
 
 !!! tiergloss
-    `pcf` returns a `PCMMPCFResult` with two fields. `time` is always a vector of the time points at
-    which the PCF was computed, even for a single snapshot. `pcf_result` is a
-    `PairCorrelationFunction.PCFResult` with fields `radii` (the bin cutoffs) and `g` (a vector or a
-    `length(radii)-1` by `length(time)` matrix of PCF values).
+    `pcf` returns a `PCMMPCFResult`, which has exactly two fields:
+
+| Field        | Holds                                                                                                                                                              |
+|:-------------|:-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `time`       | A vector of the time points at which the PCF was computed — a vector even for a single snapshot.                                                                  |
+| `pcf_result` | A `PairCorrelationFunction.PCFResult`, itself with fields `radii` (the bin cutoffs) and `g` (a vector, or a `length(radii)-1` by `length(time)` matrix, of PCF values). |
 
 ### Plotting
 
@@ -416,13 +422,20 @@ connected_components = connectedComponents(snapshot)
     value is a vector of vectors: each inner vector holds the cell IDs of one connected component,
     wrapped in the `AgentID` type.
 
+!!! tiergloss
+    To compute components within subsets of cells, pass `include_cell_type_names` a vector whose
+    entries are the subsets, each a vector of cell type names. Each subset is computed on its own:
+    only edges between two of its cells count, and the result has one key per subset — the subset
+    vector itself — whose value is that subset's list of components. The example below has two
+    subsets, so two keys. A subset of a single name is keyed by that name as a `String`.
+
 ```julia
-#! pass a vector of vectors of cell type names to compute components within subsets of cells
 subset_1 = ["cd8_active", "cd8_inactive"]
 subset_2 = ["cancer_epi", "cancer_mes"]
 connected_components = connectedComponents(snapshot; include_cell_type_names=[subset_1, subset_2])
 
-connected_components[subset_1] #! keyed by the vectors themselves, not by the strings "subset_1"
+connected_components[subset_1] #! components among the cd8 cells; keyed by the vector, not the string "subset_1"
+connected_components[subset_2] #! components among the cancer cells
 ```
 
 !!! tierwhy
@@ -447,7 +460,7 @@ connected_components_1 = connected_components |> #! julia's pipe operator
 loadCells!(snapshot) #! make sure the cell data is loaded
 cells_df = snapshot.cells
 
-agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) #! IDs in the component
+agent_ids = DataFrame(ID=[a.id for a in connected_components_1]) #! `.id` is the integer cell ID inside each AgentID
 component_df = rightjoin(cells_df, agent_ids, on=:ID) #! keep only the rows in the component
 ```
 

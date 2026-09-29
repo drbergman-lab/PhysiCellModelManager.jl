@@ -9,15 +9,17 @@
 #!
 #! Usage, from the repository root:
 #!
-#!     julia --project=docs docs/generate_figures.jl <path/to/project>
+#!     julia --project=docs docs/generate_figures.jl [path/to/project]
 #!
-#! `<path/to/project>` must be a PCMM project holding the `immune_sample` config plus the
-#! `immune_function` custom code, IC cells and rulesets, and the `0_template` config, custom code and
-#! rulesets; `test/` qualifies once the test suite has been run at least once.
-#! The script builds its own small campaigns rather than reusing whatever simulations happen to be
-#! in the database, both so the figures are reproducible and because the test suite resets its
-#! database on the way out. Expect a PhysiCell compile on the first run, and a couple of hundred
-#! short template-project simulations for the sensitivity and calibration figures (an hour or two).
+#! With no argument the script creates its own project at `docs/figures-project/` (gitignored):
+#! `createProject` clones PhysiCell and lays down the `0_template` inputs, and `importProject`
+#! brings in PhysiCell's `immune_function` sample as the `immune_sample` config with the
+#! `immune_function` custom code, IC cells and rulesets. Pass a path to reuse a project that already
+#! holds those inputs (`test/` qualifies once the test suite has run). Either way the script builds
+#! its own small campaigns rather than reusing whatever simulations happen to be in the database,
+#! so the figures are reproducible. Expect a PhysiCell compile on the first run, and a couple of
+#! hundred short template-project simulations for the sensitivity and calibration figures (an hour
+#! or two).
 
 ENV["GKSwstype"] = "100"   #! GR off-screen; the script runs headless
 
@@ -26,9 +28,22 @@ using PhysiCellModelManager
 using PhysiCellModelManager: userParameterPath, cyclePath
 using Plots, Distributions
 
-length(ARGS) == 1 || error("usage: julia --project=docs docs/generate_figures.jl <path/to/project>")
-project_dir = abspath(ARGS[1])
+length(ARGS) <= 1 || error("usage: julia --project=docs docs/generate_figures.jl [path/to/project]")
+project_dir = abspath(isempty(ARGS) ? joinpath(@__DIR__, "figures-project") : ARGS[1])
+
+#! A fresh project: PhysiCell cloned, `0_template` inputs in place. Then the immune sample imported
+#! exactly as test/test-scripts/ImportTests.jl does it, so the two agree on folder names.
+if !isdir(joinpath(project_dir, "PhysiCell")) || !isdir(joinpath(project_dir, "data"))
+    println("creating a PCMM project at ", project_dir)
+    createProject(project_dir)
+end
 initializeModelManager(joinpath(project_dir, "PhysiCell"), joinpath(project_dir, "data"))
+if !isdir(locationPath(:config, "immune_sample"))
+    println("importing PhysiCell's immune_function sample as immune_sample / immune_function")
+    importProject(joinpath(project_dir, "PhysiCell", "sample_projects", "immune_function");
+                  src=Dict("config" => "PhysiCell_settings.xml", "rulesets_collection" => "cell_rules.csv"),
+                  dest=Dict("config" => "immune_sample"))
+end
 
 assets = normpath(joinpath(@__DIR__, "src", "assets"))
 mkpath(assets)

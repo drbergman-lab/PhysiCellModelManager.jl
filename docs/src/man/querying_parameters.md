@@ -5,21 +5,30 @@ Read back the parameters that past simulations actually ran with.
 |---|---|---|
 | [`simulationsTable`](@ref) | the databases | readability |
 | [`getAllParameterValues`](@ref) | every XML value | programmatic access |
+| `getParameterValue` | one XML value | a single parameter |
 
 ## [`simulationsTable`](@id simulations_table_section)
 
 !!! tiergloss
     [`simulationsTable`](@ref) returns a table of simulation data. By default it shows only varied
-    values and renames columns to be human-readable. [`printSimulationsTable`](@ref) is a wrapper
-    that prints the table directly; its `sink` keyword redirects the output, and is called with the
-    table, so pass a one-argument function.
+    values, renames columns to be human-readable, and sorts by every parameter column; keywords
+    change each of these and can append tag and post-processing columns.
+    [`printSimulationsTable`](@ref) is a wrapper that prints the table directly and takes the same
+    keywords; its `sink` keyword redirects the output, and is called with the table, so pass a
+    one-argument function.
 
 ```julia
 using CSV
 
-simulationsTable(sampling)                                          # one row per simulation
-printSimulationsTable(sampling)                                     # the same table, printed
-printSimulationsTable(sampling; sink=df -> CSV.write("runs.csv", df))
+simulationsTable(sampling)                                 # one row per simulation
+simulationsTable(sampling; remove_constants = false)       # keep the columns that never vary
+simulationsTable(sampling; short_names = false)            # raw XML-path column names
+simulationsTable(sampling; sort_by = ["Max Time"])         # sort by these columns only (names as printed)
+simulationsTable(sampling; sort_ignore = ["Max Time"])     # sort by every other parameter column
+simulationsTable(sampling; tags = true)                    # plus a `tag:<key>` column per tag key
+simulationsTable(sampling; post_processing = true)         # plus the stored post-processing quantities
+printSimulationsTable(sampling)                            # the same table, printed
+printSimulationsTable(sampling; sink = CSV.write("runs.csv"))
 ```
 
 ### [Monad-level: `monadsTable`](@id monads_table_section)
@@ -36,24 +45,36 @@ monadsTable(sampling)                           # one row per monad in the sampl
 monadsTable([1, 2, 3]; remove_constants=false)  # by monad ID, keeping constant columns
 ```
 
-## [`getAllParameterValues`](@id get_all_parameter_values_section)
+## [Accessing any parameter value](@id get_all_parameter_values_section)
 
 !!! tiergloss
     [`getAllParameterValues`](@ref) returns every terminal element in the XML input files for a set
     of simulations, which must all belong to the same `Sampling` (i.e. use the same input files).
-    Column names are the XML paths.
+    Column names are the XML paths. `getParameterValue(monad_or_simulation, xml_path)` reads one
+    parameter for one `Monad`, `Simulation`, or simulation ID. The location (`:config`,
+    `:rulesets_collection`, …) is inferred from the path; on a `Monad` or `Simulation` you may also
+    pass it explicitly as a middle argument.
 
 !!! tierwhy
-    Because the column names *are* the paths, splitting one on `/` gives a vector ready to hand to
-    [`DiscreteVariation`](@ref) — which is the point of the function: it turns "what could I vary
-    here?" into a table you can filter, rather than a document you have to read. Everything appears,
-    varied or not, so this is also how you check a parameter you never touched.
+    Because the column names of [`getAllParameterValues`](@ref) *are* the paths, splitting one on
+    `/` gives a vector ready to hand to [`DiscreteVariation`](@ref) — it turns "what could I vary
+    here?" into a table you can filter, rather than a document you have to read. Everything
+    appears, varied or not, so this is also how you check a parameter you never touched.
+
+    `getParameterValue` reads the same way whether or not the parameter was varied: it takes the
+    value from the variations database when that column exists and falls back to the base XML file
+    when it does not. `"true"`/`"false"` come back as `Bool` and numeric strings as `Float64`;
+    anything else is returned as-is.
 
 ```julia
 df = getAllParameterValues(sampling)
 col1 = names(df)[1]                          # the name of the first column
 xml_path = split(col1, "/")                  # convert to XML path format
 dv = DiscreteVariation(xml_path, [0.0, 1.0]) # vary that parameter
+
+getParameterValue(monad, configPath("max_time"))           # one value, for a Monad or Simulation
+getParameterValue(5, configPath("max_time"))               # ...or by simulation ID
+getParameterValue(monad, :config, configPath("max_time"))  # with the location given explicitly
 ```
 
 !!! tierdev
@@ -63,28 +84,21 @@ dv = DiscreteVariation(xml_path, [0.0, 1.0]) # vary that parameter
     is the hand-rolled version of the latter. Both are exported by ModelManager and re-exported here,
     so they need no prefix.
 
-    **One value at a time.** `getParameterValue(M, xp)` reads a single parameter for a monad or
-    simulation ID: it takes the value from the variations database when that column exists and falls
-    back to the base XML file when it does not, which is what makes an unvaried parameter readable
-    the same way as a varied one. The location is inferred from the [`XMLPath`](@ref) unless you pass
-    it explicitly as a middle argument. `"true"`/`"false"` come back as `Bool` and numeric strings as
-    `Float64`; anything else is returned as-is. [`getAllParameterValues`](@ref) is the bulk form and
-    is what user code should normally call.
-
-### Columns that carry an attribute
+### [Telling identical siblings apart: PCMM's `temp_id` attribute](@id temp_id_columns)
 
 !!! tiergloss
-    Some column names include what look like attributes, to tell apart several children with the
-    same tag. Those spelled `<tag>:temp_id:<index>` are the ones you cannot vary as they stand.
-    Find them by searching for `":temp_id:"`.
+    When several sibling elements share a tag, a column name includes one of their attributes to
+    say which sibling it means, as `<tag>:<attribute>:<value>`. When no attribute tells them apart,
+    PCMM inserts a positional `temp_id` attribute, `<tag>:temp_id:<index>`, in the *column name
+    only* — not in your XML — so the columns stay unique. Find those columns by searching for
+    `":temp_id:"`.
 
 !!! tierwhy
-    Identically tagged siblings need something in the path to tell them apart, so
-    [`getAllParameterValues`](@ref) looks for an attribute that distinguishes them, preferring
-    `name`, `ID`, and `id`. When no attribute does, it invents a positional one so the column names
-    stay unique — but it does **not** write that attribute into your XML. A `:temp_id:` column is
-    therefore readable and not varyable: to vary such a parameter, add a real identifying attribute
-    to those siblings in the input file yourself, then query again.
+    [`getAllParameterValues`](@ref) looks for an attribute whose value differs across the siblings,
+    preferring `name`, `ID`, and `id`, and falls back to `temp_id` only when none does. Because
+    `temp_id` exists in the column name and nowhere in the input file, such a column is readable
+    but not varyable: to vary that parameter, add a real distinguishing attribute to those siblings
+    in the input file, then query again.
 
 ```julia
 df = getAllParameterValues(sampling)

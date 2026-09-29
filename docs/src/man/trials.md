@@ -23,10 +23,10 @@ how to get one back, and how to read what it contains.
     script grow a `DiscreteVariation` from one value to three without any other edit — the same
     call that returned a `Simulation` now returns a `Sampling`, and [`run`](@ref) takes either.
 
-    A `Simulation` is never on its own, either. The `Monad` for its parameter set is where a
-    simulation is recorded, and [`run`](@ref) is what puts it there, so a single run and a
-    five-replicate monad differ only in how many simulations that monad holds — there is no
-    simulation without a monad above it. [`monadIDs`](@ref) on a simulation names that monad.
+    Every `Simulation`, once run, belongs to a `Monad`. A `Simulation` created by `createTrial` is
+    added to the `Monad` for its inputs and parameters when it is run, and future `Simulation`s with
+    the same inputs and parameters join that same `Monad`. [`monadIDs`](@ref) on a simulation names
+    that monad.
 
 ```julia
 inputs = InputFolders("0_template", "0_template")
@@ -104,7 +104,7 @@ monadsTable(sampling)
 printMonadsTable([monad, sampling])
 
 using CSV
-printSimulationsTable(sampling; sink = df -> CSV.write("runs.csv", df))
+printSimulationsTable(sampling; sink = CSV.write("runs.csv"))
 ```
 
 !!! tierdev

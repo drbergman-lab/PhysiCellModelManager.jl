@@ -70,7 +70,13 @@ run(sampling)
 ## Run on an HPC
 
 !!! tiergloss
-    [`useHPC`](@ref) pins simulations to SLURM submission for the session;
+    In HPC mode, `run` submits each simulation to SLURM with `sbatch` instead of starting it on this
+    machine. HPC mode is detected: [`initializeModelManager`](@ref) calls
+    [`isRunningOnHPC`](@ref), which probes for the `sbatch` command, and turns HPC mode on if it
+    finds it. The banner printed at initialization reports the result on its `Running on HPC:`
+    line (`true` or `false`). [`useHPC`](@ref)`(true)` or `useHPC(false)` overrides the detection
+    for the rest of the session.
+
     [`setJobOptions`](@ref) merges entries into the `sbatch` options dictionary, each becoming a
     `--key=value` flag. A value may be a function of the [`Simulation`](@ref) about to be
     submitted, so an option can follow a varied parameter.
@@ -82,11 +88,11 @@ run(sampling)
     times slower with nothing in any log to say so.
 
 !!! tierwhy
-    [`initializeModelManager`](@ref) probes for `sbatch` on every call and sets HPC mode from what
-    it finds, so a later re-initialization would otherwise undo a deliberate `useHPC(false)` on a
-    machine that happens to have SLURM installed. `useHPC` pins the choice for the session and
-    across those later calls. The keys PCMM renders itself — `wrap`, `output`, `error`, `wait`,
-    `parsable`, `chdir` — are refused by `setJobOptions` with an `ArgumentError`.
+    `useHPC` pins the choice across later calls to `initializeModelManager` because each call
+    probes for `sbatch` again; without the pin, a re-initialization would undo a deliberate
+    `useHPC(false)` on a machine that happens to have SLURM installed. The keys PCMM renders
+    itself — `wrap`, `output`, `error`, `wait`, `parsable`, `chdir` — are refused by
+    `setJobOptions` with an `ArgumentError`.
 
 ```julia
 useHPC()                                  # useHPC(false) forces local runs
@@ -109,16 +115,15 @@ run(sampling)
     count is honored and every job is allocated the CPUs PhysiCell will actually use. A config
     whose element cannot be read falls back to 1 with one warning rather than failing the
     submission, and a `cpus-per-task` you set yourself still wins.
-    **Rejected:** installing the default from PCMM as a `Function` job option, which is the same
-    mechanism with a wrapper and does not let other backends fill the default the same way.
 
 !!! tierjournal "2026-08-05 — Compiling for `x86-64` on a cluster"
     **Decided:** [`initializeModelManager`](@ref) sets the compile flag to `-march=x86-64` when the
     session is in HPC mode and `-march=native` otherwise. The question a compile has to answer is
     whether this binary will later be executed by a machine that did not build it, and a batch
-    scheduler is exactly the thing that does that; the binary is cached across sessions, so the
-    choice cannot be revisited at run time.
-    **Rejected:** `x86-64-v3`, which is the Haswell feature level and so reintroduces the crash on
+    scheduler is exactly the thing that does that: a `-march=native` binary built on a newer login
+    node dies with an illegal-instruction (SIGILL) crash on an older compute node. The binary is
+    cached across sessions, so the choice cannot be revisited at run time.
+    **Rejected:** `x86-64-v3`, which is the Haswell feature level and so reintroduces that crash on
     older nodes; and parsing `scontrol show nodes` to detect a heterogeneous partition.
     **Open:** a non-Slurm scheduler (PBS, LSF, SGE) is not probed for and still gets `native`, and a
     mixed-architecture cluster — x86 login node, non-x86 compute nodes — is unsupported: run Julia
@@ -127,6 +132,14 @@ run(sampling)
 !!! tiergloss
     A submitted job reports its exit code by writing a sentinel file that the submitting worker
     polls for; [`setHPCCompletionOptions`](@ref) adjusts the timings of that protocol.
+
+    The sentinel files are written to `data/outputs/.hpc_done` unless the environment variable
+    `MODELMANAGER_HPC_DONE_DIR` is set (and non-empty), in which case they go to the directory it
+    names. That directory must be writable by the compute nodes and readable by the node that
+    submits the jobs, the one running Julia. The variable is read once, when
+    [`initializeModelManager`](@ref) runs, so set it before initializing; PCMM can initialize a
+    project as soon as it is loaded, so the shell that starts Julia is the safest place. A
+    directory that cannot be created or written makes initialization throw an `ArgumentError`.
 
 !!! tierwhy
     The timings are the fields of [`HPCCompletionOptions`](@ref ModelManager.HPCCompletionOptions):
@@ -137,10 +150,12 @@ run(sampling)
 
     `grace_period` is the one to raise first. It must exceed your filesystem's worst-case
     directory-attribute staleness: if a compute node writes the sentinel but this node cannot see
-    it within the grace period, a successful simulation is recorded as failed. The sentinel
-    directory itself is deliberately not one of these options — it is `data/outputs/.hpc_done`
-    unless `MODELMANAGER_HPC_DONE_DIR` says otherwise, and it is fixed for the session.
+    it within the grace period, a successful simulation is recorded as failed.
 
 ```julia
 setHPCCompletionOptions(grace_period = 600.0)   # slow shared filesystem
+```
+
+```bash
+export MODELMANAGER_HPC_DONE_DIR=/scratch/$USER/hpc_done   # before starting Julia
 ```

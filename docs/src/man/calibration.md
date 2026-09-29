@@ -10,19 +10,16 @@ the posterior.
     (epsilon) of the observed data. An agent-based model has no tractable likelihood, so the method
     that applies is the one that only ever needs to *run* the model.
 
-!!! tierdev
-    The implementation is native Julia and needs no Python or conda environment. The algorithm is
-    ModelManager's; PhysiCellModelManager.jl contributes the PhysiCell-specific summary statistics,
-    and one `using PhysiCellModelManager` brings both.
-
 !!! tierjournal "2026-04-22 — A Julia-native ABC-SMC, not a bridge to a Python one"
     **Decided:** implement ABC-SMC directly (Toni et al. 2009, Beaumont et al. 2009) on the existing
     monad/runner infrastructure, adding no dependencies, with the algorithm kept free of any
     PhysiCell wiring so it could move to ModelManager — which it since has.
 
-    **Rejected:** the pyabc backend this replaced. It worked, but it managed a conda environment and
-    was stuck on a single-core sampler, because Julia closures cannot be pickled. ApproxBayes.jl,
-    KissABC.jl and SimulationBasedInference.jl were each rejected on their own grounds.
+    **Rejected:** keeping the earlier pyabc (Python) backend. It worked, but it managed a conda
+    environment and was stuck on a single-core sampler, because Julia closures cannot be pickled.
+    Also rejected: ApproxBayes.jl, whose `Distributed.jl` parallelism conflicts with the
+    Channel-based runner; KissABC.jl, which is archived; and SimulationBasedInference.jl, whose
+    ABC-SMC is incomplete.
 
     **Open:** Gaussian-process emulation as a second calibration method.
 
@@ -224,8 +221,9 @@ problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
 
 !!! tiergloss
     A distance is any `(simulated, observed) → Float64`.
-    [`mseDistance`](@ref mse_distance_section) is the built-in one; a custom function may use any
-    types.
+    [`mseDistance`](@ref mse_distance_section) is the built-in one. In a custom function,
+    `simulated` is always a [`SummaryValues`](@ref); `observed` is whatever you set
+    `observed_data` to, so it may be any type your distance understands.
 
 !!! tierwhy
     `simulated` is a [`SummaryValues`](@ref): the object that carries each QoI's reduced value from
@@ -236,7 +234,6 @@ problem = CalibrationProblem(inputs, params, observed, my_stat, mseDistance)
     (`sim["population_count.cancer"]`), or by the exact tuple (`sim[("population_count", "cancer")]`).
     A `Real`-valued QoI sits under its name alone. When the problem has a single-valued summary
     statistic there is nothing to choose between, and `only(values(simulated))` is that one value.
-    `observed` is whatever you set `observed_data` to.
 
 ```julia
 # Weighted MSE on two cell populations
@@ -567,9 +564,10 @@ df, weights = posterior(Calibration(42); generation = 3)
 
 !!! tierdev
     A [`GenerationResult`](@ref) is what a generation actually stored, and `posterior` is the view
-    of it in target space. Its `particles` frame holds **latent CDF coordinates**, the algorithm's
-    internal representation; alongside it are `weights`, `distances`, `monad_ids`, `ess`,
-    `acceptance_rate`, `n_evaluations`, `max_epsilon_accepted` and `epsilon_threshold`.
+    of it in target space. A `GenerationResult` holds `particles`, a frame of **latent CDF
+    coordinates** (the algorithm's internal representation), and alongside it `weights`,
+    `distances`, `monad_ids`, `ess`, `acceptance_rate`, `n_evaluations`, `max_epsilon_accepted`
+    and `epsilon_threshold`.
     `proposal_distances` records every proposal accepted or not; `rejected_proposals` is populated
     only under `ABCSMC(store_rejected = true)`.
 
@@ -695,7 +693,7 @@ calibrationsTable([1, 2, 3])              # specific IDs; a Calibration or a run
 
 printCalibrationsTable()
 using CSV
-printCalibrationsTable(; sink = df -> CSV.write("calibrations.csv", df))
+printCalibrationsTable(; sink = CSV.write("calibrations.csv"))
 
 deleteCalibration(result)                 # bookkeeping and folder only
 deleteCalibration(3; delete_subs = true)  # and the monads no other run uses
@@ -800,15 +798,6 @@ meanPopulationTimeSeriesQoI(; cell_types=nothing, include_dead=false)
 ```julia
 run(MOAT(), inputs, evs; functions = [populationCountQoI()])   # one analysis per cell type
 ```
-
-!!! tierjournal "2026-09-14 — One builder per quantity, one reducer for all of them"
-    **Decided:** each quantity gets exactly one builder — `populationCountQoI(; index)` and
-    `populationFractionQoI(; index)` read the snapshot at `index`, `:final` by default — and none of
-    them defines a `reduce`, so all are averaged by ModelManager's default per-key mean. Sink
-    columns and labels are `population_count.<cell_type>` and `population_fraction.<cell_type>`.
-
-    **Rejected:** a separate endpoint builder beside each. Once the two reduced identically it was
-    the same measurement under a second name and a second family of sink columns.
 
 ## Built-in distance functions
 

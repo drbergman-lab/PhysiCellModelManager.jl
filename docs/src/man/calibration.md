@@ -672,6 +672,49 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
     `LatentVariation` saved with anonymous maps. Smoothed sampling from a `Calibration` does need
     those maps, and its error names `resumeABC(cal; problem = my_problem)` as the way back.
 
+### Re-running draws under a changed model
+
+!!! tierbrief
+    A copy of a monad onto different input folders — `Monad(monad; config = "with_fibroblasts")`,
+    `Sampling(sampling; custom_code = "revised_code")` — keeps *every* parameter value the monad
+    ran with. A parameter the new file does not have is dropped, a parameter only the new file has
+    takes the new file's value, and a warning lists both. A copy shares no simulations with its
+    source, so ask for replicates.
+
+!!! tierfull
+    A monad's parameter set is its base file with its variation row applied — here the reference
+    monad's `max_time`, the draw's calibrated `apoptosis_rate` and `cycle_duration`, and every
+    other value in the copied monad's config. Swapping `custom_code` leaves the config parameters
+    in place. Swapping to a `config` that adds a cell type reuses all of the copied monad's
+    parameter values and takes the new cell type's parameters from the new config file; the same
+    holds for `rulesets_collection`. `carry = false` takes the new file as it is;
+    `warn_uncarried = false` silences the listing. [`Monad`](@ref) documents both keywords.
+
+```julia
+draws = samplePosterior(result, 50)                   # particles that ran, with their monad_id
+draw  = Monad(first(draws.monad_id))                  # one of them, over the "default" config
+
+# "with_fibroblasts" is the "default" config with a fibroblast cell type added; its file also gives
+# the cancer cells a different migration speed. The copy keeps every value `draw` ran with wherever
+# the new config has the parameter, and warns about what it could not carry.
+one = Monad(draw; config = "with_fibroblasts", n_replicates = 3)
+
+getParameterValue(one, configPath("cancer", "apoptosis", "rate"))       # the draw's calibrated value
+getParameterValue(one, configPath("overall", "max_time"))               # 1440.0, fixed by the reference monad
+getParameterValue(one, configPath("cancer", "migration", "speed"))      # never calibrated: the copied monad's value, not the new file's
+getParameterValue(one, configPath("fibroblast", "migration", "speed"))  # only in the new file: its own value
+run(one)
+
+# The same copy without the listing of what could not be carried, and the new file's own values
+# in place of the draw's
+Monad(draw; config = "with_fibroblasts", n_replicates = 3, warn_uncarried = false)
+Monad(draw; config = "with_fibroblasts", n_replicates = 3, carry = false)
+
+# Every draw at once, under new custom code: the variation row carries over unchanged
+sampling = createTrial(result, draws)
+run(Sampling(sampling; custom_code = "revised_code", n_replicates = 3))
+```
+
 ## Managing calibration runs
 
 !!! tierbrief

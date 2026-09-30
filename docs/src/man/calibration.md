@@ -688,10 +688,8 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
     other value in the copied monad's config. Swapping `custom_code` leaves the config parameters
     in place. Swapping to a `config` that adds a cell type reuses all of the copied monad's
     parameter values and takes the new cell type's parameters from the new config file; the same
-    holds for `rulesets_collection`. `carry = :varied` carries only what the draw's variation row
-    set — the reference monad's values and the calibrated ones — and leaves every other value to
-    the new file; `carry = :none` takes the new file as it is; `warn_uncarried = false` silences
-    the listing. [`Monad`](@ref) documents both keywords.
+    holds for `rulesets_collection`. `carry = :none` takes the new file as it is; `warn_uncarried = false` silences the
+    listing. [`Monad`](@ref) documents both keywords.
 
 ```julia
 draws = samplePosterior(result, 50)                   # particles that ran, with their monad_id

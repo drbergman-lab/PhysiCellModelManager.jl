@@ -48,7 +48,8 @@ test_order = [
     "PhysiCellStudioTests.jl",
     "DeletionTests.jl",
     "DepsTests.jl",
-    "DocstringRefTests.jl"
+    "DocstringRefTests.jl",
+    "ManualCoverageTests.jl"
 ]
 
 @testset "PhysiCellModelManager.jl" begin

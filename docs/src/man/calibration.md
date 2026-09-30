@@ -705,6 +705,11 @@ getParameterValue(one, configPath("cancer", "migration", "speed"))      # never 
 getParameterValue(one, configPath("fibroblast", "migration", "speed"))  # only in the new file: its own value
 run(one)
 
+# The same copy without the listing of what could not be carried, and the new file's own values
+# in place of the draw's
+Monad(draw; config = "with_fibroblasts", n_replicates = 3, warn_uncarried = false)
+Monad(draw; config = "with_fibroblasts", n_replicates = 3, carry = false)
+
 # Every draw at once, under new custom code: the variation row carries over unchanged
 sampling = createTrial(result, draws)
 run(Sampling(sampling; custom_code = "revised_code", n_replicates = 3))

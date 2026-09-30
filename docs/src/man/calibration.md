@@ -675,30 +675,44 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
 ### Re-running draws under a changed model
 
 !!! tierbrief
-    The copy constructors take the location keywords [`InputFolders`](@ref) does and keep the
-    parameter values: `Sampling(sampling; custom_code = "revised_code", n_replicates = 3)` re-runs
-    every draw under new custom code, and `Monad(monad; config = "with_extra_substrate")` moves
-    one draw onto a restructured config. A copy shares no simulations with its source, so ask for
-    replicates.
+    A copy of a monad onto different input folders — `Monad(monad; config = "with_fibroblasts")`,
+    `Sampling(sampling; custom_code = "revised_code")` — keeps *every* parameter value the monad
+    ran with, not only the calibrated ones: the values the reference monad fixed and the base
+    file's own values as well. A parameter the new file does not have is dropped, a parameter only
+    the new file has takes the new file's value, and a warning lists both. A copy shares no
+    simulations with its source, so ask for replicates.
 
 !!! tierfull
-    A calibrated parameter set is often worth re-running under a revised model — new custom code,
-    a config with a cell type or a rule added or removed — with the values it was calibrated to.
-    Swapping `custom_code` leaves the variation as it is. Swapping a varied folder such as
-    `config` or `rulesets_collection` carries the draw's values onto the new file: every parameter
-    present in both keeps its calibrated value, so the change of structure is the only change, and
-    anything that could not be carried is listed in a warning. [`Monad`](@ref) documents the
-    `carry` and `warn_uncarried` keywords.
+    A monad's parameter set is its base file with its variation row applied — here the reference
+    monad's `max_time`, the draw's calibrated `apoptosis_rate` and `cycle_duration`, and every
+    other value in `default`'s config. Swapping `custom_code` leaves that row as it is. Swapping
+    `config` (or `rulesets_collection`) would leave the row meaning nothing, since a variation row
+    belongs to one folder's table, so the copy carries the *values* instead: it reads the draw's
+    effective parameters, compares them with the new file's, and writes whatever differs as one
+    variation row in the new folder. A config that adds a cell type therefore changes the model's
+    structure and nothing else. `carry = :varied` carries only what the row set — the reference
+    monad's fixed values and the calibrated ones — and lets the new file's other defaults stand;
+    `carry = :none` takes the new file as it is; `warn_uncarried = false` silences the listing.
+    [`Monad`](@ref) documents both keywords.
 
 ```julia
-draws    = samplePosterior(result, 50)                 # particles that ran, with their monad_id
-sampling = createTrial(result, draws)                  # one monad per distinct parameter set
-revised  = Sampling(sampling; custom_code = "revised_code", n_replicates = 3)
-run(revised)
+draws = samplePosterior(result, 50)                   # particles that ran, with their monad_id
+draw  = Monad(first(draws.monad_id))                  # one of them, over the "default" config
 
-# One draw under a restructured config
-one = Monad(Monad(first(draws.monad_id)); config = "with_extra_substrate", n_replicates = 3)
+# "with_fibroblasts" is "default" with a fibroblast cell type added and, say, the cancer cells'
+# migration speed retuned. The copy keeps every value `draw` ran with wherever the new config has
+# the parameter, and warns about what it could not carry.
+one = Monad(draw; config = "with_fibroblasts", n_replicates = 3)
+
+getParameterValue(one, configPath("cancer", "apoptosis", "rate"))       # the draw's calibrated value
+getParameterValue(one, configPath("overall", "max_time"))               # 1440.0, fixed by the reference monad
+getParameterValue(one, configPath("cancer", "migration", "speed"))      # "default"'s value, not the retuned one
+getParameterValue(one, configPath("fibroblast", "migration", "speed"))  # only in the new file: its own value
 run(one)
+
+# Every draw at once, under new custom code: the variation row carries over unchanged
+sampling = createTrial(result, draws)
+run(Sampling(sampling; custom_code = "revised_code", n_replicates = 3))
 ```
 
 ## Managing calibration runs

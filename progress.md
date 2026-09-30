@@ -9,7 +9,7 @@
 
 ModelManager #78 and #79 (0.11.0) let a `Simulation`, `Monad` or `Sampling` be copied onto
 different input folders with its parameter values kept — `Monad(draw; custom_code="revised")` —
-and, for a varied folder, carry the values onto the new file as one variation row (`carry=:all`
+and, for a varied folder, carry the values onto the new file as one variation row (`carry=true`
 by default, so a config with a cell type added or a rule removed changes the structure and nothing
 else). The request came from a PhysiCell user wanting to re-run a posterior draw under new custom
 code, so the calibration page gains the recipe: `samplePosterior` → `createTrial` →

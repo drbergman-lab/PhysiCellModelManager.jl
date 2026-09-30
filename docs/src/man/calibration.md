@@ -677,9 +677,8 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
 !!! tierbrief
     A copy of a monad onto different input folders — `Monad(monad; config = "with_fibroblasts")`,
     `Sampling(sampling; custom_code = "revised_code")` — keeps *every* parameter value the monad
-    ran with, not only the calibrated ones: the values the reference monad fixed and the base
-    file's own values as well. A parameter the new file does not have is dropped, a parameter only
-    the new file has takes the new file's value, and a warning lists both. A copy shares no
+    ran with. A parameter the new file does not have is dropped, a parameter only the new file has
+    takes the new file's value, and a warning lists both. A copy shares no
     simulations with its source, so ask for replicates.
 
 !!! tierfull
@@ -688,7 +687,7 @@ sampling = createTrial(Calibration(42), draws; n_replicates = 5)
     other value in the copied monad's config. Swapping `custom_code` leaves the config parameters
     in place. Swapping to a `config` that adds a cell type reuses all of the copied monad's
     parameter values and takes the new cell type's parameters from the new config file; the same
-    holds for `rulesets_collection`. `carry = :none` takes the new file as it is; `warn_uncarried = false` silences the
+    holds for `rulesets_collection`. `carry = false` takes the new file as it is; `warn_uncarried = false` silences the
     listing. [`Monad`](@ref) documents both keywords.
 
 ```julia

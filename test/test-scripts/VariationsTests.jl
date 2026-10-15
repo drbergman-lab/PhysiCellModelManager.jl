@@ -136,6 +136,22 @@ x0_path = icCellsPath("default", "disc", 1, "x0")
 x0s = [0.0, -100.0]
 
 cv_new = CoVariation([cv.variations; DiscreteVariation(max_response_path, mrs); DiscreteVariation(x0_path, x0s)])
+
+#! every location-free form resolves through PCMM's inferVariationLocation hook
+MM = PhysiCellModelManager.ModelManager
+pc_sim = MM.simulator()
+@test pc_sim isa PhysiCellModelManager.PhysiCellSimulator
+@test MM.inferVariationLocation(pc_sim, PhysiCellModelManager.XMLPath(apoptosis_rate_path)) == :config
+@test MM.inferVariationLocation(pc_sim, PhysiCellModelManager.XMLPath(max_response_path)) == :rulesets_collection
+@test MM.inferVariationLocation(pc_sim, PhysiCellModelManager.XMLPath(x0_path)) == :ic_cell
+@test MM.inferVariationLocation(pc_sim, PhysiCellModelManager.XMLPath(icECMPath(1, "ellipse", 1, "a"))) == :ic_ecm
+@test MM.inferVariationLocation(pc_sim, PhysiCellModelManager.XMLPath(["intracellulars", "intracellular:ID:0", "x"])) == :intracellular
+@test parentmodule(which(CoVariation, Tuple{typeof((max_response_path, mrs))})) == MM
+@test parentmodule(which(DiscreteVariation, Tuple{typeof(max_response_path), typeof(mrs)})) == MM
+cv_tuples = CoVariation((PhysiCellModelManager.XMLPath(max_response_path), mrs), (x0_path, x0s), (apoptosis_rate_path, val_1); name="tuple sweep")
+@test MM.variationLocation(cv_tuples) == [:rulesets_collection, :ic_cell, :config]
+@test PhysiCellModelManager.variationName(cv_tuples) == "tuple sweep"
+@test_throws AssertionError CoVariation((max_response_path, mrs), (x0_path, [0.0]))
 cv_test = CoVariation(cv_new.variations...)
 sampling = createTrial(inputs, [dv_max_time, cv_new]; n_replicates=3)
 @test length(PhysiCellModelManager.constituentIDs(sampling)) == 2

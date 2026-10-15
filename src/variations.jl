@@ -1,33 +1,24 @@
 #! PhysiCell-specific variation infrastructure.
 
-import ModelManager: DiscreteVariation, DistributedVariation,
-                     UniformDistributedVariation, NormalDistributedVariation,
-                     ElementaryVariation, LatentVariation, columnName
-
 #!
 #! Generic types (XMLPath, DiscreteVariation, DistributedVariation, CoVariation,
 #! LatentVariation, ParsedVariations, AddVariationMethod subtypes, addVariations, etc.)
-#! are now defined in ModelManager.  This file provides:
-#!   • inferVariationLocation(xp::XMLPath) — PhysiCell-specific location inference
-#!   • Backward-compat constructors (no location arg) for all variation types
+#! and every constructor form -- explicit location, location-free, simulator-first --
+#! are defined in ModelManager.  This file provides:
+#!   • inferVariationLocation(::PhysiCellSimulator, ::XMLPath) — the backend hook the
+#!     location-free constructors resolve through
 #!   • addVariationRows(::PhysiCellSimulator, ...) + its helpers
 #!   • Deprecated PhysiCell-specific dimension helpers
 
 export domainVariations
 
-################## inferVariationLocation(::XMLPath) ##################
+################## inferVariationLocation ##################
 
-"""
-    inferVariationLocation(xp::XMLPath)
-
-Infer the PhysiCell input-folder location symbol for `xp` based on the first path element.
-
-Returns one of `:rulesets_collection`, `:intracellular`, `:ic_cell`, `:ic_ecm`, or `:config`.
-
-This is a PhysiCell-specific function.  The generic ModelManager infrastructure does NOT
-call `inferVariationLocation`; callers are responsible for supplying the location explicitly.
-"""
-function inferVariationLocation(xp::XMLPath)
+#! Map an XMLPath to the input-folder location that owns it, by its first path element.
+#! ModelManager's location-free constructors (`DiscreteVariation(target, values)`, the tuple forms
+#! of `CoVariation`, `LatentVariation` without `locations`, ...) call this through the registered
+#! simulator; `getParameterValue(M, xp)` calls it directly.
+function ModelManager.inferVariationLocation(::PhysiCellSimulator, xp::XMLPath)
     if startswith(xp.xml_path[1], "behavior_ruleset:name:")
         return :rulesets_collection
     elseif xp.xml_path[1] == "intracellulars"
@@ -39,51 +30,6 @@ function inferVariationLocation(xp::XMLPath)
     else
         return :config
     end
-end
-
-################## Backward-compat convenience constructors ##################
-#
-# These let PCMM callers omit the `location` argument — location is inferred
-# from the XMLPath.  The explicit-location constructors are defined in ModelManager.
-
-function DiscreteVariation(target::XMLPath, values::Vector{T}; name::Union{Nothing,AbstractString}=nothing) where T
-    return DiscreteVariation(inferVariationLocation(target), target, values; name=name)
-end
-DiscreteVariation(target::XMLPath, value::T; name::Union{Nothing,AbstractString}=nothing) where T = DiscreteVariation(target, Vector{T}([value]); name=name)
-DiscreteVariation(target::Vector{<:AbstractString}, values; name::Union{Nothing,AbstractString}=nothing) = DiscreteVariation(XMLPath(target), values; name=name)
-
-function DistributedVariation(target::XMLPath, distribution::Distribution; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing)
-    return DistributedVariation(inferVariationLocation(target), target, distribution; flip=flip, name=name)
-end
-DistributedVariation(target::Vector{<:AbstractString}, dist::Distribution; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing) =
-    DistributedVariation(XMLPath(target), dist; flip=flip, name=name)
-
-function ElementaryVariation(target::Vector{<:AbstractString}, v; kwargs...)
-    if v isa Distribution{Univariate}
-        return DistributedVariation(target, v; kwargs...)
-    else
-        return DiscreteVariation(target, v; kwargs...)
-    end
-end
-
-function UniformDistributedVariation(xml_path::Vector{<:AbstractString}, lb::T, ub::T; flip::Bool=false, name::Union{Nothing,AbstractString}=nothing) where {T<:Real}
-    return DistributedVariation(xml_path, Uniform(lb, ub); flip=flip, name=name)
-end
-
-function NormalDistributedVariation(xml_path::Vector{<:AbstractString}, mu::T, sigma::T; lb::Real=-Inf, ub::Real=Inf, flip::Bool=false, name::Union{Nothing,AbstractString}=nothing) where {T<:Real}
-    return DistributedVariation(xml_path, truncated(Normal(mu, sigma), lb, ub); flip=flip, name=name)
-end
-
-function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{XMLPath}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=ModelManager.defaultLatentParameterNames(latent_parameters, targets); inverse_maps::Union{Nothing,AbstractVector{<:Function}}=nothing, name::Union{Nothing,AbstractString}=nothing, target_names::Union{Nothing,AbstractVector{<:AbstractString}}=nothing) where T<:Union{Vector{<:Real},<:Distribution}
-    locations = inferVariationLocation.(targets)
-    resolved_target_names = isnothing(target_names) ? shortVariationName.(locations, columnName.(targets)) : target_names
-    return LatentVariation(latent_parameters, targets, maps, lp_names, locations; inverse_maps=inverse_maps, name=name, target_names=resolved_target_names)
-end
-
-function LatentVariation(latent_parameters::Vector{T}, targets::AbstractVector{<:AbstractVector{<:AbstractString}}, maps::Vector{<:Function}, lp_names::AbstractVector{<:AbstractString}=String[]; inverse_maps::Union{Nothing,AbstractVector{<:Function}}=nothing, name::Union{Nothing,AbstractString}=nothing, target_names::Union{Nothing,AbstractVector{<:AbstractString}}=nothing) where T<:Union{Vector{<:Real},<:Distribution}
-    targets_xp = XMLPath.(targets)
-    lp_names = isempty(lp_names) ? ModelManager.defaultLatentParameterNames(latent_parameters, targets_xp) : lp_names
-    return LatentVariation(latent_parameters, targets_xp, maps, lp_names; inverse_maps=inverse_maps, name=name, target_names=target_names)
 end
 
 ################## Variation Dimension Functions ##################

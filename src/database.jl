@@ -67,7 +67,7 @@ For the generic 3-argument form (explicit location), see `ModelManager.getParame
 - Everything else is returned as-is.
 """
 function getParameterValue(M::AbstractMonad, xp::XMLPath)
-    location = inferVariationLocation(xp)
+    location = ModelManager.inferVariationLocation(simulator(), xp)
     return getParameterValue(M, location, xp)
 end
 

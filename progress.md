@@ -5,6 +5,35 @@
 
 ---
 
+## 2026-10-15 — Location inference becomes a ModelManager hook
+
+ModelManager #87 (merged as `5c371e7b`, released in 0.12.0) gives every variation
+constructor three forms — `(location, target, ...)`, `(target, ...)`, `(sim, target, ...)` — and
+resolves the location-free ones through a backend hook, `inferVariationLocation(sim, ::XMLPath)`.
+PCMM's `src/variations.jl` had carried ten location-free wrappers plus a one-argument
+`inferVariationLocation(xp)`; it now carries only the hook method for `PhysiCellSimulator`, with the
+same body, and `getParameterValue(M, xp)` calls that method through `simulator()`. The wrappers are
+deleted: ModelManager's forms are untyped in their target, so they took every PCMM call site unchanged,
+with the same locations and the same default names (ModelManager derives them through
+`shortVariationName(sim, ...)`, which is PCMM's).
+
+Rejected: keeping the one-argument `inferVariationLocation(xp)` as a wrapper. It had one caller, and
+two names for one lookup is the duplication this change removes. Checked, not assumed: no PCMM test or
+page passes `lp_names=String[]`, the empty-vector sentinel PCMM's old `LatentVariation` wrapper accepted
+and ModelManager's explicit constructors now reject.
+
+Rejected earlier (2026-10-10 session): moving the tuple `CoVariation` constructors into PCMM with
+ModelManager's signatures. Identical signatures cannot coexist (Julia refuses method overwriting during
+precompilation), so it needed a coordinated ModelManager version bump; the hook needs none.
+
+PCMM goes to 0.6.0, not 0.5.3: compat crosses ModelManager's breaking line (0.11 → 0.12, whose #83
+and #84 change plot selectors and `LatentVariation`'s layout — all re-exported to PCMM users) and
+PhysiCellCellCreator's (0.0.9 → 0.1). A patch bump would hand downstream `"0.5"` pins those breaks
+with no opt-in; a minor bump holds them at 0.5.2 until they choose to move. #241 tracked 0.11 as a
+patch; that was the wrong call, not a precedent.
+
+---
+
 ## 2026-09-29 — Track ModelManager 0.11: a posterior draw under a changed model
 
 ModelManager #78 and #79 (0.11.0) let a `Simulation`, `Monad` or `Sampling` be copied onto

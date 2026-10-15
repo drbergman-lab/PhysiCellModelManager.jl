@@ -95,6 +95,7 @@
 - `CoVariation` — link multiple parameters so they vary together.
 - Variation objects accept an optional `name` field for user-defined display names in parameter DataFrames and sensitivity scheme outputs.
 - If `name` is omitted, defaults follow `shortVariationName` conventions based on location + target XML path.
+- A variation built without a location (`DiscreteVariation(xml_path, values)`, the tuple forms of `CoVariation`, `LatentVariation` without `locations`) gets one from PCMM's `inferVariationLocation(::PhysiCellSimulator, ::XMLPath)`, the ModelManager backend hook: `behavior_ruleset:name:` → `:rulesets_collection`, `intracellulars` → `:intracellular`, `cell_patches:name:` → `:ic_cell`, `layer:ID:` → `:ic_ecm`, else `:config`. The constructors themselves are ModelManager's.
 - Variations are passed to `run()` to generate a `Monad`/`Sampling`/`Trial` hierarchy.
 
 **Acceptance criteria:**

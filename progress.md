@@ -7,7 +7,7 @@
 
 ## 2026-10-15 — Location inference becomes a ModelManager hook
 
-ModelManager #87 (merged as `5c371e7b`, unreleased, rides in 0.11.0) gives every variation
+ModelManager #87 (merged as `5c371e7b`, released in 0.12.0) gives every variation
 constructor three forms — `(location, target, ...)`, `(target, ...)`, `(sim, target, ...)` — and
 resolves the location-free ones through a backend hook, `inferVariationLocation(sim, ::XMLPath)`.
 PCMM's `src/variations.jl` had carried ten location-free wrappers plus a one-argument

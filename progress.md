@@ -26,6 +26,12 @@ Rejected earlier (2026-10-10 session): moving the tuple `CoVariation` constructo
 ModelManager's signatures. Identical signatures cannot coexist (Julia refuses method overwriting during
 precompilation), so it needed a coordinated ModelManager version bump; the hook needs none.
 
+PCMM goes to 0.6.0, not 0.5.3: compat crosses ModelManager's breaking line (0.11 → 0.12, whose #83
+and #84 change plot selectors and `LatentVariation`'s layout — all re-exported to PCMM users) and
+PhysiCellCellCreator's (0.0.9 → 0.1). A patch bump would hand downstream `"0.5"` pins those breaks
+with no opt-in; a minor bump holds them at 0.5.2 until they choose to move. #241 tracked 0.11 as a
+patch; that was the wrong call, not a precedent.
+
 ---
 
 ## 2026-09-29 — Track ModelManager 0.11: a posterior draw under a changed model

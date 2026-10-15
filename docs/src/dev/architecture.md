@@ -35,7 +35,7 @@ order; a new file must be added there.
 | `src/utilities.jl` | [`quietRun`](@ref ModelManager.quietRun). |
 | `src/globals.jl` | `centralDBFileName(::PhysiCellSimulator)` (the `vct.db` / `pcmm.db` choice) and `physicellDir()`. |
 | `src/pruner.jl` | [`PruneOptions`](@ref) and the deletion of simulation output files after a run. |
-| `src/variations.jl` | PhysiCell variation infrastructure: `inferVariationLocation`, which maps an [`XMLPath`](@ref) to the input location that owns it, the constructors that take no location, and [`domainVariations`](@ref). |
+| `src/variations.jl` | PhysiCell variation infrastructure: PCMM's method of [`inferVariationLocation`](@ref ModelManager.inferVariationLocation), which maps an [`XMLPath`](@ref) to the input location that owns it, and [`domainVariations`](@ref). |
 | `src/compilation.jl` | `loadCustomCode` and everything around it: compiler flags and macros, the executable naming keyed to the PhysiCell version, the build folder, and the temporary-copy compile that lets several samplings compile at once. |
 | `src/configuration.jl` | PhysiCell XML: the path helpers ([`configPath`](@ref), [`rulePath`](@ref), [`icCellsPath`](@ref), [`icECMPath`](@ref)), reading and writing config elements, and PCMM's `prepareBaseFile` and `postVariationXMLProcessing` methods. The largest file in the package. |
 | `src/creation.jl` | [`createProject`](@ref): the `data/` tree, the `inputs.toml` template, and downloading a PhysiCell release. |
@@ -83,8 +83,10 @@ then runs what comes back, so everything below applies unchanged to both.
    [`AddVariationMethod`](@ref ModelManager.AddVariationMethod) it was given (default `GridVariation()`), writes one row per
    distinct parameter set into each location's per-folder variations database, and builds the
    [`Simulation`](@ref), [`Monad`](@ref) or [`Sampling`](@ref) that holds them. PCMM contributes one
-   thing here: `inferVariationLocation` in `src/variations.jl`, which is how a bare `XMLPath` from
-   [`configPath`](@ref) or [`rulePath`](@ref) knows it means `:config` or `:rulesets_collection`.
+   thing here: its method of [`inferVariationLocation`](@ref ModelManager.inferVariationLocation) in
+   `src/variations.jl`, the hook ModelManager's location-free constructors call, which is how a bare
+   `XMLPath` from [`configPath`](@ref) or [`rulePath`](@ref) knows it means `:config` or
+   `:rulesets_collection`.
 
 2. **`run`** first calls `prepareTrialHierarchy`, which walks the hierarchy creating trial folders
    and calling two hooks. [`setupSampling`](@ref ModelManager.setupSampling) runs once per sampling; PCMM compiles the custom

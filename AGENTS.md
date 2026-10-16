@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Operational notes for anyone — person or agent — working in this repository. Process and style are
-in [CONTRIBUTING.md](CONTRIBUTING.md); the design workflow, PRD and session journal that Claude Code
+in [CONTRIBUTING.md](CONTRIBUTING.md); the design workflow and PRD that Claude Code
 sessions follow are in [CLAUDE.md](CLAUDE.md). Where a change goes is answered by the Architecture
 page of the docs (`docs/src/dev/architecture.md`; choose the **Dev** tier on the site).
 
@@ -47,9 +47,6 @@ Doctests only:
 julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true); doctest(PhysiCellModelManager)'
 ```
 
-`docs/make.jl` runs `docs/journal.jl` first, which regenerates `docs/src/dev/journal.md` from every
-`!!! tierjournal "YYYY-MM-DD — Title"` block under `docs/src/`. Commit the regenerated file.
-
 ## Invariants
 
 - Never modify `main` directly. Never read or write inside `.git/`; use git commands only.
@@ -66,7 +63,7 @@ julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; 
   only exported names exist, and fails the build.
 - Every public name appears on a page under `docs/src/man/` or `docs/src/dev/`;
   `test/test-scripts/ManualCoverageTests.jl` enforces it.
-- Never put a code block inside a `!!! tierbrief` / `tierfull` / `tierdev` / `tierjournal` block.
+- Never put a code block inside a `!!! tierbrief` / `tierfull` / `tierdev` block.
 - Test artifacts are cleaned at the **start** of `test/runtests.jl`, not the end. A test that
   writes a new path adds it to `test/.gitignore` and to that cleanup list.
 - Do not edit `Manifest.toml` or add dependencies without approval. Heavy optional dependencies go
@@ -91,6 +88,6 @@ julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; 
 - Some test suites need a downloaded PhysiCell binary and fail locally without it; they pass on
   the GitHub runners.
 - The compile flag defaults to `-march=x86-64` on SLURM clusters and `-march=native` elsewhere;
-  non-SLURM clusters are a known gap (see `progress.md`, 2026-08-05).
+  non-SLURM clusters are a known gap (see the to-do list in `CLAUDE.md`).
 - The tier selector is client-side CSS. The Markdown and the built HTML contain every tier, so
   reading the source shows the deepest one.

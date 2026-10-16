@@ -1,7 +1,5 @@
 using Documenter, PhysiCellModelManager, ModelManager
 
-include("journal.jl")   # regenerates docs/src/dev/journal.md from the `!!! tierjournal` blocks
-
 DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true)
 DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
 
@@ -12,7 +10,7 @@ makedocs(;
     format=Documenter.HTML(;
         canonical="https://drbergman-lab.github.io/PhysiCellModelManager.jl",
         edit_link="main",
-        assets=["assets/tiers.css", "assets/tiers.js"], # reader-selectable depth (Code / Brief / Full / Dev / Journal)
+        assets=["assets/tiers.css", "assets/tiers.js"], # reader-selectable depth (Code / Brief / Full / Dev)
         collapselevel=1, # collapse all top-level sidebar sections by default; the current page's section auto-expands
     ),
     pages=[
@@ -61,7 +59,6 @@ makedocs(;
             "Architecture" => "dev/architecture.md",
             "Simulator interface" => "dev/simulator_interface.md",
             "Utilities" => "dev/utilities.md",
-            "Journal" => "dev/journal.md",
         ],
         # Index: the exhaustive home for exported docstrings, grouped by code
         # family (not mirroring the Manual). NOTE: this list is maintained by

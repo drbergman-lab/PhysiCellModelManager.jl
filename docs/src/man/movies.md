@@ -36,10 +36,3 @@ makeMovie(1; framerate=10, magick_density=48, magick_resize_x=512, magick_resize
     An omitted keyword is not passed to the Makefile at all, rather than being sent as a value
     PhysiCellModelManager.jl picked. A project that customized `FRAMERATE` or the `MAGICK_*`
     variables in its own Makefile therefore keeps those settings.
-
-!!! tierjournal "2026-07-08 — Four keywords, each with a do-nothing default"
-    **Decided.** `makeMovie` forwarded only the output folder to the Makefile, which also reads
-    `FRAMERATE`, `MAGICK_DENSITY` and `MAGICK_RESIZE_X`/`_Y`; the four keywords expose them, each
-    defaulting to a sentinel that is dropped instead of overriding the project's Makefile.
-    **Decided.** `framerate` goes to the `movie` target and the three `magick_*` keywords to `jpeg`,
-    matching which target reads which variable.

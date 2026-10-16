@@ -115,13 +115,6 @@ then runs what comes back, so everything below applies unchanged to both.
 
 5. ModelManager updates each simulation's status in the database and returns an [`MMOutput`](@ref).
 
-!!! tierjournal "2026-07-07 — All of PCMM's per-simulation work is cleanup, after the callback"
-    **Decided:** the whole body moved into [`postSimulationCleanup`](@ref ModelManager.postSimulationCleanup) — pruning *and* the
-    `output.err` handling — leaving [`postSimulationProcessing`](@ref ModelManager.postSimulationProcessing) at ModelManager's no-op
-    default. A user's `post_processor` therefore always sees the intact output folder.
-    **Rejected:** moving only the pruning. The error-file handling reads the same after the callback
-    as before it, and splitting one body across two hooks buys nothing.
-
 ## Type hierarchy
 
 The trial types form one chain, narrowing by what the members share:
@@ -225,15 +218,6 @@ Things that are true of the code as it stands, and break something concrete if t
   everything past simulator registration, which is why auto-initialization and any shelling out come
   after that check.
 
-!!! tierjournal "2026-08-19 — The executable's name is the build record"
-    **Decided:** the compiled binary is `project_<physicell-version>` in a `pcmm_build/` folder PCMM
-    owns, and its existence is the only record that a build for that version finished. `macros.txt`
-    is written only after `make` succeeds, an abandoned build deletes the executable it was
-    replacing, and old executables are kept so switching PhysiCell versions back and forth costs no
-    rebuild.
-    **Rejected:** a separate marker file written before `make`, which let a failed compile leave a
-    stale binary beside a file claiming the new version.
-
 ## Running the tests and the docs build
 
 The full suite, from the repository root:
@@ -267,8 +251,6 @@ julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.in
 julia --project=docs docs/make.jl
 ```
 
-`docs/make.jl` regenerates `docs/src/dev/journal.md` from every `!!! tierjournal` block under
-`docs/src` before calling `makedocs`; commit the regenerated file. It runs with
-`checkdocs=:exports`, and `docs/src/lib/*.md` renders only the public API — so a docstring that
+`docs/make.jl` runs with `checkdocs=:exports`, and `docs/src/lib/*.md` renders only the public API — so a docstring that
 `@ref`s a non-public binding fails the build. `test/test-scripts/DocstringRefTests.jl` catches that
 in the ordinary suite, with no docs build needed.

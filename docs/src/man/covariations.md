@@ -79,9 +79,3 @@ cycle_entry_path = configPath("default", "cycle", "rate", 0)
 covariation = CoVariation((apop_xml_path, Uniform(0, 0.001)),
                           (cycle_entry_path, Uniform(0.00001, 0.0001)))
 ```
-
-!!! tierjournal "2026-03-31 — A co-variation carries one name, its members keep theirs"
-    **Decided:** `name` is a keyword, so the positional constructors are unchanged, and
-    [`variationName`](@ref) is the single accessor. A `CoVariation` stores one name for the
-    combination while its member variations keep their own, which is why the generated default
-    joins the members' names rather than replacing them.

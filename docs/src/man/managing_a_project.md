@@ -33,14 +33,9 @@ initializeModelManager("path/to/PhysiCell", "path/to/data")
     throws `PCMMMissingProject` when the two directories are not where it looked, and returns
     `false` for the failures ModelManager reports, so `isInitialized()` is the thing to test.
 
-!!! tierjournal "2026-08-03 — Auto-initialization is skipped while Julia generates output"
-    **Decided:** `using PhysiCellModelManager` attaches to a project in `pwd()` only when Julia is
-    not writing a precompile cache or sysimage. Precompiling an unrelated package from inside a
-    project folder therefore neither opens that project's database nor reprints the banner. The
-    simulator is still registered before that check, so `mm_globals()` stays usable in a dependent
-    package's precompilation workload.
-    **Rejected:** guarding on the globals reference already being set — PCMM's own `__init__` is the
-    only thing that sets it, so in a fresh precompile worker it is always empty.
+    `using PhysiCellModelManager` attaches to a project in `pwd()` only when Julia is not writing a
+    precompile cache or sysimage, so precompiling a dependent package from inside a project folder
+    neither opens its database nor prints the banner.
 
 ## Delete runs
 

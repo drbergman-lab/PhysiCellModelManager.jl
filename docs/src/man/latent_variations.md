@@ -30,13 +30,6 @@ A [`LatentVariation`](@ref) varies target parameters through **latent parameters
 lv = LatentVariation(latent_parameters, targets, maps, latent_parameter_names; name="Threshold regime")
 ```
 
-!!! tierjournal "2026-03-31 — Latent parameter names come from the variations, not a new convention"
-    **Decided:** sensitivity scheme headers inherit variation names because a `LatentVariation`
-    built from a variation passes [`variationName`](@ref) through as its latent parameter names, so
-    a name set once follows all the way to the sampling output. Overriding the convention therefore
-    means passing `lp_names` in at construction, not extending the function that generates the
-    defaults.
-
 ## [`LatentVariation{Vector{<:Real}}`](@id latent_variation_vector_real_section)
 
 !!! tierbrief

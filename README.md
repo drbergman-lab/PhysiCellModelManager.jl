@@ -64,43 +64,8 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 
 ---
 
-## Implementation Status
+## Roadmap
 
-> For Claude Code sessions: this section is the authoritative record of what has been built. Update it as features are completed. See [PRD.md](PRD.md) for behavioral specifications and [progress.md](progress.md) for decision rationale.
-
-### Completed
-
-- [x] Project initialization (`createProject`, `initializeModelManager`). `using PhysiCellModelManager` auto-attaches to a project in the working directory, except while Julia is writing a precompilation cache or system image
-- [x] Model import from PhysiCell project folders (`importProject`, `InputFolders`)
-  - [ ] Wizard for guiding users through the import process and recording their input folders
-- [x] Parameter variation — discrete, grid, distributed, latent, co-variation. `configPath`/`behaviorPath` build the XML paths and reject an unrecognised tag by name
-- [x] Space-filling designs — LHS, Sobol, RBD
-- [x] Simulation execution — local multi-process runner. Executables are named for the PhysiCell version they were built against, in `pcmm_build/` inside the custom code folder, so the file's existence is the only record of a finished build; the PhysiCell version is re-resolved before every compilation, so pulling, checking out, or editing PhysiCell mid-session is picked up without restarting Julia
-- [x] HPC job submission — ModelManager owns launching; PCMM implements `simulationCommand` (what to run) and `simulationThreads` (each simulation's `omp_num_threads`, which ModelManager requests as `cpus-per-task`, since PhysiCell sets its thread count from its config and SLURM allocates one CPU unless asked)
-- [x] Analysis — population counts and time series (`finalPopulationCount`, `populationTimeSeries`, `MonadPopulationTimeSeries`). Replicates whose output has been deleted or pruned are excluded from monad-level aggregates and plots, and reported once per call site (`@info ... maxlog=1`)
-  - [x] Plot recipes documented with rendered figures in the manual: the population plots, and ModelManager's sensitivity-analysis and calibration plots on the template project (`docs/generate_figures.jl`)
-- [x] Sensitivity analysis — MOAT, Sobol, and RBD via ModelManager; a `Dict`-valued `QoI` yields one analysis per key, labelled `<qoi name>.<key>`
-- [x] Calibration — ABC-SMC, posterior visualization, and `resumeABC` live in ModelManager. PCMM contributes the PhysiCell-specific measurements: single `Dict`-valued `QoI` builders (`populationCountQoI`, `populationFractionQoI`, `meanPopulationTimeSeriesQoI`), each measuring one `Simulation`, to serve as a `CalibrationProblem`'s `summary_statistic`, asserted against the replicates' own output including on a monad with a pruned replicate. The monad-level statistics they duplicated were removed in 0.5.0; `finalPopulationCount(::Monad)` and `MonadPopulationTimeSeries` remain for analysing a finished monad
-- [x] Re-running a posterior draw under a changed model — ModelManager 0.11's copy constructors (`Monad(draw; custom_code=…)`, `Sampling(sampling; config=…)`) keep the draw's parameter values, carrying them onto a restructured base file where the folder is varied; documented on the calibration page, no PCMM code
-  - [x] The builders carry their keyword arguments in the QoI's `data` slot with a named `compute`, so `problem.jld2` is complete and `resumeABC(Calibration(id))` resumes without `problem=`
-  - [x] No builder defines a `reduce`: all three are averaged across a monad's replicates by ModelManager's default per-key mean, whose requirement that the replicates report the same cell types is met by construction — the key set is the model's declared roster, not the types with living cells
-  - [x] One builder per quantity, each taking an `index` that defaults to `:final`: `populationCountQoI` and `populationFractionQoI` serve calibration, the post-processing sink and sensitivity analysis alike. `meanPopulationTimeSeriesQoI` serves calibration alone: every component it reports is a time series rather than the `Real` a sink column or a sensitivity index is computed from
-  - [ ] GP-accelerated ABC (surrogate model to reduce expensive PhysiCell evaluations)
-  - [ ] Bayesian optimization
-  - [ ] Additional methods (MCMC, Nelder-Mead, etc.) as subtypes of `AbstractCalibrationMethod`
-- [x] Database management — SQLite schema, versioned migrations (`up.jl`), diagnostics
-  - [x] Upgrade-path CI — dedicated workflow replays version history (generate with an older release, upgrade with the dev checkout) to guard `up.jl`; see [`test/upgrade/`](test/upgrade/). Source matrix `0.1.7` (the oldest version a real user is on; crosses the `0.2.0` par_key rewrite) and `0.2.2`; walks back over time toward `pcvct@0.0.3`
-- [x] Export and pruning of simulation outputs. `prune_options` is documented on the post-processing page as the last step after a simulation: what each flag removes, the ordering against the `post_processor`, and what stops working afterwards
-- [x] Post-processing hook (`post_processor`) — user callback runs on intact simulation output before PCMM's destructive cleanup (`postSimulationCleanup`); results stored via ModelManager's QoI sink (`postProcessingTable`, `simulationsTable(...; post_processing=true)`)
-  - [x] Ready-made QoI builder `populationCountQoI` so a `post_processor` can be a one-liner — per-cell-type counts at the final snapshot or any indexed save, one `population_count.<cell_type>` sink column per cell type, the types read from the simulation's own output
-- [x] Intracellular model support (custom data, rules)
-- [x] IC cell and IC ECM file management
-- [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
-- [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; either launch failure (interpreter not spawnable, Studio exiting non-zero) raises `PCMMStudioLaunchError`
-- [x] Typed exceptions — every PCMM-specific failure subtypes `PCMMException`, so a GUI consumer can catch the family or a concrete type
-- [x] Tiered documentation — a sidebar Detail selector (Code / Brief / Full / Dev / Journal) on every page; every public name (PCMM's and ModelManager's re-exports) has a manual home on a user page under `docs/src/man/` or a Dev-tier page under `docs/src/dev/`, enforced by `test/test-scripts/ManualCoverageTests.jl`; dated design notes in `!!! tierjournal` blocks are collected into `docs/src/dev/journal.md` by `docs/journal.jl`; `AGENTS.md` and `CONTRIBUTING.md` at the root
-
-### Remaining
-
-- [ ] Support showing snapshots from a monad/sampling/trial in a single figure. Support CairoMakie (as extension) to make a movie from the snapshots.
-- [ ] GP-accelerated ABC and additional calibration methods (see Calibration bullet above)
+- [ ] Import wizard that guides users through recording their input folders
+- [ ] Showing snapshots from a monad/sampling/trial in a single figure; CairoMakie (as an extension) to make a movie from the snapshots
+- [ ] GP-accelerated ABC, Bayesian optimization, and further calibration methods as subtypes of `AbstractCalibrationMethod`

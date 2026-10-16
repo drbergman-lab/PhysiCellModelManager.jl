@@ -1,7 +1,7 @@
 # Every name a user can reach through `using PhysiCellModelManager` — exported or `public`, PCMM's
 # own or re-exported from ModelManager — must have a home in the manual: a user page under
 # `docs/src/man/` or a Dev-tier page under `docs/src/dev/`. The alphabetical index (a Documenter
-# `@index`) and the generated journal do not count. See CLAUDE.md / CONTRIBUTING.md,
+# `@index`) does not count. See CLAUDE.md / CONTRIBUTING.md,
 # "Documentation", and PRD.md, "Tiered Manual with Full Public-API Coverage".
 #
 #! Like DocstringRefTests.jl this needs `Base.ispublic` (Julia 1.11+); on 1.10 `@compat public` is a
@@ -18,7 +18,7 @@
         #! `names(PhysiCellModelManager)` already carries the ModelManager exports via Reexport.
 
         docs_src = normpath(joinpath(@__DIR__, "..", "..", "docs", "src"))
-        excluded = Set(normpath.(joinpath.(docs_src, ["man/index.md", "dev/journal.md"])))
+        excluded = Set(normpath.(joinpath.(docs_src, ["man/index.md"])))
         pages = String[]
         for sub in ("man", "dev"), (root, _, files) in walkdir(joinpath(docs_src, sub)), f in files
             endswith(f, ".md") || continue

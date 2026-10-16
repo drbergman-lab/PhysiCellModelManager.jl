@@ -120,20 +120,6 @@ parameters land in the same CDF cell; see [Calibration](@ref calibration_section
 name its result columns. Both sit above the simulator interface: a calibration or a sensitivity
 analysis is a `Sampling`, so it reaches PhysiCell by the same path as any other trial.
 
-!!! tierjournal "2026-04-24 — One dispatch axis: the simulator type"
-    **Decided:** `runSimulation(::AbstractSimulator, spec)` does all simulator-specific routing, and
-    [`SimulationSpec`](@ref ModelManager.SimulationSpec) — a `Simulation` plus its `monad_id` — is the concrete unit of work
-    PCMM consumes as-is. Simulator flags such as `force_recompile` reach the hooks as keyword
-    arguments through [`run`](@ref).
-    **Rejected:** a second dispatch on the spec type. With one spec type per simulator it is
-    redundant, and by the time a spec exists the simulator-specific routing is already done.
-
-!!! tierjournal "2026-04-25 — `setupSampling` takes an `AbstractSampling`, `setupMonad` an `AbstractMonad`"
-    **Decided:** the two setup hooks dispatch on the abstract type that states the invariant each
-    needs, so a lone [`Simulation`](@ref) goes through the same path as a thousand-monad
-    [`Sampling`](@ref). `setupSampling` always runs first and covers compilation, so `setupMonad`
-    needs no flag asking whether to do the full setup, and a spec's `monad_id` is always an `Int`.
-
 ## Versioning and upgrades
 
 The database records which version of PCMM wrote it. On every `initializeModelManager`, ModelManager
@@ -153,11 +139,7 @@ registered in `upgrade_fns`, and a matching change to the schema in `src/databas
 projects are created correctly. A milestone with no migration, or a schema change with no milestone,
 leaves one of the two populations of projects broken.
 
-!!! tierjournal "2026-06-15 — Upgrade CI generates old projects and upgrades them forwards"
-    **Decided:** the upgrade job generates a project with an older *released* PCMM and then opens it
-    with the dev checkout, so CI exercises the `src/up.jl` in the repository rather than a released
-    copy of it. Verification reads the SQLite file directly.
-    **Rejected:** a `target_version` cap on [`initializeModelManager`](@ref), which would let CI stop
-    part-way; `upgradePackage` always migrates to the running version, and capping it is a
-    ModelManager change.
-    **Open:** how far back the generating API can be reused for still older projects.
+The upgrade CI job generates a project with an older *released* PCMM and opens it with the dev
+checkout, so it exercises the `src/up.jl` in the repository rather than a released copy;
+verification reads the SQLite file directly. `upgradePackage` always migrates to the running
+version, so there is no cap that would let the job stop part-way.

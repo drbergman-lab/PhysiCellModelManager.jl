@@ -11,7 +11,8 @@ Each varied input type has a helper function that builds its XML path.
     Intracellular parameters are not supported (yet), and others may be missing. When
     [`configPath`](@ref) does not recognize the tokens you pass, it throws an error listing the
     tokens it does accept for that number of arguments — so a wrong guess tells you the right
-    spelling rather than silently building a path to nothing.
+    spelling rather than silently building a path to nothing. The exception is
+    `advanced_chemotaxis`, whose third token is a substrate name and so is not checked.
 
 ```julia
 configPath("max_time")
@@ -22,15 +23,6 @@ configPath(<cell_type>, "speed")
 configPath(<cell_type>, "custom", <tag>)
 configPath("user_parameters", <tag>)
 ```
-
-!!! tierjournal "2026-09-02 — An unrecognized token is an error, not a path"
-    **Decided:** `configPath("<cell type>", "motility", <tag>)` closes the class, not the instance.
-    A natural guess must either resolve or be rejected by name, so an unrecognized third token under
-    `<motility>` or `<chemotaxis>` — both closed tag sets — raises an `ArgumentError` naming the
-    valid ones.
-
-    **Rejected:** closing every token set the same way. `advanced_chemotaxis` stays open-ended,
-    because its third token is a substrate name and that set is not ours to close.
 
 ### Named path helpers
 
@@ -86,16 +78,6 @@ configPath("user_parameters", <tag>)
     **User parameters.** [`userParameterPath`](@ref PhysiCellModelManager.userParameterPath)`(tag)`,
     with [`userParametersPath`](@ref PhysiCellModelManager.userParametersPath) as a synonym, returns
     `["user_parameters", tag]`.
-
-!!! tierjournal "2026-08-02 — Public, but not exported"
-    **Decided:** reachability defines PhysiCellModelManager.jl's public API — a name is public if we
-    tell users how to use it, or if it is passed to or returned from something non-internal. The
-    narrower `*Path` helpers are documented and callable, so they are `public`; only
-    [`configPath`](@ref), [`rulePath`](@ref), [`icCellsPath`](@ref) and [`icECMPath`](@ref) are
-    exported, because those are the four a user should reach for.
-
-    **Rejected:** treating every non-underscore-prefixed binding as public, which would have
-    promoted nearly every internal in the package.
 
 ## Varying rules parameters
 

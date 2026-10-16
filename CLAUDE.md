@@ -1,6 +1,6 @@
 # CLAUDE.md — PCMM (PhysiCell Model Manager)
 
-> Exact commands, invariants, and conventions live in [AGENTS.md](AGENTS.md); process and style in [CONTRIBUTING.md](CONTRIBUTING.md). This file holds what is specific to Claude Code sessions: the design workflow, the PRD, and the session journal.
+> Exact commands, invariants, and conventions live in [AGENTS.md](AGENTS.md); process and style in [CONTRIBUTING.md](CONTRIBUTING.md). This file holds what is specific to Claude Code sessions: the design workflow and the PRD.
 
 ## About the User
 Assistant professor working on computational modeling of cancer-immune interactions, mechanistic modeling, and agent-based modeling frameworks.
@@ -9,11 +9,10 @@ Assistant professor working on computational modeling of cancer-immune interacti
 
 | Document | Purpose |
 |----------|---------|
-| [README.md](README.md) | Project overview + **Implementation Status** (what is built, what remains) |
+| [README.md](README.md) | Project overview and roadmap |
 | [PRD.md](PRD.md) | Behavioral specification for every feature — acceptance criteria and edge cases |
-| [progress.md](progress.md) | Session journal: decisions made, approaches rejected, open questions |
 
-Start any feature session by reading the relevant PRD entry and the Implementation Status section of `README.md`.
+Start any feature session by reading the relevant PRD entry.
 
 ## Project Overview
 PCMM is a Julia package that manages model configuration, versioning, and simulation organization for PhysiCell (a C++ agent-based modeling framework). It provides:
@@ -78,12 +77,10 @@ Cautioned:
 1. Generate a **design brief** in the assistant response **before any code changes**.
 2. Wait for human approval.
    1. Update the PRD.md to include new feature or changes.
-   2. Open a new entry in the progress.md and start logging the design process, decisions, and open questions there.
 3. Create a feature branch off the chosen base branch.
 4. Implement in the feature branch only.
 5. The user will inspect diffs manually before merging.
-6. Update [README.md](README.md) Implementation Status when a feature is complete.
-7. Trim the PRD.md and progress.md to reflect the final implementation (remove rejected approaches, trim design notes, etc.) before merging.
+6. Trim the PRD.md to reflect the final implementation before merging.
 
 **Design brief template:**
 ```
@@ -124,9 +121,8 @@ A feature is complete when **all** of the following are true:
    - Any error conditions that should throw (use `@test_throws`)
 2. **Docstrings written:** Every exported function has a docstring with a description, argument list, return value, and at least one usage example.
 3. **Docs page updated:** If the feature has a user-facing page in `docs/src/man/`, it reflects the new behavior. New features need a docs page.
-4. **README updated:** The Implementation Status section in [README.md](README.md) marks the feature as complete (move from "In Progress" / "Remaining" to "Completed").
-5. **PRD reflects reality:** If implementation deviated from the PRD, update the PRD entry to match what was actually built.
-6. **No regressions:** The full test suite has no new failures compared to the base branch.
+4. **PRD reflects reality:** If implementation deviated from the PRD, update the PRD entry to match what was actually built.
+5. **No regressions:** The full test suite has no new failures compared to the base branch.
 
 ## PCMM‑Specific Guidance
 PCMM manages **model configuration, versioning, simulation organization, and interface code** for PhysiCell.
@@ -192,4 +188,4 @@ When setting you off on a task, check this list and assess if any of these shoul
   participate in parameter variation so a schedule parameter can be swept like any other. Raised as a
   release-backlog item on 2026-09-02 and deliberately deferred: every other backlog item was
   independent of it, and bundling a schema design with bug fixes would have held those up.
-- Fix `-march` selection for non-Slurm clusters. `isRunningOnHPC()` probes only for `sbatch`, so PBS/Torque, LSF, and SGE sites silently compile with `-march=native` and hit the same SIGILL the `x86-64` default exists to prevent. The fix is a `PCMM_MARCH` env var (there is currently **no** public API for this — `setMarchFlag` is internal), a broadened scheduler probe, and compiler-side validation of the resolved flag. Deferred deliberately, not a regression. **Full findings, three failure classes, the deferred design, and rejected alternatives are in [progress.md](progress.md) under `2026-08-05` — read that entry before touching `march_flag`.** Related and larger: real multi-scheduler *submission* is a ModelManager change (`prepareHPCCommand`'s `sbatch --wrap` has no PBS analogue), so it needs its own brief in that repo.
+- Fix `-march` selection for non-Slurm clusters. `isRunningOnHPC()` probes only for `sbatch`, so PBS/Torque, LSF, and SGE sites silently compile with `-march=native` and hit the same SIGILL the `x86-64` default exists to prevent. The fix is a `PCMM_MARCH` env var (there is currently **no** public API for this — `setMarchFlag` is internal), a broadened scheduler probe, and compiler-side validation of the resolved flag. Deferred deliberately, not a regression. Findings that constrain the design: `-m64` is hardcoded in `cflags` and is x86-only, so `-march` and `-m64` must move together for an ARM Linux cluster; `x86-64-v3` is the Haswell feature level and so is the risky choice, never a default; an env var does not solve a mixed-ISA cluster (x86 login node, non-x86 compute nodes), which is a cross-compilation problem to document as unsupported; validate the resolved flag against the compiler before `make` (`g++ -march=<flag> -fsyntax-only -x c++ /dev/null`) at first compile, memoized. Rejected: widening `isRunningOnHPC` itself (it honestly means "Slurm is available"), an Lmod/`MODULESHOME` probe, parsing `scontrol show nodes`. Related and larger: real multi-scheduler *submission* is a ModelManager change (`prepareHPCCommand`'s `sbatch --wrap` has no PBS analogue), so it needs its own brief in that repo.

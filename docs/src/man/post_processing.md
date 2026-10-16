@@ -80,23 +80,6 @@ run(sampling; post_processor = populationCountQoI(; cell_types=["cd8"]))   # onl
 run(sampling; post_processor = populationFractionQoI())                    # each cell type's share, final snapshot
 ```
 
-!!! tierjournal "2026-07-08 — A ready-made builder rather than a recipe to copy"
-    **Decided.** Counting the final population is what almost every campaign wants stored, so it
-    ships as a builder instead of a snippet each user rewrites; it returns a `Dict` rather than a
-    `NamedTuple` because cell type names may contain spaces, which are not valid field names.
-    **Decided.** A snapshot that is missing — pruned by an earlier run — records nothing for that
-    simulation rather than raising.
-
-!!! tierjournal "2026-09-14 — One builder per quantity"
-    **Decided.** One builder per quantity — `populationCountQoI` and `populationFractionQoI` — each
-    measuring one simulation at the snapshot `index` (`:final` by default) and reduced across a
-    monad's replicates by ModelManager's default per-key mean, so the sink, sensitivity analysis and
-    calibration use it identically. They write `population_count.<cell_type>` and
-    `population_fraction.<cell_type>` columns.
-    **Rejected.** A second, endpoint-only builder beside each. Once no builder had a reducer of its
-    own, it was the same measurement under another name, and it only added a second family of sink
-    columns.
-
 ## Reading the stored quantities back
 
 !!! tierbrief
@@ -170,11 +153,3 @@ run(sampling; prune_options = PruneOptions(prune_svg = true))    # keep the data
 run(sampling; prune_options = PruneOptions(prune_svg = true, prune_mat = true, prune_txt = true,
                                            prune_initial = true, prune_final = true))
 ```
-
-!!! tierjournal "2026-07-07 — Pruning runs after your callback, not before it"
-    **Decided.** A simulation's post-run steps are split in two: non-destructive steps before the
-    user `post_processor`, destructive ones after it. Pruning is destructive, so it runs after the
-    callback; run before it, as it first was, it would have left the callback an output folder that
-    had already been gutted.
-    **Decided.** The rest of PCMM's post-simulation work — including how a simulation's error file
-    is handled — moved after the callback too, rather than pruning alone.

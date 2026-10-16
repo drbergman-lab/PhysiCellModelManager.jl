@@ -12,7 +12,7 @@
 #! types owned by ModelManager/Base — i.e. type piracy. It is deliberately confined to this one
 #! file and is tolerable because PhysiCellModelManager is the terminal application in this
 #! package stack (nothing depends on PCMM's loading API the way PCMM depends on PhysiCellOutput
-#! and ModelManager). See PCMM_MIGRATION.md §5 and progress.md (2026-07-23) for the rationale.
+#! and ModelManager).
 
 import PhysiCellOutput: PhysiCellSnapshot, PhysiCellSequence,
     cellLabels, cellTypeToNameDict, substrateNames,

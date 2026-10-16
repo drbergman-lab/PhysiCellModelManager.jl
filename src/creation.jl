@@ -1,4 +1,4 @@
-using Downloads, JSON3, CSV
+using Downloads, JSON, CSV
 
 export createProject
 
@@ -127,7 +127,7 @@ function latestReleaseTag(repo_url::String)
     #! include this header for CI testing to not exceed request limit (I think?): macos for some reason raised a `RequestError: HTTP/2 403`; users should not need to set this ENV variable
     headers = requestHeaders()
     response = Downloads.download(api_url; headers=headers)
-    release_info = JSON3.read(response, Dict{String, Any})
+    release_info = JSON.parsefile(response)
     return release_info["tag_name"]
 end
 
@@ -180,7 +180,7 @@ function setUpPhysiCell(project_dir::String, clone_physicell::Bool)
         url = "https://api.github.com/repos/drbergman/PhysiCell/releases/latest"
         headers = requestHeaders()
         response = Downloads.download(url; headers=headers)
-        release_data = JSON3.read(response)
+        release_data = JSON.parsefile(response)
         zipball_url = release_data["zipball_url"]
         zip_path = joinpath(project_dir, "PhysiCell.zip")
         Downloads.download(zipball_url, zip_path)

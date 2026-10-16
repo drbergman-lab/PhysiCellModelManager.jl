@@ -21,6 +21,18 @@ template's hexagonal disc patch and runs it to completion.
 
 ---
 
+## 2026-10-16 — JSON3 replaced by JSON 1.x
+
+JSON3.jl is deprecated in favour of JSON.jl 1.x. PCMM parsed JSON in exactly two places, both in
+`src/creation.jl` and both reading a GitHub `releases/latest` response that `Downloads.download`
+had written to a temp file. JSON3 handled that silently: `JSON3.read(str)` checks `isfile(str)`
+and reads the file when the string is a path. JSON.jl does not, so both call sites now say what
+they mean, `JSON.parsefile(response)`. The returned `JSON.Object` is an `AbstractDict`, so the
+`["tag_name"]` / `["zipball_url"]` lookups are unchanged. Compat is `JSON = "1"`; the 0.21 line
+has a different API and is excluded deliberately.
+
+---
+
 ## 2026-10-15 — Location inference becomes a ModelManager hook
 
 ModelManager #87 (merged as `5c371e7b`, released in 0.12.0) gives every variation

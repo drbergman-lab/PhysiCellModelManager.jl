@@ -166,12 +166,36 @@ function setUpICCell(simulation::Simulation)
             domain_dict[key] = getSimpleContent(xml_doc, xml_path) |> x -> parse(Float64, x)
         end
     end
+    cell_radius = _cellRadii(xml_doc)
     free(xml_doc)
     path_to_ic_cell_variations = joinpath(path_to_ic_cell_folder, locationVariationsFolder(:ic_cell))
     path_to_ic_cell_xml = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell]).xml")
     path_to_ic_cell_file = joinpath(path_to_ic_cell_variations, "ic_cell_variation_$(simulation.variation_id[:ic_cell])_s$(simulation.id).csv")
-    generateICCell(path_to_ic_cell_xml, domain_dict; output=path_to_ic_cell_file)
+    generateICCell(path_to_ic_cell_xml, domain_dict; output=path_to_ic_cell_file, cell_radius=cell_radius)
     return path_to_ic_cell_file
+end
+
+"""
+    _cellRadii(xml_doc::XMLDocument)
+
+Map each cell definition in a PhysiCell config to the radius of a sphere with its `phenotype/volume/total`.
+
+Passed to `PhysiCellCellCreator.generateICCell` as `cell_radius`, so a hexagonal-grid patch that omits
+`spacing` is spaced from the cell type's own size. A cell definition without a `volume/total` element
+(for example, one that inherits it through `parent_type`) is left out, and PhysiCellCellCreator reports
+the missing radius if a spacing-less hexagonal patch needs it.
+"""
+function _cellRadii(xml_doc::XMLDocument)
+    cell_radius = Dict{String,Float64}()
+    cell_definitions_element = retrieveElement(xml_doc, ["cell_definitions"])
+    for cell_definition_element in get_elements_by_tagname(cell_definitions_element, "cell_definition")
+        cell_type = attribute(cell_definition_element, "name")
+        total_element = retrieveElement(xml_doc, cellDefinitionPath(cell_type, "phenotype", "volume", "total"); required=false)
+        isnothing(total_element) && continue
+        total_volume = parse(Float64, content(total_element))
+        cell_radius[cell_type] = cbrt(3 * total_volume / (4π))
+    end
+    return cell_radius
 end
 
 """

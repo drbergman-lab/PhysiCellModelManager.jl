@@ -101,7 +101,8 @@ rulePath(<cell_type>, <behavior>, "decreasing_signals", "signal:name:<signal_nam
     docs for the file format). [`PhysiCellModelManager.createICCellXMLTemplate`](@ref) creates a
     template and registers it in the database; edit it directly afterward.
     [`icCellsPath`](@ref) then reaches its parameters, including those of the carveouts (a child
-    element of the patch) that exclude cells from a region.
+    element of the patch) that exclude cells from a region. A hexagonal-grid patch that omits
+    `spacing` is spaced from the cell type's radius, taken from the config's `volume/total`.
 
 !!! tierfull
     Editing the template in place is the intended workflow, but per

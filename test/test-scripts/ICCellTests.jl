@@ -76,3 +76,34 @@ out_fail = run(inputs, dv1)
 @test out_fail.n_success == 0
 
 deleteSimulations(out_fail.trial.id)
+#! Hexagonal patches that omit `spacing` are spaced from the cell type's own radius, read from the
+#! config's `phenotype/volume/total`: a sphere of 2494 micron^3 has radius ~8.41.
+config_xml = PhysiCellModelManager.locationPath(:config, config_folder) |> x -> joinpath(x, "PhysiCell_settings.xml") |> parse_file
+cell_radii = PhysiCellModelManager._cellRadii(config_xml)
+free(config_xml)
+@test keys(cell_radii) == Set(["default"])
+@test isapprox(cell_radii["default"], cbrt(3 * 2494 / (4π)))
+
+ic_cell_folder = PhysiCellModelManager.createICCellXMLTemplate("3_xml")
+path_to_cells_xml = joinpath(PhysiCellModelManager.locationPath(:ic_cell, ic_cell_folder), "cells.xml")
+cells_xml = parse_file(path_to_cells_xml)
+n_spacing_removed = 0
+for patch in PhysiCellModelManager.retrieveElement(cells_xml, ["cell_patches:name:default"; "patch_collection:type:disc"]) |> child_elements
+    attribute(patch, "placement") == "hexagonal" || continue
+    spacing_element = find_element(patch, "spacing")
+    isnothing(spacing_element) && continue
+    unlink(spacing_element)
+    free(spacing_element)
+    global n_spacing_removed += 1
+end
+@test n_spacing_removed == 1
+save_file(cells_xml, path_to_cells_xml)
+free(cells_xml)
+
+inputs = InputFolders(config_folder, custom_code_folder; rulesets_collection=rulesets_collection_folder, ic_cell=ic_cell_folder)
+discrete_variations = []
+push!(discrete_variations, DiscreteVariation(configPath("max_time"), 12.0))
+push!(discrete_variations, DiscreteVariation(configPath("full_data"), 6.0))
+push!(discrete_variations, DiscreteVariation(configPath("svg_save"), 6.0))
+out_hex = run(inputs, discrete_variations)
+@test out_hex.n_success == 1

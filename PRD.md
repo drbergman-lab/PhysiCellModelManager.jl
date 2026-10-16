@@ -132,6 +132,7 @@
 **Edge cases:**
 - PhysiCell binary not compiled → error with instructions.
 - Simulation process exits non-zero → mark as failed in database, do not crash caller.
+- A `cells.xml` hexagonal-grid patch omits `spacing` → the spacing comes from the cell type's radius, derived from the config's `phenotype/volume/total` (sphere-equivalent) and passed to `generateICCell` as `cell_radius`. A cell definition without a `volume/total` element gets no radius; PhysiCellCellCreator then reports the missing spacing.
 - IC cell or IC ECM setup fails → the simulation is marked failed without ever launching, and the cause is written to its `output.err`, which is the file the run's closing summary tells the user to check. A `@warn` names the simulation, the cause and that file as well.
 - `n_replicates` < 0 → `AssertionError`. Zero is legal: it registers the monad without launching simulations, which is what the calibration reference-monad idiom relies on.
 - Compilation fails → the run fails, and nothing is left that a later run could read as a finished build: any executable for this PhysiCell version is deleted, including one that predated this compilation, and the macros file is left as the last successful compilation wrote it. The next run recompiles instead of reusing a stale executable. `compilation.log` / `compilation.err` are left in place for inspection.

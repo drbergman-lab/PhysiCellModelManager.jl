@@ -5,6 +5,22 @@
 
 ---
 
+## 2026-10-16 — Hexagonal-grid patches get the cell radius from the config
+
+PhysiCellCellCreator 0.1 computes a default `spacing` for `placement="hexagonal"` patches from a
+`cell_radius` keyword, meant to be supplied by the caller that knows the config. PCMM tracked 0.1 in
+#243 but never passed it, so a patch without `spacing` failed at IC setup. `setUpICCell` now builds a
+`Dict` of cell type → sphere-equivalent radius from each `cell_definition`'s `phenotype/volume/total`
+(the config XML was already open there for the domain) and passes it through. Definitions without a
+`volume/total` are skipped rather than given a guess; PhysiCellCellCreator's own error names the cell
+type when such a patch needs one.
+
+Rejected: a user-facing keyword or global for the radius. The config already states the cell size,
+and a second source of truth is what the hook exists to avoid. The test strips `spacing` from the
+template's hexagonal disc patch and runs it to completion.
+
+---
+
 ## 2026-10-15 — Location inference becomes a ModelManager hook
 
 ModelManager #87 (merged as `5c371e7b`, released in 0.12.0) gives every variation

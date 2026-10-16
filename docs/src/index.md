@@ -23,7 +23,6 @@ remembered across pages, and `?tier=code` (or any other level) on a URL opens th
 | **Brief** | Plus one or two lines before each block saying what it does |
 | **Full** | Plus the reasoning: why this call, what the arguments mean |
 | **Dev** | Plus what someone extending PhysiCellModelManager.jl needs, and the Developers pages |
-| **Journal** | Plus dated design notes, collected on the [Journal](@ref) page |
 
 The Getting Started pages are written for a first read and show the same text at every level.
 

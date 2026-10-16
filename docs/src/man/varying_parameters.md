@@ -60,16 +60,6 @@ variationName(dv)
     `::` child-content filters described above — so the plain `Vector{String}` that
     [`configPath`](@ref) returns is wrapped by the constructor.
 
-!!! tierjournal "2026-03-31 — Variation names are optional metadata"
-    **Decided:** `name` is a keyword on [`DiscreteVariation`](@ref), [`DistributedVariation`](@ref),
-    [`CoVariation`](@ref) and [`LatentVariation`](@ref), so the positional constructors are
-    unchanged, and [`variationName`](@ref) is the single accessor. The default follows
-    `shortVariationName(location, columnName(target))` so that labels agree with summary-table
-    naming.
-
-    **Rejected:** letting a name change how a variation is stored. The keys in the variations
-    database stay XML-path-based; a name is metadata that reaches reports and nothing else.
-
 !!! tierbrief
     Pass variations to [`createTrial`](@ref) or [`run`](@ref) to create (or run) simulations with
     those parameters, recorded in the database. Several variations are combined on a grid by

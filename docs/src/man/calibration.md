@@ -10,19 +10,6 @@ the posterior.
     (epsilon) of the observed data. An agent-based model has no tractable likelihood, so the method
     that applies is the one that only ever needs to *run* the model.
 
-!!! tierjournal "2026-04-22 — A Julia-native ABC-SMC, not a bridge to a Python one"
-    **Decided:** implement ABC-SMC directly (Toni et al. 2009, Beaumont et al. 2009) on the existing
-    monad/runner infrastructure, adding no dependencies, with the algorithm kept free of any
-    PhysiCell wiring so it could move to ModelManager — which it since has.
-
-    **Rejected:** keeping the earlier pyabc (Python) backend. It worked, but it managed a conda
-    environment and was stuck on a single-core sampler, because Julia closures cannot be pickled.
-    Also rejected: ApproxBayes.jl, whose `Distributed.jl` parallelism conflicts with the
-    Channel-based runner; KissABC.jl, which is archived; and SimulationBasedInference.jl, whose
-    ABC-SMC is incomplete.
-
-    **Open:** Gaussian-process emulation as a second calibration method.
-
 ## Quick start
 
 !!! tierbrief
@@ -314,19 +301,6 @@ result = run(
     the only concrete subtype today. A new one is a new subtype plus the `run` method for it —
     which is the point of dispatching on the method rather than naming the algorithm in the verb.
 
-!!! tierjournal "2026-09-15 — run(method, problem) is the calibration entry point"
-    **Decided:** `run` dispatching on the method type is the documented entry point for a
-    calibration, as it already is for a trial and for a sensitivity analysis. Adding a calibration
-    method then adds a subtype and a `run` method, and no new verb anywhere.
-
-    **Rejected:** keeping `runABC` as the documented name. It names one algorithm, so the manual
-    would need a new verb for every method added, and a reader who learned `runABC` would have
-    learned nothing transferable.
-
-    **Open:** whether `runABC` and `runCalibration` should be formally deprecated. They are the
-    signatures in every script written so far, and the wrappers cost nothing to keep; a deprecation
-    warning is a cost paid by every existing user for a tidiness they did not ask for.
-
 ## [ABCSMC settings](@id abcsmc_settings)
 
 !!! tierbrief
@@ -414,11 +388,6 @@ method = ABCSMC(population_size = 200, max_nr_populations = 10, cdf_grid_k = 3)
 ```julia
 method = ABCSMC(population_size = 100, max_nr_populations = 20, max_evaluations = 5000)
 ```
-
-!!! tierjournal "2026-07-08 — The evaluation budget counts particles, not simulations"
-    **Decided:** `max_evaluations` is checked before each batch is dispatched and counts particle
-    evaluations, so a run launches up to `max_evaluations × n_replicates` simulations and its last
-    generation may be partial. Checked against the batch-capping code rather than assumed.
 
 ## [Perturbation kernels](@id perturbation_kernels_calibration)
 

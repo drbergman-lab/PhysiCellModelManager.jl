@@ -66,7 +66,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 
 ## Implementation Status
 
-> For Claude Code sessions: this section is the authoritative record of what has been built. Update it as features are completed. See [PRD.md](PRD.md) for behavioral specifications and [progress.md](progress.md) for decision rationale.
+> For Claude Code sessions: this section is the authoritative record of what has been built. Update it as features are completed. See [PRD.md](PRD.md) for behavioral specifications.
 
 ### Completed
 
@@ -98,7 +98,7 @@ julia> out = run(inputs, dv; n_replicates = 3) # 3 replicates per apoptosis rate
 - [x] Movie generation via the PhysiCell Makefile (`makeMovie`) — `framerate`, `magick_density`, `magick_resize_x`/`magick_resize_y` keyword arguments
 - [x] PhysiCell Studio integration (`runStudio`) — launches Studio against a completed simulation's output; either launch failure (interpreter not spawnable, Studio exiting non-zero) raises `PCMMStudioLaunchError`
 - [x] Typed exceptions — every PCMM-specific failure subtypes `PCMMException`, so a GUI consumer can catch the family or a concrete type
-- [x] Tiered documentation — a sidebar Detail selector (Code / Brief / Full / Dev / Journal) on every page; every public name (PCMM's and ModelManager's re-exports) has a manual home on a user page under `docs/src/man/` or a Dev-tier page under `docs/src/dev/`, enforced by `test/test-scripts/ManualCoverageTests.jl`; dated design notes in `!!! tierjournal` blocks are collected into `docs/src/dev/journal.md` by `docs/journal.jl`; `AGENTS.md` and `CONTRIBUTING.md` at the root
+- [x] Tiered documentation — a sidebar Detail selector (Code / Brief / Full / Dev) on every page; every public name (PCMM's and ModelManager's re-exports) has a manual home on a user page under `docs/src/man/` or a Dev-tier page under `docs/src/dev/`, enforced by `test/test-scripts/ManualCoverageTests.jl`; `AGENTS.md` and `CONTRIBUTING.md` at the root
 
 ### Remaining
 

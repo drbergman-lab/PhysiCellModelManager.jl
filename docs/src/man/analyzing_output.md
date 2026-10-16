@@ -68,13 +68,11 @@ sequence = PhysiCellSequence(1)
 loadCells!(sequence)                 #! all four also take a whole sequence
 ```
 
-!!! tierjournal "2026-07-23 — Loading is PhysiCellOutput.jl, plus a database identity"
-    **Decided.** The path-based loaders and the snapshot/sequence types live in
-    [PhysiCellOutput.jl](https://github.com/drbergman-lab/PhysiCellOutput.jl);
-    PhysiCellModelManager.jl keeps only the layer that turns a simulation ID or a `Simulation` into
-    an output folder, and extends PhysiCellOutput's own constructors.
-    **Rejected.** Wrapping them in a PCMM-owned type, which would have renamed the public
-    constructors that `src/analysis/` is typed against.
+!!! tierdev
+    The loaders and the snapshot and sequence types are
+    [PhysiCellOutput.jl](https://github.com/drbergman-lab/PhysiCellOutput.jl)'s. PCMM adds only the
+    methods that turn a simulation ID or a `Simulation` into an output folder, in `src/loader.jl`,
+    extending PhysiCellOutput's own constructors rather than wrapping them in a type of its own.
 
 ### [`cellDataSequence`](@id cell_data_sequence_section)
 
@@ -134,12 +132,6 @@ spts["cancer"]                                       #! "cancer" counts, one per
 mpts = populationTimeSeries(Monad(1))                #! a MonadPopulationTimeSeries
 mpts["cancer"].mean                                  #! across replicates; also .std and .counts
 ```
-
-!!! tierjournal "2026-03-29 — `finalPopulationCount` is an analysis utility, not a calibration one"
-    **Decided.** It lives in `src/analysis/population.jl` because it answers a question about a
-    finished run; the summary statistics used by calibration and sensitivity analysis delegate to
-    it rather than defining their own count.
-    **Rejected.** A separate endpoint-count function per consumer.
 
 ## Simulation runtime
 
@@ -223,6 +215,12 @@ plot(Simulation(1); color=colors, include_cell_type_names=["cd8", "cancer"]) #! 
     everything listed above for `plot`. `plotbycelltype!` is its mutating form, drawing into an
     existing plot instead of creating one.
 
+!!! tierfull
+    The panels are named from the first simulation in the sampling whose initial XML is still on
+    disk, so a pruned replicate is stepped over rather than ending the plot, and a replicate with no
+    output is left out of its monad's mean and band rather than counted as zero. A sampling with no
+    readable output anywhere raises an `ArgumentError` instead of drawing an empty figure.
+
 ```julia
 using Plots
 plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"]], color=[:blue :red :purple], labels=["epi" "mes" "both"], legend=true)
@@ -239,18 +237,6 @@ plotbycelltype(Sampling(1); include_cell_type_names=["epi", "mes", ["epi", "mes"
     band.
 
 ![Population counts for a single simulation](../assets/plot_single_simulation.png)
-
-!!! tierjournal "2026-09-14 — What the cell-type panels are named after, and what a pruned replicate does"
-    **Decided.** `plotbycelltype` takes its list of cell-type panels from the first simulation in the
-    sampling whose initial XML is still on disk, so a pruned replicate is stepped over rather than
-    ending the plot; a replicate with no output is dropped from the monad's mean and band instead of
-    being counted as zero.
-    **Decided.** `plotbycelltype` refuses a `Trial` with an `ArgumentError` telling the caller to plot
-    its samplings one at a time, because a trial's samplings need not share a config and so need not
-    share a cell-type roster. A sampling with no readable output anywhere raises an `ArgumentError`
-    rather than drawing an empty figure, which could not be told apart from a broken recipe.
-    **Rejected.** Taking the panel list from the config file: the curves come from the output XML,
-    and a list read from a second source is one that can disagree with them.
 
 !!! tierdev
     **Regenerating these figures.** They are committed under `docs/src/assets/` rather than rendered

@@ -19,14 +19,12 @@
     { id: "code", label: "Code", adds: null, hint: "Code only" },
     { id: "brief", label: "Brief", adds: "brief", hint: "One line, then the code" },
     { id: "full", label: "Full", adds: "full", hint: "The reasoning, then the code" },
-    { id: "dev", label: "Dev", adds: "dev", hint: "Plus what someone extending it needs" },
-    { id: "journal", label: "Journal", adds: "journal", hint: "Plus the author's dated notes" }
+    { id: "dev", label: "Dev", adds: "dev", hint: "Plus what someone extending it needs" }
   ];
 
   // Nav entries shown only at a given tier or deeper. First match wins, so
   // keep more specific paths first.
   var NAV_GATES = [
-    { match: "/dev/journal", tier: "journal" },
     { match: "/dev/", tier: "dev" }
   ];
 
@@ -167,7 +165,7 @@
     if (!target || !target.closest) return;
     var box = target.closest(
       ".is-category-tierbrief, .is-category-tierfull, " +
-      ".is-category-tierdev, .is-category-tierjournal"
+      ".is-category-tierdev"
     );
     if (!box || box.offsetParent !== null) return;
     setTier(TIERS[TIERS.length - 1].id, false);

@@ -109,25 +109,15 @@ run(sampling)
     one warning rather than failing the submission. The [Simulator interface](@ref simulator_interface_dev)
     page has the rest of the hooks.
 
-!!! tierjournal "2026-09-05 — `cpus-per-task` follows `omp_num_threads`"
-    **Decided:** PCMM answers ModelManager's `simulationThreads` hook with
-    `parallel/omp_num_threads` read from the simulation's own variation record, so a varied thread
-    count is honored and every job is allocated the CPUs PhysiCell will actually use. A config
-    whose element cannot be read falls back to 1 with one warning rather than failing the
-    submission, and a `cpus-per-task` you set yourself still wins.
-
-!!! tierjournal "2026-08-05 — Compiling for `x86-64` on a cluster"
-    **Decided:** [`initializeModelManager`](@ref) sets the compile flag to `-march=x86-64` when the
-    session is in HPC mode and `-march=native` otherwise. The question a compile has to answer is
-    whether this binary will later be executed by a machine that did not build it, and a batch
-    scheduler is exactly the thing that does that: a `-march=native` binary built on a newer login
-    node dies with an illegal-instruction (SIGILL) crash on an older compute node. The binary is
-    cached across sessions, so the choice cannot be revisited at run time.
-    **Rejected:** `x86-64-v3`, which is the Haswell feature level and so reintroduces that crash on
-    older nodes; and parsing `scontrol show nodes` to detect a heterogeneous partition.
-    **Open:** a non-Slurm scheduler (PBS, LSF, SGE) is not probed for and still gets `native`, and a
-    mixed-architecture cluster — x86 login node, non-x86 compute nodes — is unsupported: run Julia
-    on a node of the same architecture as your compute partition.
+!!! tierdev
+    **Compile flag.** [`initializeModelManager`](@ref) compiles with `-march=x86-64` in HPC mode and
+    `-march=native` otherwise. The executable is cached across sessions, and a batch scheduler is
+    exactly the thing that hands it to a machine that did not build it, where a `native` binary from
+    a newer login node dies with an illegal-instruction (SIGILL) crash on an older compute node.
+    `x86-64-v3` is the Haswell feature level and would bring that crash back, so it is never the
+    default. Only `sbatch` is probed for: a PBS, LSF or SGE site still gets `native`, and a cluster
+    whose login and compute nodes differ in architecture is unsupported; run Julia on a node of the
+    same architecture as your compute partition.
 
 !!! tierbrief
     A submitted job reports its exit code by writing a sentinel file that the submitting worker

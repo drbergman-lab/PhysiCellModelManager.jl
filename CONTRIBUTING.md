@@ -26,10 +26,8 @@ are in [AGENTS.md](AGENTS.md).
 - Every public name has a home in the manual: a user-facing page under `docs/src/man/` or a
   Dev-tier page under `docs/src/dev/`. `test/test-scripts/ManualCoverageTests.jl` fails when one
   does not.
-- Prose that only a developer needs goes in a `!!! tierdev` block next to the code it concerns;
-  a dated decision goes in a `!!! tierjournal "YYYY-MM-DD — Title"` block. `docs/journal.jl`
-  collects the latter into `docs/src/dev/journal.md` at build time; commit the regenerated file.
-- Within a section the order is `tierbrief`, `tierfull`, the code block, `tierdev`, `tierjournal`:
+- Prose that only a developer needs goes in a `!!! tierdev` block next to the code it concerns.
+- Within a section the order is `tierbrief`, `tierfull`, the code block, `tierdev`:
   what it does, why, the call, then commentary. (The `julia-tiered-docs` skill puts `tierfull`
   first; this repo does not.)
 - From "Building & Varying Models" onward, the Code tier of every page is its lead sentence,
@@ -37,7 +35,7 @@ are in [AGENTS.md](AGENTS.md).
   The Getting Started pages are exempt: they read the same at every tier.
 - Never put a code block inside a tier block.
 - Write for the reader of today's release: no "used to", "before 0.9", or renamed-name history in
-  user prose. A decision worth dating goes in a `tierjournal` block.
+  user prose.
 - American spelling throughout (analyze, center, labeled, fulfill).
 - A `public` but unexported name is linked as `[`x`](@ref ModelManager.x)` (or
   `PhysiCellModelManager.x`); a bare `[`x`](@ref)` on a page only resolves exported names.

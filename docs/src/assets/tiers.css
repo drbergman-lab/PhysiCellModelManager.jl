@@ -5,15 +5,13 @@
 
 html[data-docs-tier] .admonition.is-category-tierbrief,
 html[data-docs-tier] .admonition.is-category-tierfull,
-html[data-docs-tier] .admonition.is-category-tierdev,
-html[data-docs-tier] .admonition.is-category-tierjournal {
+html[data-docs-tier] .admonition.is-category-tierdev {
   display: none !important;
 }
 
 html[data-tier-show~="brief"] .admonition.is-category-tierbrief,
 html[data-tier-show~="full"] .admonition.is-category-tierfull,
-html[data-tier-show~="dev"] .admonition.is-category-tierdev,
-html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
+html[data-tier-show~="dev"] .admonition.is-category-tierdev {
   display: block !important;
 }
 
@@ -24,11 +22,9 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   html[data-docs-tier] .admonition.is-category-tierbrief,
   html[data-docs-tier] .admonition.is-category-tierfull,
   html[data-docs-tier] .admonition.is-category-tierdev,
-  html[data-docs-tier] .admonition.is-category-tierjournal,
   .admonition.is-category-tierbrief,
   .admonition.is-category-tierfull,
-  .admonition.is-category-tierdev,
-  .admonition.is-category-tierjournal { display: block !important; }
+  .admonition.is-category-tierdev { display: block !important; }
   .docs-tier-selector { display: none !important; }
   .docs-tier-hidden { display: list-item !important; }
 }
@@ -36,8 +32,7 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 /* Tier blocks read as prose, not as admonition boxes. */
 .admonition.is-category-tierbrief,
 .admonition.is-category-tierfull,
-.admonition.is-category-tierdev,
-.admonition.is-category-tierjournal {
+.admonition.is-category-tierdev {
   background: none;
   box-shadow: none;
   border: none;
@@ -53,29 +48,16 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 .admonition.is-category-tierfull > .admonition-header,
 .admonition.is-category-tierdev > .admonition-header { display: none; }
 
-.admonition.is-category-tierjournal > .admonition-header {
-  display: block;
-  background: none;
-  color: inherit;
-  padding: 0;
-  margin: 0 0 0.35em;
-  font-size: 0.9em;
-  font-weight: 700;
-  opacity: 0.85;
-}
-
 .admonition.is-category-tierbrief > .admonition-body,
 .admonition.is-category-tierfull > .admonition-body,
-.admonition.is-category-tierdev > .admonition-body,
-.admonition.is-category-tierjournal > .admonition-body {
+.admonition.is-category-tierdev > .admonition-body {
   background: none;
   padding: 0;
 }
 
 .admonition.is-category-tierbrief > .admonition-body > :last-child,
 .admonition.is-category-tierfull > .admonition-body > :last-child,
-.admonition.is-category-tierdev > .admonition-body > :last-child,
-.admonition.is-category-tierjournal > .admonition-body > :last-child {
+.admonition.is-category-tierdev > .admonition-body > :last-child {
   margin-bottom: 0;
 }
 
@@ -84,7 +66,6 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
 .admonition.is-category-tierbrief > .admonition-body::before { content: "brief"; }
 .admonition.is-category-tierfull > .admonition-body::before { content: "full"; }
 .admonition.is-category-tierdev > .admonition-body::before { content: "dev"; }
-.admonition.is-category-tierjournal > .admonition-header::before { content: "journal \00a0"; }
 
 .admonition.is-category-tierbrief > .admonition-body::before,
 .admonition.is-category-tierfull > .admonition-body::before,
@@ -95,14 +76,6 @@ html[data-tier-show~="journal"] .admonition.is-category-tierjournal {
   text-transform: uppercase;
   opacity: 0.55;
   margin-bottom: 0.35em;
-}
-
-.admonition.is-category-tierjournal > .admonition-header::before {
-  font-size: 0.75em;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  opacity: 0.55;
-  font-weight: 400;
 }
 
 /* The selector, in the sidebar. */

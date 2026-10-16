@@ -9,10 +9,10 @@ Assistant professor working on computational modeling of cancer-immune interacti
 
 | Document | Purpose |
 |----------|---------|
-| [README.md](README.md) | Project overview + **Implementation Status** (what is built, what remains) |
+| [README.md](README.md) | Project overview and roadmap |
 | [PRD.md](PRD.md) | Behavioral specification for every feature — acceptance criteria and edge cases |
 
-Start any feature session by reading the relevant PRD entry and the Implementation Status section of `README.md`.
+Start any feature session by reading the relevant PRD entry.
 
 ## Project Overview
 PCMM is a Julia package that manages model configuration, versioning, and simulation organization for PhysiCell (a C++ agent-based modeling framework). It provides:
@@ -80,8 +80,7 @@ Cautioned:
 3. Create a feature branch off the chosen base branch.
 4. Implement in the feature branch only.
 5. The user will inspect diffs manually before merging.
-6. Update [README.md](README.md) Implementation Status when a feature is complete.
-7. Trim the PRD.md to reflect the final implementation before merging.
+6. Trim the PRD.md to reflect the final implementation before merging.
 
 **Design brief template:**
 ```
@@ -122,9 +121,8 @@ A feature is complete when **all** of the following are true:
    - Any error conditions that should throw (use `@test_throws`)
 2. **Docstrings written:** Every exported function has a docstring with a description, argument list, return value, and at least one usage example.
 3. **Docs page updated:** If the feature has a user-facing page in `docs/src/man/`, it reflects the new behavior. New features need a docs page.
-4. **README updated:** The Implementation Status section in [README.md](README.md) marks the feature as complete (move from "In Progress" / "Remaining" to "Completed").
-5. **PRD reflects reality:** If implementation deviated from the PRD, update the PRD entry to match what was actually built.
-6. **No regressions:** The full test suite has no new failures compared to the base branch.
+4. **PRD reflects reality:** If implementation deviated from the PRD, update the PRD entry to match what was actually built.
+5. **No regressions:** The full test suite has no new failures compared to the base branch.
 
 ## PCMM‑Specific Guidance
 PCMM manages **model configuration, versioning, simulation organization, and interface code** for PhysiCell.

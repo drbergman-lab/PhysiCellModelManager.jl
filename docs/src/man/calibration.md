@@ -320,7 +320,7 @@ result = run(
 | `accept_overflow` | `false` | Keep all particles passing ε, not just `population_size` |
 | `cdf_grid_k` | `nothing` (off) | Enable the [simulation bank](@ref simulation_bank_calibration) with dyadic-grid snapping at depth `k` |
 | `max_evaluations` | `nothing` (off) | Hard budget cap on total particle evaluations |
-| `store_rejected` | `false` | Persist rejected proposals, so `plot(result, :transition; space = :cdf)` can show them |
+| `store_rejected` | `false` | Persist rejected proposals, so `plot(result, :transition)` can show them in every parameter group, not just `:target` |
 
 ### Manual epsilon schedule
 
@@ -480,7 +480,7 @@ result = resumeABC(calibration)
     slot and both of their functions are named. Do the same for a measurement of your own that
     needs parameters — pass them as `data=` instead of capturing them in a closure; that switches
     `compute` and `reduce` to `(sim, data)` and `(values, data)`, and the
-    [ModelManager calibration manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/)
+    [ModelManager calibration manual](@extref ModelManager :doc:`man/calibration`)
     works through an example. [`mseDistance`](@ref mse_distance_section) and any other top-level
     function restore as well.
 
@@ -568,11 +568,20 @@ cs = ConvergenceSummary(Calibration(42))
     count on the template project.
 
 ```julia
-plot(result)                       # corner (pairs) plot of the final-generation posterior
-plot(result; generation = 3)       # a specific generation
-plot(result; space = :cdf)         # CDF coordinates (should be ≈ Uniform for a good fit)
-plot(Calibration(42))              # from disk, with no in-memory result
+plot(result)                                   # corner (pairs) plot of the final-generation posterior
+plot(result; generation = 3)                   # a specific generation
+plot(result; parameters = :cdf)                # CDF coordinates, e.g. to check prior support
+plot(result; parameters = ["apoptosis rate"])  # named columns only, panels in this order
+plot(Calibration(42))                          # from disk, with no in-memory result
 ```
+
+!!! tierfull
+    Every recipe with a parameter axis (the corner plot, `:ridgeline` and `:transition`) takes
+    `parameters`, which picks both the columns and the coordinates they are drawn in: `:latent`
+    (the default), `:target`, `:cdf`, `:all`, or one or more column names as Strings. The groups
+    and what each draws for a `CoVariation` or `LatentVariation` are spelled out under
+    [Choosing which parameters to draw](@extref ModelManager Choosing-which-parameters-to-draw)
+    in the ModelManager manual.
 
 ![Corner plot of the final-generation posterior](../assets/calibration_corner.png)
 
@@ -591,8 +600,9 @@ plot(ConvergenceSummary(result))   # epsilon, acceptance rate and ESS fraction p
 
 ```julia
 # gen-t posterior plus the gen-(t+1) proposals drawn from it (accepted green, rejected red)
-plot(result, :transition)                  # last complete transition
-plot(result, :transition; generation = 2)  # a specific transition t → t+1
+plot(result, :transition)                       # last complete transition
+plot(result, :transition; generation = 2)       # a specific transition t → t+1
+plot(result, :transition; parameters = :target) # proposals in the values written to the model
 ```
 
 ![Generation transition: the previous posterior and the proposals drawn from it](../assets/calibration_transition.png)
@@ -737,7 +747,7 @@ data/outputs/calibrations/1/
 
 !!! tierdev
     ModelManager owns this layout and documents every column under
-    [What a run leaves on disk](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#What-a-run-leaves-on-disk).
+    [What a run leaves on disk](@extref ModelManager What-a-run-leaves-on-disk).
 
 ## [Built-in summary statistics](@id builtin_ss)
 

@@ -61,6 +61,10 @@ julia --project=docs -e 'using Documenter, PhysiCellModelManager, ModelManager; 
 - On a manual page, a `public` but unexported name must be `@ref`ed with its module:
   `[`simulatorDir`](@ref ModelManager.simulatorDir)`. A bare `[`x`](@ref)` resolves in `Main`, where
   only exported names exist, and fails the build.
+- A link into the ModelManager *manual* (not its API, which PCMM renders itself) is
+  `[text](@extref ModelManager <slug>)` for a heading or `(@extref ModelManager :doc:`man/<page>`)`
+  for a page, never a pasted `github.io/.../stable/` URL. `docs/make.jl` points the `ModelManager`
+  inventory at the minor version in `Project.toml`'s `[compat]`, and an unknown slug fails the build.
 - Every public name appears on a page under `docs/src/man/` or `docs/src/dev/`;
   `test/test-scripts/ManualCoverageTests.jl` enforces it.
 - Never put a code block inside a `!!! tierbrief` / `tierfull` / `tierdev` block.

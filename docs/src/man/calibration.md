@@ -480,7 +480,7 @@ result = resumeABC(calibration)
     slot and both of their functions are named. Do the same for a measurement of your own that
     needs parameters — pass them as `data=` instead of capturing them in a closure; that switches
     `compute` and `reduce` to `(sim, data)` and `(values, data)`, and the
-    [ModelManager calibration manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/)
+    [ModelManager calibration manual](@extref ModelManager :doc:`man/calibration`)
     works through an example. [`mseDistance`](@ref mse_distance_section) and any other top-level
     function restore as well.
 
@@ -580,7 +580,7 @@ plot(Calibration(42))                          # from disk, with no in-memory re
     `parameters`, which picks both the columns and the coordinates they are drawn in: `:latent`
     (the default), `:target`, `:cdf`, `:all`, or one or more column names as Strings. The groups
     and what each draws for a `CoVariation` or `LatentVariation` are spelled out under
-    [Choosing which parameters to draw](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#Choosing-which-parameters-to-draw)
+    [Choosing which parameters to draw](@extref ModelManager Choosing-which-parameters-to-draw)
     in the ModelManager manual.
 
 ![Corner plot of the final-generation posterior](../assets/calibration_corner.png)
@@ -747,7 +747,7 @@ data/outputs/calibrations/1/
 
 !!! tierdev
     ModelManager owns this layout and documents every column under
-    [What a run leaves on disk](https://drbergman-lab.github.io/ModelManager.jl/stable/man/calibration/#What-a-run-leaves-on-disk).
+    [What a run leaves on disk](@extref ModelManager What-a-run-leaves-on-disk).
 
 ## [Built-in summary statistics](@id builtin_ss)
 

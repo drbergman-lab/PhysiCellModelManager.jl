@@ -1,6 +1,7 @@
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+DocumenterInterLinks = "d12716ef-a0f6-4df4-a9f1-a5a34e75c656"
 ModelManager = "2cc58058-5792-4be5-9801-0e92bd3a2373"
 PairCorrelationFunction = "1da3c5ec-5de6-497d-83f1-8bbf7fdc92ec"
 PhysiCellModelManager = "7582d1aa-5e58-4d65-a123-4418a61a2644"

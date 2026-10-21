@@ -55,7 +55,7 @@ createProject("MyNewProject"; template_as_default=false)
     A job the scheduler kills for exceeding an unset default is only noticed minutes later. And the
     Julia session that called `run` is what records each job's outcome, so if it dies the runs
     finish with nothing written down. The
-    [ModelManager HPC manual](https://drbergman-lab.github.io/ModelManager.jl/stable/man/hpc/)
+    [ModelManager HPC manual](@extref ModelManager :doc:`man/hpc`)
     covers submit limits, refused submissions, interrupting a run, and finding a job in `sacct`.
 
 ### Use a dedicated Julia environment

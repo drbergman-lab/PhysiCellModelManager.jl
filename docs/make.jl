@@ -1,4 +1,18 @@
-using Documenter, PhysiCellModelManager, ModelManager
+using Documenter, DocumenterInterLinks, PhysiCellModelManager, ModelManager
+using TOML
+
+# `@extref ModelManager ...` links resolve against the ModelManager manual at the minor version
+# PCMM's [compat] entry pins, so a reader on this PCMM lands in the docs for the MM they have.
+# Documenter deploys one `vMAJOR.MINOR/` folder per minor, and every entry's `objects.inv`
+# inventory is fetched at build time, so a renamed MM heading fails this build instead of 404-ing.
+function modelManagerDocsRoot()
+    compat = TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["compat"]["ModelManager"]
+    lower_bounds = [VersionNumber(lstrip(strip(entry), ('^', '~', '='))) for entry in split(compat, ',')]
+    v = maximum(lower_bounds) # the newest minor PCMM is tested against
+    return "https://drbergman-lab.github.io/ModelManager.jl/v$(v.major).$(v.minor)/"
+end
+
+links = InterLinks("ModelManager" => modelManagerDocsRoot())
 
 DocMeta.setdocmeta!(PhysiCellModelManager, :DocTestSetup, :(using PhysiCellModelManager); recursive=true)
 DocMeta.setdocmeta!(ModelManager, :DocTestSetup, :(using ModelManager); recursive=true)
@@ -91,6 +105,7 @@ makedocs(;
         ],
     ],
     checkdocs=:exports,
+    plugins=[links],
 )
 
 deploydocs(;

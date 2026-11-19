@@ -197,12 +197,15 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
     [Post-processing](@ref post_processing_man) for where computed quantities are kept. Pass
     `recompute=true` to evaluate again rather than reuse them; it has to be explicit, because
     redefining a function's body leaves it indistinguishable from the one already evaluated.
+    For Sobolʼ, each stored result is a `SobolIndices` holding `S1` and `ST`, `S2` when
+    `second_order=true`, and their bootstrap confidence intervals.
 
     The method also determines how the sensitivity scheme is saved. After running the simulations,
     PhysiCellModelManager.jl writes a CSV in `data/outputs/samplings/$(sampling.id)` named after the
     method — `moat_scheme.csv`, `sobol_scheme.csv`, or `rbd_scheme.csv`. Parameter columns in this
     CSV use the latent parameter names for the sampling design, which include user-specified
-    variation names when provided. The simplest way to reload the sampling in a new Julia session is
+    variation names when provided. For Sobolʼ, these names carry a prefix: `A_B:<name>`, plus
+    `B_A:<name>` when `second_order=true`. The simplest way to reload the sampling in a new Julia session is
     to re-run the code that generated it: so long as `use_previous` is `true`, the previous results
     are reused.
 

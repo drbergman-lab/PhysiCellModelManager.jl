@@ -177,7 +177,7 @@ pv_latent = PhysiCellModelManager.ModelManager.ParsedVariations(avs_latent)
 
 sobol_ignore_sampling = run(Sobolʼ(3), reference, avs_latent; ignore_indices=[2])
 all_latent_names = mapreduce(lv_i -> lv_i.latent_parameter_names, vcat, pv_latent.latent_variations)
-expected_headers = ["A"; "B"; all_latent_names[[1, 3]]]
+expected_headers = ["A"; "B"; "A_B:" .* all_latent_names[[1, 3]]]
 @test names(sobol_ignore_sampling.monad_ids_df) == expected_headers
 
 PhysiCellModelManager.ModelManager.deleteMonad(reference.id)

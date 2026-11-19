@@ -138,14 +138,13 @@ save("gsa_rbd.png",          plot(rbd; gsa_size...))
 #! (Sobolʼ(16), 40 simulations) estimated ST below S1, which no total-order index is, and one large
 #! enough to respect that (Sobolʼ(64)) is 238 simulations for a picture whose job is to show the
 #! plot, not to measure anything. So the bars are illustrative values pushed through the recipe a
-#! real `SobolSampling` uses. `_sobolBarData` and `SobolResult` are internals of ModelManager and
-#! GlobalSensitivity; if either moves, this block is the one to fix.
+#! real `SobolSampling` uses. `SobolIndices` is ModelManager's public result type, but
+#! `_sobolBarData` is an internal of ModelManager; if it moves, this block is the one to fix.
 sobol_bars = ModelManager._sobolBarData(
     Dict("population_count.default" =>
-         ModelManager.GlobalSensitivity.SobolResult([0.28, 0.55], nothing, nothing, nothing,
-                                                    [0.41, 0.69], nothing)),
+         ModelManager.SobolIndices([0.28, 0.55], [0.41, 0.69], nothing, nothing, nothing, nothing, 0.95, 0)),
     ModelManager.DataFrames.DataFrame("A" => Int[], "B" => Int[],
-                                      phase_name => Float64[], apoptosis_name => Float64[]),
+                                      "A_B:" * phase_name => Float64[], "A_B:" * apoptosis_name => Float64[]),
     true)
 save("gsa_sobol.png", plot(sobol_bars; gsa_size...))
 

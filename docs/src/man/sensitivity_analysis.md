@@ -202,7 +202,8 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
     PhysiCellModelManager.jl writes a CSV in `data/outputs/samplings/$(sampling.id)` named after the
     method — `moat_scheme.csv`, `sobol_scheme.csv`, or `rbd_scheme.csv`. Parameter columns in this
     CSV use the latent parameter names for the sampling design, which include user-specified
-    variation names when provided. The simplest way to reload the sampling in a new Julia session is
+    variation names when provided. For Sobolʼ, these names carry a prefix: `A_B:<name>`, plus
+    `B_A:<name>` when `second_order=true`. The simplest way to reload the sampling in a new Julia session is
     to re-run the code that generated it: so long as `use_previous` is `true`, the previous results
     are reused.
 

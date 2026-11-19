@@ -82,8 +82,8 @@ LatentVariation (Distribution), 2 -> 2:
 ---------------------------------------
   Name: default: signal threshold low | default: signal threshold high
   Latent Parameters (n = 2):
-    lp#1. bottom_threshold (Distributions.Uniform{Float64}(a=0.0, b=1.0))
-    lp#2. threshold_gap (truncated(Distributions.Normal{Float64}(μ=0.5, σ=0.1); lower=0.0))
+    lp#1. bottom_threshold (Uniform(0.0, 1.0))
+    lp#2. threshold_gap (truncated(Normal(0.5, 0.1), 0.0, nothing))
   Target Parameters (n = 2):
     tp#1. default: signal threshold low
             Location: config

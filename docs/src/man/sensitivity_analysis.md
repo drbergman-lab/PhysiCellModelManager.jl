@@ -197,6 +197,8 @@ evs = [NormalDistributedVariation(configPath("cancer", "apoptosis", "rate"), 1e-
     [Post-processing](@ref post_processing_man) for where computed quantities are kept. Pass
     `recompute=true` to evaluate again rather than reuse them; it has to be explicit, because
     redefining a function's body leaves it indistinguishable from the one already evaluated.
+    For Sobolʼ, each stored result is a `SobolIndices` holding `S1` and `ST`, `S2` when
+    `second_order=true`, and their bootstrap confidence intervals.
 
     The method also determines how the sensitivity scheme is saved. After running the simulations,
     PhysiCellModelManager.jl writes a CSV in `data/outputs/samplings/$(sampling.id)` named after the
